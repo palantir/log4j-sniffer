@@ -16,13 +16,13 @@ package cmd
 
 import (
 	"context"
+	"io"
 	"os"
 
 	"github.com/palantir/pkg/signals"
 	"github.com/palantir/pkg/uuid"
 	"github.com/palantir/witchcraft-go-logging/wlog"
 	wlogtmpl "github.com/palantir/witchcraft-go-logging/wlog-tmpl"
-	"github.com/palantir/witchcraft-go-logging/wlog/evtlog/evt2log"
 	"github.com/palantir/witchcraft-go-logging/wlog/metriclog/metric1log"
 	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 )
@@ -37,8 +37,7 @@ func contextWithDefaultLogger() (context.Context, func() error) {
 	ctx = svc1log.WithLogger(ctx, svc1log.New(os.Stdout, wlog.InfoLevel,
 		svc1log.OriginFromCallLineWithSkip(3),
 		svc1log.SafeParam("runID", uuid.NewUUID())))
-	ctx = evt2log.WithLogger(ctx, evt2log.New(os.Stdout))
-	ctx = metric1log.WithLogger(ctx, metric1log.New(os.Stdout))
+	ctx = metric1log.WithLogger(ctx, metric1log.New(io.Discard))
 	withShutdown, cancel := signals.ContextWithShutdown(ctx)
 	return withShutdown, func() error {
 		cancel()
