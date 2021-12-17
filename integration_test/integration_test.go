@@ -36,7 +36,7 @@ func TestBadVersions(t *testing.T) {
 		finding   crawl.Finding
 	}{
 		{name: "single bad version", directory: "../examples/single_bad_version", count: 1, finding: crawl.JarName | crawl.ClassPackageAndName},
-		{name: "multiple bad versions", directory: "../examples/multiple_bad_versions", count: 14, finding: crawl.JarName | crawl.ClassPackageAndName},
+		{name: "multiple bad versions", directory: "../examples/multiple_bad_versions", count: 13, finding: crawl.JarName | crawl.ClassPackageAndName},
 		{name: "inside a dist", directory: "../examples/inside_a_dist", count: 2, finding: crawl.JarNameInsideArchive},
 		{name: "inside a par", directory: "../examples/inside_a_par", count: 1, finding: crawl.JarNameInsideArchive},
 		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName},
@@ -46,9 +46,9 @@ func TestBadVersions(t *testing.T) {
 		output, err := cmd.CombinedOutput()
 		require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
 		got := string(output)
-		assert.Contains(t, got, "Vulnerable files found", "Case %d: %s", i, currCase.name)
+		assert.Contains(t, got, "Files affected by CVE-2021-45046 detected", "Case %d: %s", i, currCase.name)
 		assert.Contains(t, got, fmt.Sprintf("vulnerableFileCount: %d", currCase.count), "Case %d: %s", i, currCase.name)
-		assert.NotContains(t, got, "No vulnerable files found", "Case %d: %s", i, currCase.name)
+		assert.NotContains(t, got, "No files affected by CVE-2021-45046 detected", "Case %d: %s", i, currCase.name)
 		if currCase.finding&crawl.JarName > 0 {
 			assert.Contains(t, got, "jarNameMatched: true")
 		} else {
@@ -75,6 +75,6 @@ func TestGoodVersion(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
 	got := string(output)
-	assert.Contains(t, got, "No vulnerable files found")
-	assert.NotContains(t, got, "Vulnerable files found")
+	assert.Contains(t, got, "No files affected by CVE-2021-45046 detected")
+	assert.NotContains(t, got, "Files affected by CVE-2021-45046 detected")
 }

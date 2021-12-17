@@ -27,7 +27,7 @@ type Reporter struct {
 	count int64
 }
 
-var versionRegex = regexp.MustCompile(`(?i)^(\d+)\.(\d+)(?:\..*)?$`)
+var versionRegex = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:\..*)?$`)
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
 func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, result Finding, version string) {
@@ -41,7 +41,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 	} else {
 		filenameParam = svc1log.UnsafeParam("filename", d.Name())
 	}
-	svc1log.FromContext(ctx).Info("Vulnerable file found",
+	svc1log.FromContext(ctx).Info("CVE-2021-45046 detected",
 		svc1log.SafeParam("classNameMatched", result&ClassName > 0),
 		svc1log.SafeParam("jarNameMatched", result&JarName > 0),
 		svc1log.SafeParam("jarNameInsideArchiveMatched", result&JarNameInsideArchive > 0),
@@ -65,7 +65,11 @@ func vulnerableVersion(version string) bool {
 		// should not be possible due to group of \d+ in regex
 		return true
 	}
-	return major == 2 && minor < 16
+	patch, err := strconv.Atoi(matches[3])
+	if err != nil {
+		patch = 0
+	}
+	return (major == 2 && minor < 16) && !(major == 2 && minor == 12 && patch >= 2)
 }
 
 // Count returns the number of times that Collect has been called
