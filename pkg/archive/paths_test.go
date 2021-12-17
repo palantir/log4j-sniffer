@@ -16,6 +16,7 @@ package archive
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"github.com/palantir/log4j-sniffer/pkg/testcontext"
@@ -23,31 +24,47 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReadTarGzFilePaths(t *testing.T) {
+func TestWalkTarGzFiles(t *testing.T) {
 	t.Run("cancels on context done", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(testcontext.GetTestContext(t))
 		cancel()
-		_, err := ReadTarGzFilePaths(ctx, "../../examples/archived_fat_jar/archived_fat_jar.tar.gz")
+		err := WalkTarGzFiles(ctx, "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
+			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+				return true, nil
+			})
 		require.Equal(t, ctx.Err(), err)
 	})
 
 	t.Run("successfully lists paths", func(t *testing.T) {
-		paths, err := ReadTarGzFilePaths(testcontext.GetTestContext(t), "../../examples/archived_fat_jar/archived_fat_jar.tar.gz")
+		var paths []string
+		err := WalkTarGzFiles(testcontext.GetTestContext(t), "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
+			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+				paths = append(paths, path)
+				return true, nil
+			})
 		require.NoError(t, err)
 		assert.NotEmpty(t, paths)
 	})
 }
 
-func TestReadZipFilePaths(t *testing.T) {
+func TesWalkZipFiles(t *testing.T) {
 	t.Run("cancels on context done", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(testcontext.GetTestContext(t))
 		cancel()
-		_, err := ReadZipFilePaths(ctx, "../../examples/fat_jar/fat_jar.jar")
+		err := WalkZipFiles(ctx, "../../examples/fat_jar/fat_jar.jar",
+			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+				return true, nil
+			})
 		require.Equal(t, ctx.Err(), err)
 	})
 
 	t.Run("successfully lists paths", func(t *testing.T) {
-		paths, err := ReadZipFilePaths(testcontext.GetTestContext(t), "../../examples/fat_jar/fat_jar.jar")
+		var paths []string
+		err := WalkZipFiles(testcontext.GetTestContext(t), "../../examples/fat_jar/fat_jar.jar",
+			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+				paths = append(paths, path)
+				return true, nil
+			})
 		require.NoError(t, err)
 		assert.NotEmpty(t, paths)
 	})

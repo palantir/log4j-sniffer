@@ -29,7 +29,7 @@ import (
 // Crawl will emit a status metric each time it is run to signify whether the crawl was successful or not.
 // The archiveListTimeout is the per-archive timeout.
 func Crawl(ctx context.Context, archiveListTimeout time.Duration, root string, ignores []*regexp.Regexp) error {
-	identifier := crawl.NewIdentifier(archiveListTimeout, archive.ReadZipFilePaths, archive.ReadTarGzFilePaths)
+	identifier := crawl.NewIdentifier(archiveListTimeout, archive.WalkZipFiles, archive.WalkTarGzFiles)
 	crawler := crawl.Crawler{IgnoreDirs: ignores}
 	reporter := crawl.Reporter{}
 

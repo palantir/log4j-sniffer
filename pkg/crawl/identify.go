@@ -16,11 +16,16 @@ package crawl
 
 import (
 	"context"
+	"crypto/md5"
+	"fmt"
+	"io"
 	"io/fs"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/palantir/log4j-sniffer/pkg/archive"
 )
 
 type Finding int
@@ -31,6 +36,7 @@ const (
 	JarName                      = 1 << iota
 	JarNameInsideArchive         = 1 << iota
 	ClassPackageAndName          = 1 << iota
+	ClassFileMD5                 = 1 << iota
 )
 
 const (
@@ -42,24 +48,36 @@ var (
 	zipExtensions = map[string]struct{}{
 		".ear": {}, ".jar": {}, ".par": {}, ".war": {}, ".zip": {},
 	}
+	badMD5s = map[string]string{
+		// JndiManager.class (source: https://github.com/nccgroup/Cyber-Defence/blob/master/Intelligence/CVE-2021-44228/modified-classes/md5sum.txt)
+		"04fdd701809d17465c17c7e603b1b202": "log4j 2.9.0 - 2.11.2",
+		"21f055b62c15453f0d7970a9d994cab7": "log4j 2.13.0 - 2.13.3",
+		"3bd9f41b89ce4fe8ccbf73e43195a5ce": "log4j 2.6 - 2.6.2",
+		"415c13e7c8505fb056d540eac29b72fa": "log4j 2.7 - 2.8.1",
+		"5824711d6c68162eb535cc4dbf7485d3": "log4j 2.12.0 - 2.12.1",
+		"6b15f42c333ac39abacfeeeb18852a44": "log4j 2.1 - 2.3",
+		"8b2260b1cce64144f6310876f94b1638": "log4j 2.4 - 2.5",
+		"a193703904a3f18fb3c90a877eb5c8a7": "log4j 2.8.2",
+		"f1d630c48928096a484e4b95ccb162a0": "log4j 2.14.0 - 2.14.1",
+		// 2.15.0 vulnerable to Denial of Service attack (source: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-45046)
+		"5d253e53fa993e122ff012221aa49ec3": "log4j 2.15.0",
+	}
 )
 
 type Identifier interface {
 	Identify(ctx context.Context, path string, d fs.DirEntry) (Finding, string, error)
 }
 
-// ArchiveFileLister lists the files contained within an archive.
-type ArchiveFileLister func(ctx context.Context, path string) ([]string, error)
-
 type identifier struct {
-	zipLister, tgzLister ArchiveFileLister
-	listTimeout          time.Duration
+	zipWalker   archive.ArchiveWalkFn
+	tgzWalker   archive.ArchiveWalkFn
+	listTimeout time.Duration
 }
 
-func NewIdentifier(archiveListTimeout time.Duration, zipLister, tgzLister ArchiveFileLister) Identifier {
+func NewIdentifier(archiveListTimeout time.Duration, zipWalker, tgzWalker archive.ArchiveWalkFn) Identifier {
 	return &identifier{
-		zipLister:   zipLister,
-		tgzLister:   tgzLister,
+		zipWalker:   zipWalker,
+		tgzWalker:   tgzWalker,
 		listTimeout: archiveListTimeout,
 	}
 }
@@ -77,14 +95,26 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 		return i.lookForMatchInZip(ctx, path, lowercaseFilename)
 	}
 	if hasTgzFileEnding(lowercaseFilename) {
-		return i.lookForMatchInArchive(ctx, path, i.tgzLister)
+		return i.lookForMatchInTar(ctx, path)
 	}
 	return NothingDetected, UnknownVersion, nil
 }
 
 func (i *identifier) lookForMatchInZip(ctx context.Context, path string, lowercaseFilename string) (Finding, string, error) {
-	archiveResult, innerArchiveVersion, err := i.lookForMatchInArchive(ctx, path, i.zipLister)
-	if err != nil {
+	archiveResult := NothingDetected
+	innerArchiveVersion := UnknownVersion
+	if err := i.zipWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
+		finding, version, err := lookForMatchInFile(ctx, filename, size, contents)
+		if err != nil {
+			return false, err
+		}
+		if finding == NothingDetected {
+			return true, nil
+		}
+		archiveResult = finding
+		innerArchiveVersion = version
+		return false, nil
+	}); err != nil {
 		return NothingDetected, UnknownVersion, err
 	}
 	outerArchiveVersion, match := fileNameMatchesVulnerableLog4jVersion(lowercaseFilename)
@@ -98,23 +128,40 @@ func (i *identifier) lookForMatchInZip(ctx context.Context, path string, lowerca
 	return JarName | archiveResult, outerArchiveVersion, nil
 }
 
-func (i *identifier) lookForMatchInArchive(ctx context.Context, path string, lister ArchiveFileLister) (Finding, string, error) {
-	paths, err := lister(ctx, path)
-	if err != nil {
+func (i *identifier) lookForMatchInTar(ctx context.Context, path string) (Finding, string, error) {
+	archiveResult := NothingDetected
+	innerArchiveVersion := UnknownVersion
+	if err := i.tgzWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
+		finding, version, err := lookForMatchInFile(ctx, filename, size, contents)
+		if err != nil {
+			return false, err
+		}
+		if finding == NothingDetected {
+			return true, nil
+		}
+		archiveResult = finding
+		innerArchiveVersion = version
+		return false, nil
+	}); err != nil {
 		return NothingDetected, UnknownVersion, err
 	}
-	for _, path := range paths {
-		if path == "org/apache/logging/log4j/core/lookup/JndiLookup.class" {
-			return ClassPackageAndName, UnknownVersion, nil
-		}
-		filename := stripDirectories(path)
-		version, match := fileNameMatchesVulnerableLog4jVersion(filename)
-		if match {
-			return JarNameInsideArchive, version, nil
-		}
-		if filename == "JndiLookup.class" {
-			return ClassName, UnknownVersion, nil
-		}
+	return archiveResult, innerArchiveVersion, nil
+}
+
+func lookForMatchInFile(ctx context.Context, path string, size int64, contents io.Reader) (Finding, string, error) {
+	if path == "org/apache/logging/log4j/core/lookup/JndiLookup.class" {
+		return ClassPackageAndName, UnknownVersion, nil
+	}
+	filename := stripDirectories(path)
+
+	if version, match := fileNameMatchesVulnerableLog4jVersion(filename); match {
+		return JarNameInsideArchive, version, nil
+	}
+	if filename == "JndiLookup.class" {
+		return ClassName, UnknownVersion, nil
+	}
+	if version, match := fileMD5MatchesVulnerableLog4jVersion(contents); match {
+		return ClassFileMD5, version, nil
 	}
 	return NothingDetected, UnknownVersion, nil
 }
@@ -125,6 +172,16 @@ func fileNameMatchesVulnerableLog4jVersion(filename string) (string, bool) {
 		return "", false
 	}
 	return matches[1], true
+}
+
+func fileMD5MatchesVulnerableLog4jVersion(contents io.Reader) (string, bool) {
+	sum := md5.New()
+	if _, err := io.Copy(sum, contents); err != nil {
+		return "", false
+	}
+	hash := fmt.Sprintf("%x", sum.Sum(nil))
+	version, matches := badMD5s[hash]
+	return version, matches
 }
 
 func hasZipFileEnding(name string) bool {

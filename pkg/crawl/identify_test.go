@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"github.com/palantir/log4j-sniffer/pkg/testcontext"
 	"github.com/stretchr/testify/assert"
@@ -28,15 +29,15 @@ import (
 )
 
 func TestTgzIdentifierImplementsTimeout(t *testing.T) {
-	identify := crawl.NewIdentifier(0, nil, func(ctx context.Context, path string) ([]string, error) {
+	identify := crawl.NewIdentifier(0, nil, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 		time.Sleep(50 * time.Millisecond)
 		select {
 		case <-ctx.Done():
-			return nil, errors.New("Context was Cancelled")
+			return errors.New("Context was Cancelled")
 		default:
 			require.FailNow(t, "context should have been cancelled")
 		}
-		return nil, nil
+		return nil
 	})
 	_, _, err := identify.Identify(testcontext.GetTestContext(t), "", stubDirEntry{
 		name: "sdlkfjsldkjfs.tar.gz",
@@ -45,15 +46,15 @@ func TestTgzIdentifierImplementsTimeout(t *testing.T) {
 }
 
 func TestZipIdentifierImplementsTimeout(t *testing.T) {
-	identify := crawl.NewIdentifier(0, func(ctx context.Context, path string) ([]string, error) {
+	identify := crawl.NewIdentifier(0, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 		time.Sleep(50 * time.Millisecond)
 		select {
 		case <-ctx.Done():
-			return nil, errors.New("Context was Cancelled")
+			return errors.New("Context was Cancelled")
 		default:
 			require.FailNow(t, "context should have been cancelled")
 		}
-		return nil, nil
+		return nil
 	}, nil)
 	_, _, err := identify.Identify(testcontext.GetTestContext(t), "", stubDirEntry{
 		name: "sdlkfjsldkjfs.zip",
@@ -108,11 +109,11 @@ func TestIdentifyFromFileName(t *testing.T) {
 		version: "2.14.0",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string) ([]string, error) {
+			identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 				// this is called for jars that are not identified as log4j
 				// these cases are tested elsewhere so we just return nil with no error her
-				return nil, nil
-			}, panicOnList)
+				return nil
+			}, panicOnWalk)
 			result, version, err := identify.Identify(testcontext.GetTestContext(t), "", stubDirEntry{
 				name: tc.in,
 			})
@@ -132,10 +133,10 @@ func TestIdentifyFromFileName(t *testing.T) {
 func TestIdentifyFromZipContents(t *testing.T) {
 	t.Run("handles error", func(t *testing.T) {
 		expectedErr := errors.New("err")
-		identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string) ([]string, error) {
+		identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 			assert.Equal(t, "/path/on/disk/", path)
-			return nil, expectedErr
-		}, panicOnList)
+			return expectedErr
+		}, panicOnWalk)
 		_, _, err := identify.Identify(testcontext.GetTestContext(t), "/path/on/disk/", stubDirEntry{
 			name: "file.zip",
 		})
@@ -195,10 +196,10 @@ func TestIdentifyFromZipContents(t *testing.T) {
 		version:  "2.14.1",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string) ([]string, error) {
+			identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 				assert.Equal(t, "/path/on/disk/", path)
 				return tc.zipList, nil
-			}, func(ctx context.Context, path string) ([]string, error) {
+			}, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 				assert.Equal(t, "/path/on/disk/", path)
 				return tc.tarList, nil
 			})
@@ -238,6 +239,6 @@ func (s stubDirEntry) Info() (fs.FileInfo, error) {
 	panic("not required")
 }
 
-func panicOnList(context.Context, string) ([]string, error) {
+func panicOnWalk(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 	panic("should not have been called")
 }
