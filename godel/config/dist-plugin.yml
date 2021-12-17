@@ -8,6 +8,8 @@ products:
         arch: amd64
       - os: darwin
         arch: amd64
+      - os: darwin
+        arch: arm64
     dist:
       disters:
         os-arch-bin:
@@ -18,6 +20,8 @@ products:
               arch: amd64
             - os: darwin
               arch: amd64
+            - os: darwin
+              arch: arm64
     publish: {}
 product-defaults:
   publish:

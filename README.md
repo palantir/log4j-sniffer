@@ -23,7 +23,7 @@ It will look for the following:
 Downloads
 =========
 
-log4j-sniffer executables compiled for Linux and Darwin (MacOS) amd64 architectures are available on the [releases page](https://github.com/palantir/log4j-sniffer/releases).
+log4j-sniffer executables compiled for linux-amd64, darwin-amd64, and darwin-arm64 architectures are available on the [releases page](https://github.com/palantir/log4j-sniffer/releases).
 
 Running
 =======
