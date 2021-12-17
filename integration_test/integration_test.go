@@ -15,8 +15,8 @@
 package integration_test
 
 import (
+	"fmt"
 	"os/exec"
-	"strconv"
 	"testing"
 
 	"github.com/palantir/godel/v2/pkg/products"
@@ -48,22 +48,22 @@ func TestBadVersions(t *testing.T) {
 			require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
 			got := string(output)
 			assert.Contains(t, got, "Vulnerable files found")
-			assert.Contains(t, got, "\"vulnerableFileCount\":"+strconv.Itoa(currCase.count)+"}")
+			assert.Contains(t, got, fmt.Sprintf("vulnerableFileCount: %d", currCase.count))
 			assert.NotContains(t, got, "No vulnerable files found")
 			if currCase.finding&crawl.JarName > 0 {
-				assert.Contains(t, got, "\"jarNameMatched\":true")
+				assert.Contains(t, got, "jarNameMatched: true")
 			} else {
-				assert.NotContains(t, got, "\"jarNameMatched\":true")
+				assert.NotContains(t, got, "jarNameMatched: true")
 			}
 			if currCase.finding&crawl.JarNameInsideArchive > 0 {
-				assert.Contains(t, got, "\"jarNameInsideArchiveMatched\":true")
+				assert.Contains(t, got, "jarNameInsideArchiveMatched: true")
 			} else {
-				assert.NotContains(t, got, "\"jarNameInsideArchiveMatched\":true")
+				assert.NotContains(t, got, "jarNameInsideArchiveMatched: true")
 			}
 			if currCase.finding&crawl.ClassPackageAndName > 0 {
-				assert.Contains(t, got, "\"classPackageAndNameMatch\":true")
+				assert.Contains(t, got, "classPackageAndNameMatch: true")
 			} else {
-				assert.NotContains(t, got, "\"classPackageAndNameMatch\":true")
+				assert.NotContains(t, got, "classPackageAndNameMatch: true")
 			}
 		})
 	}
