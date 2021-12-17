@@ -32,26 +32,19 @@ This tool is intensive and is recommended to be run with low priority settings.
 
 On Linux:
 ```
-ionice -c 3 nice -n 19 log4j-sniffer crawl /path/to/a/directory
+ionice -c 3 nice -n 19 log4j-sniffer crawl ./path/to/a/directory
 ```
 
 Output for vulnerable files looks as follows:
 
 ```
-{"entityName":"log4j-sniffer","entityVersion":"0.13.0-3-gc305bc9.dirty","payload":{"serviceLogV1":
- {"level":"INFO","message":"Vulnerable file found","
-  origin":"github.com/palantir/log4j-sniffer/pkg/crawl/report.go:30",
-  "params":{
-    "classNameMatched":true,
-    "classPackageAndNameMatch":false,
-    "jarNameInsideArchiveMatched":false,
-    "jarNameMatched":false,
-    "runID":"2d41fd5c-aa26-4ed7-a7bd-7dd55e72fc4b"},
-    "time":"2021-12-17T16:57:49.400357Z"
-,"type":"service.1","unsafeParams":{
-  "filename":"shadow-7.1.1.jar",
-  "path":"/Users/hpryce/.gradle/caches/jars-9/2a8699f09955b409cbe629136c2ce07c/shadow-7.1.1.jar"
-}},"type":"serviceLogV1"},"time":"2021-12-17T16:57:49.400348Z","type":"wrapped.1"}
+INFO  [2021-12-17T14:10:10.046706-08:00] github.com/palantir/log4j-sniffer/vendor/github.com/palantir/witchcraft-go-logging/wlog-tmpl/logger.go:48: Crawl started (runID: 0132794a-6b5a-4632-b7ee-7e92672990ee)
+INFO  [2021-12-17T14:10:10.053085-08:00] github.com/palantir/log4j-sniffer/vendor/github.com/palantir/witchcraft-go-logging/wlog-tmpl/logger.go:48: Vulnerable file found (classNameMatched: false, classPackageAndNameMatch: true, filename: log4j-core-2.14.1.jar, jarNameInsideArchiveMatched: false, jarNameMatched: true, runID: 0132794a-6b5a-4632-b7ee-7e92672990ee) (path: examples/single_bad_version/log4j-core-2.14.1.jar)
+INFO  [2021-12-17T14:10:10.053327-08:00] github.com/palantir/log4j-sniffer/vendor/github.com/palantir/witchcraft-go-logging/wlog-tmpl/logger.go:48: Crawl complete (crawlDuration: 6.867927ms, filesScanned: 1, permissionDeniedCount: 0, runID: 0132794a-6b5a-4632-b7ee-7e92672990ee)
+INFO  [2021-12-17T14:10:10.053455-08:00] github.com/palantir/log4j-sniffer/vendor/github.com/palantir/witchcraft-go-logging/wlog-tmpl/logger.go:48: Vulnerable files found (runID: 0132794a-6b5a-4632-b7ee-7e92672990ee, vulnerableFileCount: 1)
+[2021-12-17T14:10:10.053568-08:00] METRIC com.palantir.log4j-sniffer.crawl.duration_milliseconds gauge (value: 6)
+[2021-12-17T14:10:10.053664-08:00] METRIC com.palantir.log4j-sniffer.crawl.status gauge (value: 0)
+[2021-12-17T14:10:10.053741-08:00] METRIC com.palantir.log4j-sniffer.report.vulnerable_files_found gauge (value: 1)
 ```
 
 With the following meaning:

@@ -1,7 +1,13 @@
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
+# github.com/fatih/color v1.13.0
+github.com/fatih/color
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
+# github.com/mattn/go-colorable v0.1.12
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.14
+github.com/mattn/go-isatty
 # github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
 ## explicit
 # github.com/nmiyake/pkg/errorstringer v1.1.0
@@ -14,6 +20,8 @@ github.com/palantir/go-metrics
 github.com/palantir/godel/v2/pkg/products
 # github.com/palantir/pkg v1.0.1
 github.com/palantir/pkg
+# github.com/palantir/pkg/bytesbuffers v1.0.1
+github.com/palantir/pkg/bytesbuffers
 # github.com/palantir/pkg/cobracli v1.0.1
 ## explicit
 github.com/palantir/pkg/cobracli
@@ -46,6 +54,9 @@ github.com/palantir/witchcraft-go-error/internal/errors
 github.com/palantir/witchcraft-go-logging/conjure/witchcraft/api/logging
 github.com/palantir/witchcraft-go-logging/internal/gopath
 github.com/palantir/witchcraft-go-logging/wlog
+github.com/palantir/witchcraft-go-logging/wlog-tmpl
+github.com/palantir/witchcraft-go-logging/wlog-tmpl/logentryformatter
+github.com/palantir/witchcraft-go-logging/wlog-tmpl/logs
 github.com/palantir/witchcraft-go-logging/wlog/auditlog/audit2log
 github.com/palantir/witchcraft-go-logging/wlog/diaglog/diag1log
 github.com/palantir/witchcraft-go-logging/wlog/evtlog/evt2log
@@ -76,6 +87,9 @@ github.com/spf13/pflag
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
+# golang.org/x/sys v0.0.0-20211205182925-97ca703d548d
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/unix
 # gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
 ## explicit
 # gopkg.in/yaml.v2 v2.4.0

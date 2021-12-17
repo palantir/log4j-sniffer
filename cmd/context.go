@@ -16,11 +16,12 @@ package cmd
 
 import (
 	"context"
+	"github.com/palantir/witchcraft-go-logging/wlog"
 	"os"
 
 	"github.com/palantir/pkg/signals"
 	"github.com/palantir/pkg/uuid"
-	"github.com/palantir/witchcraft-go-logging/wlog"
+	wlogtmpl "github.com/palantir/witchcraft-go-logging/wlog-tmpl"
 	"github.com/palantir/witchcraft-go-logging/wlog/evtlog/evt2log"
 	"github.com/palantir/witchcraft-go-logging/wlog/metriclog/metric1log"
 	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
@@ -32,7 +33,7 @@ import (
 // The function returned by contextWithDefaultLogger must be called on application shutdown,
 // this will cancel the context and close the file logger.
 func contextWithDefaultLogger() (context.Context, func() error) {
-	wlog.SetDefaultLoggerProvider(wlog.NewJSONMarshalLoggerProvider())
+	wlog.SetDefaultLoggerProvider(wlogtmpl.LoggerProvider(nil))
 	logger := wrapped1log.New(os.Stdout, wlog.InfoLevel, "log4j-sniffer", Version)
 	ctx := context.Background()
 	ctx = svc1log.WithLogger(ctx, logger.Service(
