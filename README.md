@@ -12,7 +12,7 @@ What this does
 ==============
 
 log4j-sniffer will scan a filesystem looking for all files of the following types:
-- Zips: .zip, .par
+- Zips: .zip
 - Java archives: .jar, .war, .ear
 - Tar: .tar.gz, .tgz
 
