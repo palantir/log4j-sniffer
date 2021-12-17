@@ -16,11 +16,11 @@ package cmd
 
 import (
 	"context"
-	"github.com/palantir/witchcraft-go-logging/wlog"
 	"os"
 
 	"github.com/palantir/pkg/signals"
 	"github.com/palantir/pkg/uuid"
+	"github.com/palantir/witchcraft-go-logging/wlog"
 	wlogtmpl "github.com/palantir/witchcraft-go-logging/wlog-tmpl"
 	"github.com/palantir/witchcraft-go-logging/wlog/evtlog/evt2log"
 	"github.com/palantir/witchcraft-go-logging/wlog/metriclog/metric1log"

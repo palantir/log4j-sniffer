@@ -32,7 +32,7 @@ This tool is intensive and is recommended to be run with low priority settings.
 
 On Linux:
 ```
-ionice -c 3 nice -n 19 log4j-sniffer crawl ./path/to/a/directory
+ionice -c 3 nice -n 19 log4j-sniffer crawl /path/to/a/directory
 ```
 
 Output for vulnerable files looks as follows:
