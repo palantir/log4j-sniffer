@@ -18,8 +18,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/palantir/log4j-sniffer/internal/crawler"
-	"github.com/palantir/log4j-sniffer/pkg/metrics"
+	"github.com/palantir/log4j-scanner/internal/crawler"
+	"github.com/palantir/log4j-scanner/pkg/metrics"
 	werror "github.com/palantir/witchcraft-go-error"
 	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 	"github.com/spf13/cobra"

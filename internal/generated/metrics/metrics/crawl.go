@@ -7,7 +7,7 @@ import (
 	pkgmetrics "github.com/palantir/pkg/metrics"
 )
 
-// CrawlMetric: Metrics reflecting state of log4j-sniffer crawls.
+// CrawlMetric: Metrics reflecting state of log4j-scanner crawls.
 type CrawlMetric interface {
 	// Gauge value containing the duration in milliseconds of the most recent crawl.
 	DurationMilliseconds() CrawlDurationMillisecondsBuilderStage
@@ -41,11 +41,11 @@ func (b *crawl) DurationMilliseconds() CrawlDurationMillisecondsBuilderStage {
 }
 
 func (b *crawlDurationMillisecondsBuilder) Gauge() metrics.Gauge {
-	return b.registry.Gauge("com.palantir.log4j-sniffer.crawl.duration_milliseconds")
+	return b.registry.Gauge("com.palantir.log4j-scanner.crawl.duration_milliseconds")
 }
 
 func (b *crawlDurationMillisecondsBuilder) Unregister() {
-	b.registry.Unregister("com.palantir.log4j-sniffer.crawl.duration_milliseconds")
+	b.registry.Unregister("com.palantir.log4j-scanner.crawl.duration_milliseconds")
 }
 
 type CrawlStatusBuilderStage interface {
@@ -62,9 +62,9 @@ func (b *crawl) Status() CrawlStatusBuilderStage {
 }
 
 func (b *crawlStatusBuilder) Gauge() metrics.Gauge {
-	return b.registry.Gauge("com.palantir.log4j-sniffer.crawl.status")
+	return b.registry.Gauge("com.palantir.log4j-scanner.crawl.status")
 }
 
 func (b *crawlStatusBuilder) Unregister() {
-	b.registry.Unregister("com.palantir.log4j-sniffer.crawl.status")
+	b.registry.Unregister("com.palantir.log4j-scanner.crawl.status")
 }

@@ -39,9 +39,9 @@ func (b *report) VulnerableFilesFound() ReportVulnerableFilesFoundBuilderStage {
 }
 
 func (b *reportVulnerableFilesFoundBuilder) Gauge() metrics.Gauge {
-	return b.registry.Gauge("com.palantir.log4j-sniffer.report.vulnerable_files_found")
+	return b.registry.Gauge("com.palantir.log4j-scanner.report.vulnerable_files_found")
 }
 
 func (b *reportVulnerableFilesFoundBuilder) Unregister() {
-	b.registry.Unregister("com.palantir.log4j-sniffer.report.vulnerable_files_found")
+	b.registry.Unregister("com.palantir.log4j-scanner.report.vulnerable_files_found")
 }

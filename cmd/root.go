@@ -25,7 +25,7 @@ var (
 
 func Execute() int {
 	rootCmd := &cobra.Command{
-		Use:   "log4j-sniffer",
+		Use:   "log4j-scanner",
 		Short: "Filesystem crawler to identify jars and java classes",
 	}
 	rootCmd.AddCommand(crawlCmd())

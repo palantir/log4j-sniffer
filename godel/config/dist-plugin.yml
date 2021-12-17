@@ -1,8 +1,8 @@
 products:
-  log4j-sniffer:
+  log4j-scanner:
     build:
       main-pkg: .
-      version-var: github.com/palantir/log4j-sniffer/cmd.Version
+      version-var: github.com/palantir/log4j-scanner/cmd.Version
       os-archs:
       - os: linux
         arch: amd64
@@ -25,4 +25,4 @@ products:
     publish: {}
 product-defaults:
   publish:
-    group-id: com.palantir.log4j-sniffer
+    group-id: com.palantir.log4j-scanner

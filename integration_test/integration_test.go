@@ -20,13 +20,13 @@ import (
 	"testing"
 
 	"github.com/palantir/godel/v2/pkg/products"
-	"github.com/palantir/log4j-sniffer/pkg/crawl"
+	"github.com/palantir/log4j-scanner/pkg/crawl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestBadVersions(t *testing.T) {
-	cli, err := products.Bin("log4j-sniffer")
+	cli, err := products.Bin("log4j-scanner")
 	require.NoError(t, err)
 
 	for i, currCase := range []struct {
@@ -68,7 +68,7 @@ func TestBadVersions(t *testing.T) {
 }
 
 func TestGoodVersion(t *testing.T) {
-	cli, err := products.Bin("log4j-sniffer")
+	cli, err := products.Bin("log4j-scanner")
 	require.NoError(t, err)
 
 	cmd := exec.Command(cli, "crawl", "../examples/good_version")

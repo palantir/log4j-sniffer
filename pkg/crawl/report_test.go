@@ -17,8 +17,8 @@ package crawl_test
 import (
 	"testing"
 
-	"github.com/palantir/log4j-sniffer/pkg/crawl"
-	"github.com/palantir/log4j-sniffer/pkg/testcontext"
+	"github.com/palantir/log4j-scanner/pkg/crawl"
+	"github.com/palantir/log4j-scanner/pkg/testcontext"
 	"github.com/stretchr/testify/assert"
 )
 

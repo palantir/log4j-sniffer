@@ -33,7 +33,7 @@ import (
 // this will cancel the context and close the file logger.
 func contextWithDefaultLogger() (context.Context, func() error) {
 	wlog.SetDefaultLoggerProvider(wlog.NewJSONMarshalLoggerProvider())
-	logger := wrapped1log.New(os.Stdout, wlog.InfoLevel, "log4j-sniffer", Version)
+	logger := wrapped1log.New(os.Stdout, wlog.InfoLevel, "log4j-scanner", Version)
 	ctx := context.Background()
 	ctx = svc1log.WithLogger(ctx, logger.Service(
 		svc1log.OriginFromCallLineWithSkip(4),

@@ -15,7 +15,7 @@ gopath: &gopath
   gopath: /home/circleci/go
 
 working_directory: &working_directory
-    working_directory: /home/circleci/go/src/github.com/palantir/log4j-sniffer
+    working_directory: /home/circleci/go/src/github.com/palantir/log4j-scanner
 
 executors:
   circleci-go:

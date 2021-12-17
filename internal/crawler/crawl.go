@@ -19,9 +19,9 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/palantir/log4j-sniffer/internal/generated/metrics/metrics"
-	"github.com/palantir/log4j-sniffer/pkg/archive"
-	"github.com/palantir/log4j-sniffer/pkg/crawl"
+	"github.com/palantir/log4j-scanner/internal/generated/metrics/metrics"
+	"github.com/palantir/log4j-scanner/pkg/archive"
+	"github.com/palantir/log4j-scanner/pkg/crawl"
 	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 )
 

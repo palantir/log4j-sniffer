@@ -1,4 +1,4 @@
-module github.com/palantir/log4j-sniffer
+module github.com/palantir/log4j-scanner
 
 go 1.16
 

@@ -1,16 +1,16 @@
 <p align="right">
-<a href="https://autorelease.general.dmz.palantir.tech/palantir/log4j-sniffer"><img src="https://img.shields.io/badge/Perform%20an-Autorelease-success.svg" alt="Autorelease"></a>
+<a href="https://autorelease.general.dmz.palantir.tech/palantir/log4j-scanner"><img src="https://img.shields.io/badge/Perform%20an-Autorelease-success.svg" alt="Autorelease"></a>
 </p>
 
-log4j-sniffer
+log4j-scanner
 ============
 
-log4j-sniffer pulls your archives apart looking for bad log4j versions.
+log4j-scanner pulls your archives apart looking for bad log4j versions.
 
 What this does
 ==============
 
-log4j-sniffer will scan a filesystem looking for all files of the following types:
+log4j-scanner will scan a filesystem looking for all files of the following types:
 - Zips: zip, par
 - Java archives: jar, war, ear
 - Tar: .tar.gz, .tgz
@@ -23,7 +23,7 @@ It will look for the following:
 Downloads
 =========
 
-log4j-sniffer executables compiled for linux-amd64, darwin-amd64, and darwin-arm64 architectures are available on the [releases page](https://github.com/palantir/log4j-sniffer/releases).
+log4j-scanner executables compiled for linux-amd64, darwin-amd64, and darwin-arm64 architectures are available on the [releases page](https://github.com/palantir/log4j-scanner/releases).
 
 Running
 =======
@@ -32,15 +32,15 @@ This tool is intensive and is recommended to be run with low priority settings.
 
 On Linux:
 ```
-ionice -c 3 nice -n 19 log4j-sniffer crawl /path/to/a/directory
+ionice -c 3 nice -n 19 log4j-scanner crawl /path/to/a/directory
 ```
 
 Output for vulnerable files looks as follows:
 
 ```
-{"entityName":"log4j-sniffer","entityVersion":"0.13.0-3-gc305bc9.dirty","payload":{"serviceLogV1":
+{"entityName":"log4j-scanner","entityVersion":"0.13.0-3-gc305bc9.dirty","payload":{"serviceLogV1":
  {"level":"INFO","message":"Vulnerable file found","
-  origin":"github.com/palantir/log4j-sniffer/pkg/crawl/report.go:30",
+  origin":"github.com/palantir/log4j-scanner/pkg/crawl/report.go:30",
   "params":{
     "classNameMatched":true,
     "classPackageAndNameMatch":false,

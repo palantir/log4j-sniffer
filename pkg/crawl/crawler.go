@@ -22,7 +22,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/palantir/log4j-sniffer/internal/generated/metrics/metrics"
+	"github.com/palantir/log4j-scanner/internal/generated/metrics/metrics"
 	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 )
 
@@ -63,7 +63,7 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 				permissionDeniedCount++
 				return nil
 			case os.IsNotExist(err):
-				// Root should always exist, to pick up on misconfigured service, but log4j-sniffer can encounter transient
+				// Root should always exist, to pick up on misconfigured service, but log4j-scanner can encounter transient
 				// files when walking, where WalkDir lists the directory entries but the entry disappears before or
 				// during the walk function iterating over it.
 				if path == root {

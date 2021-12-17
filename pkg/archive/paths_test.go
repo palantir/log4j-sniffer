@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/palantir/log4j-sniffer/pkg/testcontext"
+	"github.com/palantir/log4j-scanner/pkg/testcontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

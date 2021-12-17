@@ -17,7 +17,7 @@ package main
 import (
 	"os"
 
-	"github.com/palantir/log4j-sniffer/cmd"
+	"github.com/palantir/log4j-scanner/cmd"
 )
 
 func main() {
