@@ -57,16 +57,10 @@ github.com/palantir/witchcraft-go-logging/wlog
 github.com/palantir/witchcraft-go-logging/wlog-tmpl
 github.com/palantir/witchcraft-go-logging/wlog-tmpl/logentryformatter
 github.com/palantir/witchcraft-go-logging/wlog-tmpl/logs
-github.com/palantir/witchcraft-go-logging/wlog/auditlog/audit2log
-github.com/palantir/witchcraft-go-logging/wlog/diaglog/diag1log
 github.com/palantir/witchcraft-go-logging/wlog/evtlog/evt2log
-github.com/palantir/witchcraft-go-logging/wlog/extractor
 github.com/palantir/witchcraft-go-logging/wlog/internal
 github.com/palantir/witchcraft-go-logging/wlog/metriclog/metric1log
-github.com/palantir/witchcraft-go-logging/wlog/reqlog/req2log
 github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log
-github.com/palantir/witchcraft-go-logging/wlog/trclog/trc1log
-github.com/palantir/witchcraft-go-logging/wlog/wrappedlog/wrapped1log
 # github.com/palantir/witchcraft-go-params v1.2.0
 github.com/palantir/witchcraft-go-params
 # github.com/palantir/witchcraft-go-tracing v1.4.0
@@ -76,8 +70,6 @@ github.com/palantir/witchcraft-go-tracing/wtracing
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
-# github.com/satori/go.uuid v1.2.0
-github.com/satori/go.uuid
 # github.com/spf13/cobra v1.3.0
 ## explicit
 github.com/spf13/cobra

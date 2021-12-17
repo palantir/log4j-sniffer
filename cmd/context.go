@@ -25,7 +25,6 @@ import (
 	"github.com/palantir/witchcraft-go-logging/wlog/evtlog/evt2log"
 	"github.com/palantir/witchcraft-go-logging/wlog/metriclog/metric1log"
 	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
-	"github.com/palantir/witchcraft-go-logging/wlog/wrappedlog/wrapped1log"
 )
 
 // contextWithDefaultLogger creates a context wired up with a multiwriter to write to  standard out
@@ -34,13 +33,12 @@ import (
 // this will cancel the context and close the file logger.
 func contextWithDefaultLogger() (context.Context, func() error) {
 	wlog.SetDefaultLoggerProvider(wlogtmpl.LoggerProvider(nil))
-	logger := wrapped1log.New(os.Stdout, wlog.InfoLevel, "log4j-sniffer", Version)
 	ctx := context.Background()
-	ctx = svc1log.WithLogger(ctx, logger.Service(
-		svc1log.OriginFromCallLineWithSkip(4),
+	ctx = svc1log.WithLogger(ctx, svc1log.New(os.Stdout, wlog.InfoLevel,
+		svc1log.OriginFromCallLineWithSkip(3),
 		svc1log.SafeParam("runID", uuid.NewUUID())))
-	ctx = evt2log.WithLogger(ctx, logger.Event())
-	ctx = metric1log.WithLogger(ctx, logger.Metric())
+	ctx = evt2log.WithLogger(ctx, evt2log.New(os.Stdout))
+	ctx = metric1log.WithLogger(ctx, metric1log.New(os.Stdout))
 	withShutdown, cancel := signals.ContextWithShutdown(ctx)
 	return withShutdown, func() error {
 		cancel()
