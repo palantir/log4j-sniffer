@@ -57,7 +57,6 @@ github.com/palantir/witchcraft-go-logging/wlog
 github.com/palantir/witchcraft-go-logging/wlog-tmpl
 github.com/palantir/witchcraft-go-logging/wlog-tmpl/logentryformatter
 github.com/palantir/witchcraft-go-logging/wlog-tmpl/logs
-github.com/palantir/witchcraft-go-logging/wlog/evtlog/evt2log
 github.com/palantir/witchcraft-go-logging/wlog/internal
 github.com/palantir/witchcraft-go-logging/wlog/metriclog/metric1log
 github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log

@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Do not emit metric logs
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/12
