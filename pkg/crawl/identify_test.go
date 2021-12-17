@@ -15,6 +15,7 @@
 package crawl_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io/fs"
@@ -197,24 +198,23 @@ func TestIdentifyFromZipContents(t *testing.T) {
 		version:  "2.14.1",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			//identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
-			//	assert.Equal(t, "/path/on/disk/", path)
-			//	for _, s := range tc.zipList {
-			//		if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {
-			//			return err
-			//		}
-			//	}
-			//	return nil
-			//}, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
-			//	assert.Equal(t, "/path/on/disk/", path)
-			//	for _, s := range tc.zipList {
-			//		if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {
-			//			return err
-			//		}
-			//	}
-			//	return nil
-			//})
-			identify := crawl.NewIdentifier(time.Second, archive.WalkZipFiles, archive.WalkTarGzFiles)
+			identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+				assert.Equal(t, "/path/on/disk/", path)
+				for _, s := range tc.zipList {
+					if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {
+						return err
+					}
+				}
+				return nil
+			}, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+				assert.Equal(t, "/path/on/disk/", path)
+				for _, s := range tc.tarList {
+					if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
 			result, version, err := identify.Identify(testcontext.GetTestContext(t), "/path/on/disk/", stubDirEntry{
 				name: tc.filename,
 			})

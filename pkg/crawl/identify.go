@@ -69,12 +69,12 @@ type Identifier interface {
 }
 
 type identifier struct {
-	zipWalker   archive.ArchiveWalkFn
-	tgzWalker   archive.ArchiveWalkFn
+	zipWalker   archive.WalkFn
+	tgzWalker   archive.WalkFn
 	listTimeout time.Duration
 }
 
-func NewIdentifier(archiveListTimeout time.Duration, zipWalker, tgzWalker archive.ArchiveWalkFn) Identifier {
+func NewIdentifier(archiveListTimeout time.Duration, zipWalker, tgzWalker archive.WalkFn) Identifier {
 	return &identifier{
 		zipWalker:   zipWalker,
 		tgzWalker:   tgzWalker,
@@ -111,7 +111,7 @@ func (i *identifier) lookForMatchInZip(ctx context.Context, path string, lowerca
 		if finding == NothingDetected {
 			return true, nil
 		}
-		archiveResult = finding
+		archiveResult = finding | archiveResult
 		innerArchiveVersion = version
 		return false, nil
 	})

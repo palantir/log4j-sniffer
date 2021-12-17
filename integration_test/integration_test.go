@@ -29,7 +29,7 @@ func TestBadVersions(t *testing.T) {
 	cli, err := products.Bin("log4j-sniffer")
 	require.NoError(t, err)
 
-	for i, currCase := range []struct {
+	for _, currCase := range []struct {
 		name      string
 		directory string
 		count     int
@@ -42,28 +42,30 @@ func TestBadVersions(t *testing.T) {
 		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName},
 		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.ClassName},
 	} {
-		cmd := exec.Command(cli, "crawl", currCase.directory)
-		output, err := cmd.CombinedOutput()
-		require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
-		got := string(output)
-		assert.Contains(t, got, "Vulnerable files found", "Case %d: %s", i, currCase.name)
-		assert.Contains(t, got, "\"vulnerableFileCount\":"+strconv.Itoa(currCase.count)+"}", "Case %d: %s", i, currCase.name)
-		assert.NotContains(t, got, "No vulnerable files found", "Case %d: %s", i, currCase.name)
-		if currCase.finding&crawl.JarName > 0 {
-			assert.Contains(t, got, "\"jarNameMatched\":true")
-		} else {
-			assert.NotContains(t, got, "\"jarNameMatched\":true")
-		}
-		if currCase.finding&crawl.JarNameInsideArchive > 0 {
-			assert.Contains(t, got, "\"jarNameInsideArchiveMatched\":true")
-		} else {
-			assert.NotContains(t, got, "\"jarNameInsideArchiveMatched\":true")
-		}
-		if currCase.finding&crawl.ClassPackageAndName > 0 {
-			assert.Contains(t, got, "\"classPackageAndNameMatch\":true")
-		} else {
-			assert.NotContains(t, got, "\"classPackageAndNameMatch\":true")
-		}
+		t.Run(currCase.name, func(t *testing.T) {
+			cmd := exec.Command(cli, "crawl", currCase.directory)
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
+			got := string(output)
+			assert.Contains(t, got, "Vulnerable files found")
+			assert.Contains(t, got, "\"vulnerableFileCount\":"+strconv.Itoa(currCase.count)+"}")
+			assert.NotContains(t, got, "No vulnerable files found")
+			if currCase.finding&crawl.JarName > 0 {
+				assert.Contains(t, got, "\"jarNameMatched\":true")
+			} else {
+				assert.NotContains(t, got, "\"jarNameMatched\":true")
+			}
+			if currCase.finding&crawl.JarNameInsideArchive > 0 {
+				assert.Contains(t, got, "\"jarNameInsideArchiveMatched\":true")
+			} else {
+				assert.NotContains(t, got, "\"jarNameInsideArchiveMatched\":true")
+			}
+			if currCase.finding&crawl.ClassPackageAndName > 0 {
+				assert.Contains(t, got, "\"classPackageAndNameMatch\":true")
+			} else {
+				assert.NotContains(t, got, "\"classPackageAndNameMatch\":true")
+			}
+		})
 	}
 }
 

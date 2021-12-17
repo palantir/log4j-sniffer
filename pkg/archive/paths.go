@@ -23,10 +23,10 @@ import (
 	"os"
 )
 
-// An ArchiveWalkFn iterates through an archive, calling FileWalkFn on each member file.
-type ArchiveWalkFn func(ctx context.Context, path string, walkFn FileWalkFn) error
+// A WalkFn iterates through an archive, calling FileWalkFn on each member file.
+type WalkFn func(ctx context.Context, path string, walkFn FileWalkFn) error
 
-// FileWalkFn is called by an ArchiveWalkFn on each file contained in an archive.
+// FileWalkFn is called by a WalkFn on each file contained in an archive.
 type FileWalkFn func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error)
 
 func WalkZipFiles(ctx context.Context, path string, walkFn FileWalkFn) (err error) {
