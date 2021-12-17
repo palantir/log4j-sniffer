@@ -5,7 +5,7 @@
 log4j-sniffer
 ============
 
-log4j-sniffer searches for all instances log4j that are earlier than version 2.16 on disk within a specified directory.
+log4j-sniffer crawls for all instances of log4j that are earlier than version 2.16 on disk within a specified directory.
 It can be used to determine whether there are any vulnerable instances of log4j within a directory tree.
 
 What this does
