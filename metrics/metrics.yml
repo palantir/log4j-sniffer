@@ -1,0 +1,20 @@
+options:
+  goPackage: metrics 
+namespaces:
+  com.palantir.log4j-sniffer.crawl:
+    shortName: Crawl
+    docs: Metrics reflecting state of log4j-sniffer crawls.
+    metrics:
+      duration_milliseconds:
+        type: Gauge
+        docs: Gauge value containing the duration in milliseconds of the most recent crawl.
+      status:
+        type: Gauge
+        docs: Value representing status of most recent crawl. Zero for success, non-zero for error.
+  com.palantir.log4j-sniffer.report:
+    shortName: Report
+    docs: Metrics regarding vulnerabilities.
+    metrics:
+      vulnerable_files_found:
+        type: Gauge
+        docs: Number of vulnerable files found on host.

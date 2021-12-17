@@ -1,0 +1,33 @@
+products:
+  log4j-sniffer_test:
+    build:
+      main-pkg: .
+      version-var: github.com/palantir/log4j-sniffer/cmd.Version
+      os-archs:
+      - os: linux
+        arch: amd64
+      - os: darwin
+        arch: amd64
+  log4j-sniffer:
+    build:
+      main-pkg: .
+      version-var: github.com/palantir/log4j-sniffer/cmd.Version
+      os-archs:
+      - os: linux
+        arch: amd64
+      - os: darwin
+        arch: amd64
+    dist:
+      disters:
+        os-arch-bin:
+          type: os-arch-bin
+          config:
+            os-archs:
+            - os: linux
+              arch: amd64
+            - os: darwin
+              arch: amd64
+    publish: {}
+product-defaults:
+  publish:
+    group-id: com.palantir.log4j-sniffer

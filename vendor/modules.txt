@@ -1,0 +1,84 @@
+# github.com/davecgh/go-spew v1.1.1
+github.com/davecgh/go-spew/spew
+# github.com/inconshreveable/mousetrap v1.0.0
+github.com/inconshreveable/mousetrap
+# github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
+## explicit
+# github.com/nmiyake/pkg/errorstringer v1.1.0
+github.com/nmiyake/pkg/errorstringer
+# github.com/palantir/go-metrics v1.1.1
+## explicit
+github.com/palantir/go-metrics
+# github.com/palantir/godel/v2 v2.42.0
+## explicit
+github.com/palantir/godel/v2/pkg/products
+# github.com/palantir/pkg v1.0.1
+github.com/palantir/pkg
+# github.com/palantir/pkg/cobracli v1.0.1
+## explicit
+github.com/palantir/pkg/cobracli
+# github.com/palantir/pkg/datetime v1.0.1
+github.com/palantir/pkg/datetime
+# github.com/palantir/pkg/metrics v1.2.0
+## explicit
+github.com/palantir/pkg/metrics
+# github.com/palantir/pkg/safejson v1.0.1
+github.com/palantir/pkg/safejson
+# github.com/palantir/pkg/safelong v1.0.1
+github.com/palantir/pkg/safelong
+# github.com/palantir/pkg/safeyaml v1.0.1
+github.com/palantir/pkg/safeyaml
+# github.com/palantir/pkg/signals v1.0.1
+## explicit
+github.com/palantir/pkg/signals
+# github.com/palantir/pkg/transform v1.0.0
+github.com/palantir/pkg/transform
+# github.com/palantir/pkg/uuid v1.0.1
+## explicit
+github.com/palantir/pkg/uuid
+github.com/palantir/pkg/uuid/internal/uuid
+# github.com/palantir/witchcraft-go-error v1.5.0
+## explicit
+github.com/palantir/witchcraft-go-error
+github.com/palantir/witchcraft-go-error/internal/errors
+# github.com/palantir/witchcraft-go-logging v1.17.0
+## explicit
+github.com/palantir/witchcraft-go-logging/conjure/witchcraft/api/logging
+github.com/palantir/witchcraft-go-logging/internal/gopath
+github.com/palantir/witchcraft-go-logging/wlog
+github.com/palantir/witchcraft-go-logging/wlog/auditlog/audit2log
+github.com/palantir/witchcraft-go-logging/wlog/diaglog/diag1log
+github.com/palantir/witchcraft-go-logging/wlog/evtlog/evt2log
+github.com/palantir/witchcraft-go-logging/wlog/extractor
+github.com/palantir/witchcraft-go-logging/wlog/internal
+github.com/palantir/witchcraft-go-logging/wlog/metriclog/metric1log
+github.com/palantir/witchcraft-go-logging/wlog/reqlog/req2log
+github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log
+github.com/palantir/witchcraft-go-logging/wlog/trclog/trc1log
+github.com/palantir/witchcraft-go-logging/wlog/wrappedlog/wrapped1log
+# github.com/palantir/witchcraft-go-params v1.2.0
+github.com/palantir/witchcraft-go-params
+# github.com/palantir/witchcraft-go-tracing v1.4.0
+github.com/palantir/witchcraft-go-tracing/wtracing
+# github.com/pkg/errors v0.9.1
+## explicit
+github.com/pkg/errors
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
+# github.com/satori/go.uuid v1.2.0
+github.com/satori/go.uuid
+# github.com/spf13/cobra v1.3.0
+## explicit
+github.com/spf13/cobra
+# github.com/spf13/pflag v1.0.5
+github.com/spf13/pflag
+# github.com/stretchr/testify v1.7.0
+## explicit
+github.com/stretchr/testify/assert
+github.com/stretchr/testify/require
+# gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
+## explicit
+# gopkg.in/yaml.v2 v2.4.0
+gopkg.in/yaml.v2
+# gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+gopkg.in/yaml.v3

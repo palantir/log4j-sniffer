@@ -1,0 +1,18 @@
+environment:
+  GOFLAGS: "-mod=vendor"
+exclude:
+  names:
+    - \..+
+    - vendor
+    - generated
+  paths:
+    - godel
+plugins:
+  resolvers:
+    - https://github.com/{{index GroupParts 1}}/{{index GroupParts 2}}/releases/download/v{{Version}}/{{Product}}-{{Version}}-{{OS}}-{{Arch}}.tgz
+  plugins:
+    - locator:
+        id: com.palantir.godel-mod-plugin:mod-plugin:1.4.0
+        checksums:
+          darwin-amd64: 394fde518cc913ba808e0e0ecbc00da54ed88f6f71fa57fb1da1836a46b1b74b
+          linux-amd64: 110540240a42894f0c76922ee832391938e9f51cac9a0a7c7f24cfcc9f9a34fa
