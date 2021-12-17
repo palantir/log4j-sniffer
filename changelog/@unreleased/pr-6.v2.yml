@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Publish darwin-arm64 binaries
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/6
