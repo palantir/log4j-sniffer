@@ -5,20 +5,31 @@
 log4j-sniffer
 ============
 
-log4j-sniffer pulls your archives apart looking for bad log4j versions.
+log4j-sniffer crawls for all instances of log4j that are earlier than version 2.16 on disk within a specified directory.
+It can be used to determine whether there are any vulnerable instances of log4j within a directory tree.
 
 What this does
 ==============
 
 log4j-sniffer will scan a filesystem looking for all files of the following types:
-- Zips: zip, par
-- Java archives: jar, war, ear
+- Zips: .zip
+- Java archives: .jar, .war, .ear
 - Tar: .tar.gz, .tgz
 
 It will look for the following:
-- Jar files matching `log4j-core-<version>.jar`, including those nested with one other archive
+- Jar files matching `log4j-core-<version>.jar`, including those nested within another archive
 - Class files named `org.apache.logging.log4j.core.lookup.JndiLookup` within Jar files or other archives
 - Class files named `JndiLookup` in other package hierarchies
+
+Installing
+==========
+If Go is available on the host system, the following command can be used to install this program:
+
+```
+go install github.com/palantir/log4j-sniffer@latest
+```
+
+This repository also publishes binaries that can be downloaded and executed.
 
 Downloads
 =========
