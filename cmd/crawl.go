@@ -31,8 +31,8 @@ func crawlCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "crawl <root>",
 		Args:  cobra.ExactArgs(1),
-		Short: "Crawl filesystem to scan for vulnerable jars.",
-		Long: `Crawl filesystem to scan for vulnerable jars.
+		Short: "Crawl filesystem to scan for jars vulnerable to CVE-2021-45046.",
+		Long: `Crawl filesystem to scan for jars vulnerable to CVE-2021-45046.
 Root must be provided and can be a single file or directory.
 If a directory is provided, it is traversed and all files are scanned.
 Use the ignore-dir flag to provide directories of which to ignore all nested files.

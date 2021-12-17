@@ -37,13 +37,17 @@ func TestVulnerableAndUnknownVersions(t *testing.T) {
 		var r crawl.Reporter
 		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, crawl.UnknownVersion)
 		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.15.0")
-		assert.EqualValues(t, 2, r.Count())
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.12.1")
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.10.0")
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.15.0-rc1")
+		assert.EqualValues(t, 5, r.Count())
 	})
 }
 func TestNonVulnerableVersion(t *testing.T) {
 	t.Run("keep track of number of calls", func(t *testing.T) {
 		var r crawl.Reporter
 		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.16.0")
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.12.2")
 		assert.EqualValues(t, 0, r.Count())
 	})
 }
