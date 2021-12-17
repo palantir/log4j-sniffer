@@ -1,13 +1,4 @@
 products:
-  log4j-sniffer_test:
-    build:
-      main-pkg: .
-      version-var: github.com/palantir/log4j-sniffer/cmd.Version
-      os-archs:
-      - os: linux
-        arch: amd64
-      - os: darwin
-        arch: amd64
   log4j-sniffer:
     build:
       main-pkg: .
