@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: Check file contents against known-bad MD5s
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/3
