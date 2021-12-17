@@ -43,10 +43,10 @@ func Crawl(ctx context.Context, archiveListTimeout time.Duration, root string, i
 
 	count := reporter.Count()
 	if count > 0 {
-		svc1log.FromContext(ctx).Info("Vulnerable files found",
+		svc1log.FromContext(ctx).Info("Files affected by CVE-2021-45046 detected",
 			svc1log.SafeParam("vulnerableFileCount", count))
 	} else {
-		svc1log.FromContext(ctx).Info("No vulnerable files found")
+		svc1log.FromContext(ctx).Info("No files affected by CVE-2021-45046 detected")
 	}
 	metrics.Report(ctx).VulnerableFilesFound().Gauge().Update(count)
 	return nil
