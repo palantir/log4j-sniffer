@@ -42,9 +42,6 @@ INFO  [2021-12-17T14:10:10.046706-08:00] github.com/palantir/log4j-sniffer/pkg/c
 INFO  [2021-12-17T14:10:10.053085-08:00] github.com/palantir/log4j-sniffer/pkg/crawl/report.go:44: Vulnerable file found (classNameMatched: false, classPackageAndNameMatch: true, filename: log4j-core-2.14.1.jar, jarNameInsideArchiveMatched: false, jarNameMatched: true, runID: 0132794a-6b5a-4632-b7ee-7e92672990ee) (path: examples/single_bad_version/log4j-core-2.14.1.jar)
 INFO  [2021-12-17T14:10:10.053327-08:00] github.com/palantir/log4j-sniffer/pkg/crawl/crawler.go:54: Crawl complete (crawlDuration: 6.867927ms, filesScanned: 1, permissionDeniedCount: 0, runID: 0132794a-6b5a-4632-b7ee-7e92672990ee)
 INFO  [2021-12-17T14:10:10.053455-08:00] github.com/palantir/log4j-sniffer/internal/crawler/crawl.go:46: Vulnerable files found (runID: 0132794a-6b5a-4632-b7ee-7e92672990ee, vulnerableFileCount: 1)
-[2021-12-17T14:10:10.053568-08:00] METRIC com.palantir.log4j-sniffer.crawl.duration_milliseconds gauge (value: 6)
-[2021-12-17T14:10:10.053664-08:00] METRIC com.palantir.log4j-sniffer.crawl.status gauge (value: 0)
-[2021-12-17T14:10:10.053741-08:00] METRIC com.palantir.log4j-sniffer.report.vulnerable_files_found gauge (value: 1)
 ```
 
 With the following meaning:
