@@ -103,7 +103,7 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 func (i *identifier) lookForMatchInZip(ctx context.Context, path string, lowercaseFilename string) (Finding, string, error) {
 	archiveResult := NothingDetected
 	innerArchiveVersion := UnknownVersion
-	if err := i.zipWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
+	err := i.zipWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
 		finding, version, err := lookForMatchInFile(ctx, filename, size, contents)
 		if err != nil {
 			return false, err
@@ -114,7 +114,8 @@ func (i *identifier) lookForMatchInZip(ctx context.Context, path string, lowerca
 		archiveResult = finding
 		innerArchiveVersion = version
 		return false, nil
-	}); err != nil {
+	})
+	if err != nil {
 		return NothingDetected, UnknownVersion, err
 	}
 	outerArchiveVersion, match := fileNameMatchesVulnerableLog4jVersion(lowercaseFilename)

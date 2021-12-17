@@ -131,13 +131,14 @@ func TestIdentifyFromFileName(t *testing.T) {
 }
 
 func TestIdentifyFromZipContents(t *testing.T) {
+	ctx := testcontext.GetTestContext(t)
 	t.Run("handles error", func(t *testing.T) {
 		expectedErr := errors.New("err")
 		identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 			assert.Equal(t, "/path/on/disk/", path)
 			return expectedErr
 		}, panicOnWalk)
-		_, _, err := identify.Identify(testcontext.GetTestContext(t), "/path/on/disk/", stubDirEntry{
+		_, _, err := identify.Identify(ctx, "/path/on/disk/", stubDirEntry{
 			name: "file.zip",
 		})
 		require.Equal(t, expectedErr, err)
@@ -196,13 +197,24 @@ func TestIdentifyFromZipContents(t *testing.T) {
 		version:  "2.14.1",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
-				assert.Equal(t, "/path/on/disk/", path)
-				return tc.zipList, nil
-			}, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
-				assert.Equal(t, "/path/on/disk/", path)
-				return tc.tarList, nil
-			})
+			//identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+			//	assert.Equal(t, "/path/on/disk/", path)
+			//	for _, s := range tc.zipList {
+			//		if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {
+			//			return err
+			//		}
+			//	}
+			//	return nil
+			//}, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+			//	assert.Equal(t, "/path/on/disk/", path)
+			//	for _, s := range tc.zipList {
+			//		if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {
+			//			return err
+			//		}
+			//	}
+			//	return nil
+			//})
+			identify := crawl.NewIdentifier(time.Second, archive.WalkZipFiles, archive.WalkTarGzFiles)
 			result, version, err := identify.Identify(testcontext.GetTestContext(t), "/path/on/disk/", stubDirEntry{
 				name: tc.filename,
 			})
