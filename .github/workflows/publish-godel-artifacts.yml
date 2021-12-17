@@ -1,0 +1,51 @@
+name: publish-godel-artifacts
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+**'
+jobs:
+  run-godel-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      #####################
+      # START Go dist setup
+      #####################
+      - id: set-gopath
+        run: echo "::set-output name=GOPATH::$(go env GOPATH)"
+      - id: go-dist-info
+        uses: ./.github/actions/go-dist-info
+        with:
+          gopath: ${{ steps.set-gopath.outputs.gopath }}
+      - id: restore-go-dist-from-cache
+        if: steps.go-dist-info.outputs.go-dist-exists != 'true'
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ steps.set-gopath.outputs.gopath }}/go-dists/${{ steps.go-dist-info.outputs.go-dist-version }}
+          key: ${{ runner.os }}-${{ steps.go-dist-info.outputs.go-dist-version }}
+      - id: go-dist-setup
+        uses: ./.github/actions/go-dist-setup
+        with:
+          gopath: ${{ steps.set-gopath.outputs.gopath }}
+          go-version: ${{ steps.go-dist-info.outputs.go-dist-version }}
+      #####################
+      # END Go dist setup
+      #####################
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.godel
+          key: ${{ runner.os }}-godel-${{ hashFiles('godelw', 'godel/config/godel.yml') }}
+      - run: ./godelw dist
+        env:
+          GOPATH: "/home/runner/go"
+      - run: ./godelw publish github --add-v-prefix --api-url=$GITHUB_API_URL --user=palantir --repository=log4j-sniffer --token=${{ secrets.GITHUB_TOKEN }}
+        env:
+          GOPATH: "/home/runner/go"
