@@ -20,14 +20,20 @@ It will look for the following:
 - Class files named `org.apache.logging.log4j.core.lookup.JndiLookup` within Jar files or other archives
 - Class files named `JndiLookup` in other package hierarchies
 
+Downloads
+=========
+
+log4j-sniffer executables compiled for Linux and Darwin (MacOS) amd64 architectures are available on the [releases page](https://github.com/palantir/log4j-sniffer/releases).
+
 Running
 =======
 
+This tool is intensive and is recommended to be run with low priority settings.
+
+On Linux:
 ```
 ionice -c 3 nice -n 19 log4j-sniffer crawl /path/to/a/directory
 ```
-
-This tool is intensive and is recommend to be run with low priority settings.
 
 Output for vulnerable files looks as follows:
 
