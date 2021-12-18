@@ -81,24 +81,6 @@ github.com/stretchr/testify/require
 # github.com/zxh0/jvm.go v0.0.0-20191204141628-129b147ebcc8
 ## explicit
 github.com/zxh0/jvm.go/classfile
-github.com/zxh0/jvm.go/classpath
-github.com/zxh0/jvm.go/instructions
-github.com/zxh0/jvm.go/instructions/base
-github.com/zxh0/jvm.go/instructions/comparisons
-github.com/zxh0/jvm.go/instructions/constants
-github.com/zxh0/jvm.go/instructions/control
-github.com/zxh0/jvm.go/instructions/conversions
-github.com/zxh0/jvm.go/instructions/extended
-github.com/zxh0/jvm.go/instructions/loads
-github.com/zxh0/jvm.go/instructions/math
-github.com/zxh0/jvm.go/instructions/references
-github.com/zxh0/jvm.go/instructions/reserved
-github.com/zxh0/jvm.go/instructions/stack
-github.com/zxh0/jvm.go/instructions/stores
-github.com/zxh0/jvm.go/native
-github.com/zxh0/jvm.go/rtda
-github.com/zxh0/jvm.go/rtda/heap
-github.com/zxh0/jvm.go/vm
 github.com/zxh0/jvm.go/vmutils
 # golang.org/x/sys v0.0.0-20211205182925-97ca703d548d
 golang.org/x/sys/internal/unsafeheader
