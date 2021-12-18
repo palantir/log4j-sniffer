@@ -1,0 +1,6 @@
+type: feature
+feature:
+  description: Add an identify command that produces hashes based upon class file
+    contents within a jar.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/19
