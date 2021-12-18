@@ -8,6 +8,8 @@ log4j-sniffer
 log4j-sniffer crawls for all instances of log4j that are earlier than version 2.16 on disk within a specified directory.
 It can be used to determine whether there are any vulnerable instances of log4j within a directory tree.
 
+Scanning for CVE-2021-45046 and CVE-2021-45105 is currently supported.
+
 What this does
 ==============
 
@@ -64,3 +66,10 @@ With the following meaning:
 - log4jVersions: the versions detected at this location based on a combination of filenames and md5 hash matching
 - filename: the filename matched
 - path: the full path on disk for the file
+
+CVE-2021-45105
+==============
+
+If you do not wish to report results for CVE-2021-45105 then pass the `--disable-cve-2021-45105-detection` flag to the crawl command.
+
+Both default both CVE-2021-45046 and CVE-2021-45105 will be reported.
