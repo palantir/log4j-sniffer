@@ -61,9 +61,9 @@ func TestBadVersions(t *testing.T) {
 				assert.NotContains(t, got, "jarNameInsideArchiveMatched: true")
 			}
 			if tc.finding&crawl.ClassPackageAndName > 0 {
-				assert.Contains(t, got, "adsfclassPackageAndNameMatched: true")
+				assert.Contains(t, got, "classPackageAndNameMatched: true")
 			} else {
-				assert.NotContains(t, got, "asdfclassPackageAndNameMatched: true")
+				assert.NotContains(t, got, "classPackageAndNameMatched: true")
 			}
 		})
 	}
