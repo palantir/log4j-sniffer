@@ -63,7 +63,7 @@ func HashClass(jarFile string, className string) (ClassHash, error) {
 	}
 
 	return ClassHash{
-		ClassSize: size,
+		ClassSize:               size,
 		CompleteHash:            completeHash,
 		BytecodeInstructionHash: bytecodeHash,
 	}, nil
@@ -102,7 +102,10 @@ func md5Bytecode(r *zip.ReadCloser, classLocation string) (string, error) {
 	}
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(c)
+	_, err = buf.ReadFrom(c)
+	if err != nil {
+		return "", err
+	}
 
 	h, err := HashClassInstructions(buf.Bytes())
 	if err != nil {

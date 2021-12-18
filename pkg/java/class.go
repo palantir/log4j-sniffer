@@ -32,6 +32,7 @@ import (
 	md52 "crypto/md5"
 	"errors"
 	"fmt"
+
 	"github.com/zxh0/jvm.go/classfile"
 )
 

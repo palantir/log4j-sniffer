@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
-	"github.com/palantir/log4j-sniffer/pkg/java"
 	"io"
 	"io/fs"
 	"path/filepath"
@@ -28,19 +27,20 @@ import (
 	"time"
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
+	"github.com/palantir/log4j-sniffer/pkg/java"
 )
 
 type Finding int
 type Versions map[string]struct{}
 
 const (
-	NothingDetected      Finding = 0
-	ClassName                    = 1 << iota
-	JarName                      = 1 << iota
-	JarNameInsideArchive         = 1 << iota
-	ClassPackageAndName          = 1 << iota
-	ClassBytecodeInstructionMd5  = 1 << iota
-	ClassFileMd5                 = 1 << iota
+	NothingDetected             Finding = 0
+	ClassName                           = 1 << iota
+	JarName                             = 1 << iota
+	JarNameInsideArchive                = 1 << iota
+	ClassPackageAndName                 = 1 << iota
+	ClassBytecodeInstructionMd5         = 1 << iota
+	ClassFileMd5                        = 1 << iota
 )
 
 func (f Finding) String() string {
@@ -212,6 +212,7 @@ func lookForMatchInFile(ctx context.Context, path string, size int64, contents i
 }
 
 const maxClassSize = 0xffff
+
 var classByteBuf []byte = make([]byte, maxClassSize)
 
 func lookForHashMatch(contents io.Reader) (Finding, string, bool) {
@@ -284,11 +285,12 @@ func classMd5Version(classContents []byte) (string, bool) {
 }
 
 func bytecodeMd5Version(classContents []byte) (string, bool) {
-	version, err := java.HashClassInstructions(classContents)
+	hash, err := java.HashClassInstructions(classContents)
 	if err != nil {
 		return UnknownVersion, false
 	}
-	return version, true
+	version, matches := bytecodeMd5s[hash]
+	return version, matches
 }
 
 func hasZipFileEnding(name string) bool {
