@@ -34,7 +34,7 @@ This repository also publishes binaries that can be downloaded and executed.
 Downloads
 =========
 
-log4j-sniffer executables compiled for linux-amd64, darwin-amd64, and darwin-arm64 architectures are available on the [releases page](https://github.com/palantir/log4j-sniffer/releases).
+log4j-sniffer executables compiled for linux-amd64, darwin-amd64, darwin-arm64 and windows-amd64 architectures are available on the [releases page](https://github.com/palantir/log4j-sniffer/releases).
 
 Running
 =======
