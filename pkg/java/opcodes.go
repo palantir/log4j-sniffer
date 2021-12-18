@@ -14,9 +14,9 @@
 
 package java
 
-// When hashing bytecode we care only about the opcodes and not
-// the operands they take as the former is relatively static when
-// shading or obfuscating classfiles while the latter varies significantly
+// Opcodes are used when hashing bytecode to separate out the parts that
+// are relatively static when shading or obfuscating classfiles while
+// skipping the operands that change with those modifications.
 //
 // These tables are intended to use memory (1mb per number of operands) in
 // order to speed up lookups. Total memory use remains reasonable as these
@@ -250,7 +250,7 @@ func setQuadOperandOpcodes() {
 
 var TripleOperandOpcodes = []uint8{0xc5}
 
-// Opcodes that are either reserved or take a variable number of operands
+// OtherOpcodes that are either reserved or take a variable number of operands
 var OtherOpcodes = []uint8{0xc4, 0xab, 0xaa, 0xfe, 0xff, 0xca}
 
 var OpcodesInitialised = false

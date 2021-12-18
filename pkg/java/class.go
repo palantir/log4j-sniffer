@@ -38,7 +38,7 @@ import (
 	"github.com/zxh0/jvm.go/classfile"
 )
 
-// This produces a hash of the opcodes that define the methods
+// HashClassInstructions produces a hash of the opcodes that define the methods
 // of the specified class. This is intended to not change if the
 // package name or other details are changed with the resulting
 // changes to the non-opcode parts of the class format.
