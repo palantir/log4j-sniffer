@@ -18,6 +18,8 @@ log4j-sniffer will scan a filesystem looking for all files of the following type
 - Java archives: .jar, .war, .ear
 - Tar: .tar.gz, .tgz
 
+Zips and Java archives containing other zips and Java archives will be recursively inspected up to a maximum depth of 2.
+
 It will look for the following:
 - Jar files matching `log4j-core-<version>.jar`, including those nested within another archive
 - Class files named `org.apache.logging.log4j.core.net.JndiManager` within Jar files or other archives and check against md5 hashes of known versions
