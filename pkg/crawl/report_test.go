@@ -25,9 +25,9 @@ import (
 func TestUnknownVersions(t *testing.T) {
 	t.Run("keep track of number of calls", func(t *testing.T) {
 		var r crawl.Reporter
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, crawl.UnknownVersion)
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, crawl.UnknownVersion)
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, crawl.UnknownVersion)
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, nil)
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, nil)
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, nil)
 		assert.EqualValues(t, 3, r.Count())
 	})
 }
@@ -35,27 +35,19 @@ func TestUnknownVersions(t *testing.T) {
 func TestVulnerableAndUnknownVersions(t *testing.T) {
 	t.Run("keep track of number of calls", func(t *testing.T) {
 		var r crawl.Reporter
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, crawl.UnknownVersion)
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.15.0")
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.12.1")
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.10.0")
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.15.0-rc1")
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, nil)
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, crawl.Versions{"2.15.0": {}})
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, crawl.Versions{"2.12.1": {}})
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, crawl.Versions{"2.10.0": {}})
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, crawl.Versions{"2.15.0-rc1": {}})
 		assert.EqualValues(t, 5, r.Count())
-	})
-}
-func TestNonVulnerableVersion(t *testing.T) {
-	t.Run("keep track of number of calls", func(t *testing.T) {
-		var r crawl.Reporter
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.16.0")
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "2.12.2")
-		assert.EqualValues(t, 0, r.Count())
 	})
 }
 
 func TestBadVersionString(t *testing.T) {
 	t.Run("keep track of number of calls", func(t *testing.T) {
 		var r crawl.Reporter
-		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, "I'm not a version")
+		r.Collect(testcontext.GetTestContext(t), "", stubDirEntry{}, crawl.JarName, crawl.Versions{"I'm not a version": {}})
 		assert.EqualValues(t, 1, r.Count())
 	})
 }

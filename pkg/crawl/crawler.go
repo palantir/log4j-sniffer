@@ -33,10 +33,10 @@ type Crawler struct {
 
 // MatchFunc is used to match a file for processing.
 // If returning a positive finding, a file will be passed onto the ProcessFunc.
-type MatchFunc func(ctx context.Context, path string, d fs.DirEntry) (Finding, string, error)
+type MatchFunc func(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error)
 
 // ProcessFunc processes the given matched file.
-type ProcessFunc func(ctx context.Context, path string, d fs.DirEntry, result Finding, version string)
+type ProcessFunc func(ctx context.Context, path string, d fs.DirEntry, result Finding, version Versions)
 
 // Crawl crawls the provided root directory. Each file is passed to the provided match function, which returns true if
 // the path should be processed by the provided process function. On encountering a directory, the path will be compared
@@ -90,6 +90,7 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 		matched, version, err := match(ctx, path, d)
 		if err != nil {
 			svc1log.FromContext(ctx).Warn("Error processing path",
+				svc1log.Stacktrace(err),
 				svc1log.UnsafeParam("path", path),
 				svc1log.UnsafeParam("name", d.Name()))
 			return nil

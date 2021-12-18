@@ -81,10 +81,8 @@ func TestIdentifyFromFileName(t *testing.T) {
 		name: "invalid file extension",
 		in:   "log4j-core-2.10.0.png",
 	}, {
-		name:    "log4j patched version",
-		in:      "log4j-core-2.16.0.jar",
-		result:  crawl.JarName,
-		version: "2.16.0",
+		name: "log4j patched version",
+		in:   "log4j-core-2.16.0.jar",
 	}, {
 		name:    "log4j major minor vulnerable version",
 		in:      "log4j-core-2.15.jar",
@@ -117,14 +115,12 @@ func TestIdentifyFromFileName(t *testing.T) {
 				name: tc.in,
 			})
 			require.NoError(t, err)
-			assert.Equal(t, tc.result, result)
-			var expectedVersion string
+			assert.Equal(t, tc.result.String(), result.String())
 			if tc.version == "" {
-				expectedVersion = crawl.UnknownVersion
+				assert.Empty(t, version)
 			} else {
-				expectedVersion = tc.version
+				assert.Equal(t, crawl.Versions{tc.version: {}}, version)
 			}
-			assert.Equal(t, expectedVersion, version)
 		})
 	}
 }
@@ -176,11 +172,13 @@ func TestIdentifyFromZipContents(t *testing.T) {
 		filename: "java.jar",
 		zipList:  []string{"a/package/with/JndiLookup.class"},
 		result:   crawl.ClassName,
+		version:  crawl.UnknownVersion,
 	}, {
 		name:     "non-log4j archive with JndiLookup in the log4j package",
 		filename: "not-log4.jar",
 		zipList:  []string{"org/apache/logging/log4j/core/lookup/JndiLookup.class"},
 		result:   crawl.ClassPackageAndName,
+		version:  crawl.UnknownVersion,
 	}, {
 		name:     "log4j named jar with JndiLookip class",
 		filename: "log4j-core-2.14.1.jar",
@@ -206,14 +204,33 @@ func TestIdentifyFromZipContents(t *testing.T) {
 				name: tc.filename,
 			})
 			require.NoError(t, err)
-			assert.Equal(t, tc.result, result)
-			var expectedVersion string
+			assert.Equal(t, tc.result.String(), result.String())
 			if tc.version == "" {
-				expectedVersion = crawl.UnknownVersion
+				assert.Empty(t, version)
 			} else {
-				expectedVersion = tc.version
+				assert.Equal(t, crawl.Versions{tc.version: {}}, version)
 			}
-			assert.Equal(t, expectedVersion, version)
+		})
+	}
+}
+
+func TestFindingString(t *testing.T) {
+	for _, tc := range []struct {
+		In  crawl.Finding
+		Out string
+	}{
+		{},
+		{crawl.ClassName, "ClassName"},
+		{crawl.JarName, "JarName"},
+		{crawl.JarNameInsideArchive, "JarNameInsideArchive"},
+		{crawl.ClassPackageAndName, "ClassPackageAndName"},
+
+		{crawl.ClassName | crawl.JarName, "ClassName,JarName"},
+		{crawl.ClassName | crawl.ClassPackageAndName, "ClassName,ClassPackageAndName"},
+		{crawl.ClassName | crawl.JarName | crawl.ClassPackageAndName, "ClassName,JarName,ClassPackageAndName"},
+	} {
+		t.Run(tc.Out, func(t *testing.T) {
+			assert.Equal(t, tc.Out, tc.In.String())
 		})
 	}
 }
