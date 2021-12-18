@@ -226,7 +226,7 @@ func vulnerableVersion(version string) bool {
 	if err != nil {
 		patch = 0
 	}
-	return (major == 2 && minor < 16) && !(major == 2 && minor == 12 && patch >= 2)
+	return (major == 2 && minor < 17) && !(major == 2 && minor == 12 && patch >= 3)
 }
 
 func classMd5Version(contents io.Reader) (string, bool) {

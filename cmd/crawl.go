@@ -28,6 +28,7 @@ import (
 func crawlCmd() *cobra.Command {
 	var ignoreDirs []string
 	var perArchiveTimeout time.Duration
+	var disableCve45105 bool
 	cmd := cobra.Command{
 		Use:   "crawl <root>",
 		Args:  cobra.ExactArgs(1),
@@ -56,12 +57,13 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				ignores = append(ignores, compiled)
 			}
 
-			return crawler.Crawl(ctx, perArchiveTimeout, args[0], ignores)
+			return crawler.Crawl(ctx, perArchiveTimeout, args[0], ignores, disableCve45105)
 		},
 	}
 	cmd.Flags().StringSliceVar(&ignoreDirs, "ignore-dir", nil, `Specify directory pattern to ignore. Use multiple times to supply multiple patterns.
 Patterns should be relative to the provided root.
 e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"`)
 	cmd.Flags().DurationVar(&perArchiveTimeout, "per-archive-timeout", 15*time.Minute, `If this duration is exceeded when inspecting an archive, an error will be logged and the crawler will move onto the next file.`)
+	cmd.Flags().BoolVar(&disableCve45105, "disable-cve-2021-45105-detection", false, `Disable detetion of CVE-2021-45105 in versions up to 2.16.0`)
 	return &cmd
 }

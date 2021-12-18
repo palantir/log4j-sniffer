@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: Add support for matching versions vulnerable to CVE-2021-45105
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/25

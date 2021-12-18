@@ -28,10 +28,12 @@ import (
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter.
 // Crawl will emit a status metric each time it is run to signify whether the crawl was successful or not.
 // The archiveListTimeout is the per-archive timeout.
-func Crawl(ctx context.Context, archiveListTimeout time.Duration, root string, ignores []*regexp.Regexp) error {
+func Crawl(ctx context.Context, archiveListTimeout time.Duration, root string, ignores []*regexp.Regexp, disableCve45105 bool) error {
 	identifier := crawl.NewIdentifier(archiveListTimeout, archive.WalkZipFiles, archive.WalkTarGzFiles)
 	crawler := crawl.Crawler{IgnoreDirs: ignores}
-	reporter := crawl.Reporter{}
+	reporter := crawl.Reporter{
+		DisableCve45105: disableCve45105,
+	}
 
 	if err := crawler.Crawl(ctx, root, identifier.Identify, reporter.Collect); err != nil {
 		svc1log.FromContext(ctx).Error("Error crawling",
@@ -43,10 +45,19 @@ func Crawl(ctx context.Context, archiveListTimeout time.Duration, root string, i
 
 	count := reporter.Count()
 	if count > 0 {
-		svc1log.FromContext(ctx).Info("Files affected by CVE-2021-45046 detected",
-			svc1log.SafeParam("vulnerableFileCount", count))
+		if disableCve45105 {
+			svc1log.FromContext(ctx).Info("Files affected by CVE-2021-45046 detected",
+				svc1log.SafeParam("vulnerableFileCount", count))
+		} else {
+			svc1log.FromContext(ctx).Info("Files affected by CVE-2021-45046 or CVE-2021-45105 detected",
+				svc1log.SafeParam("vulnerableFileCount", count))
+		}
 	} else {
-		svc1log.FromContext(ctx).Info("No files affected by CVE-2021-45046 detected")
+		if disableCve45105 {
+			svc1log.FromContext(ctx).Info("No files affected by CVE-2021-45046 detected")
+		} else {
+			svc1log.FromContext(ctx).Info("No files affected by CVE-2021-45046 or CVE-2021-45105 detected")
+		}
 	}
 	metrics.Report(ctx).VulnerableFilesFound().Gauge().Update(count)
 	return nil

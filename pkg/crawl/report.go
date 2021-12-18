@@ -23,12 +23,16 @@ import (
 )
 
 type Reporter struct {
-	count int64
+	count           int64
+	DisableCve45105 bool
 }
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
 func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, result Finding, versionSet Versions) {
 	versions := sortVersions(versionSet)
+	if r.DisableCve45105 && cve45105VersionsOnly(versions) {
+		return
+	}
 	r.count++
 	var filenameParam svc1log.Param
 	if result&JarName > 0 {
@@ -36,7 +40,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 	} else {
 		filenameParam = svc1log.UnsafeParam("filename", d.Name())
 	}
-	svc1log.FromContext(ctx).Info("CVE-2021-45046 detected",
+	svc1log.FromContext(ctx).Info(r.buildCveMessage(versions),
 		svc1log.SafeParam("classNameMatched", result&ClassName > 0),
 		svc1log.SafeParam("jarNameMatched", result&JarName > 0),
 		svc1log.SafeParam("jarNameInsideArchiveMatched", result&JarNameInsideArchive > 0),
@@ -45,6 +49,26 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		filenameParam,
 		svc1log.UnsafeParam("path", path),
 		svc1log.UnsafeParam("log4jVersions", versions))
+}
+
+func (r *Reporter) buildCveMessage(versions []string) string {
+	if r.DisableCve45105 {
+		return "CVE-2021-45046 detected"
+	}
+	if cve45105VersionsOnly(versions) {
+		return "CVE-2021-45105 detected"
+	}
+	return "CVE-2021-45046 & CVE-2021-45105 detected"
+}
+
+func cve45105VersionsOnly(versions []string) bool {
+	if len(versions) == 1 && (versions[0] == "2.16.0" || versions[0] == "2.12.2") {
+		return true
+	}
+	if len(versions) == 2 && versions[0] == "2.12.2" && versions[1] == "2.16.0" {
+		return true
+	}
+	return false
 }
 
 func sortVersions(versions Versions) []string {
