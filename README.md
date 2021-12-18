@@ -22,6 +22,7 @@ It will look for the following:
 - Jar files matching `log4j-core-<version>.jar`, including those nested within another archive
 - Class files named `org.apache.logging.log4j.core.net.JndiManager` within Jar files or other archives and check against md5 hashes of known versions
 - Class files named `JndiManager` in other package hierarchies and check against md5 hashes of known versions
+- Matching of the bytecode of classes named JndiManager against known patterns (see below for more details)
 
 Installing
 ==========
@@ -59,6 +60,7 @@ INFO  [2021-12-17T14:10:10.053455-08:00] github.com/palantir/log4j-sniffer/inter
 
 With the following meaning:
 - classFileMd5Matched: there was a .class file called `JndiManager` that matched the md5 hash of a known version
+- bytecodeInstructionMd5Matched: the bytecode of a .class file called `JndiManager` exactly matched a known version, see below for more details
 - classNameMatched: there was a .class file called `JndiManager`
 - classPackageAndNameMatched: there was a .class file called `JndiManager` with a package of `org.apache.logging.log4j.core.net`
 - jarNameInsideArchiveMatched: there was a .jar file called `log4j-core-<version>.jar` inside the archive
@@ -66,6 +68,15 @@ With the following meaning:
 - log4jVersions: the versions detected at this location based on a combination of filenames and md5 hash matching
 - filename: the filename matched
 - path: the full path on disk for the file
+
+Bytecode matching
+=================
+
+If a class is shaded, for example to build a fat jar, then the bytecode is rewritten to update the package. This means the hash of the class will no longer match against known versions, nor will the class appear where expected within a jar.
+
+To account for this we perform a less accurate hash of a class file: we only hash the fixed parts of the bytecode defining each method, ignoring all parts that might vary upon shading. We take an md5 hash of the resulting bytecode and compare against known versions.
+
+Testing against shaded jars shows this matches when the package version has been changed but the class otherwise left intact. Shading which further modifies classes, such as by removing methods, will not be found with this approach.
 
 CVE-2021-45105
 ==============

@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: Compare bytecode hashes to find shaded JdniManager classes.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/27

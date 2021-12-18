@@ -15,6 +15,7 @@
 package crawl
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"fmt"
@@ -27,18 +28,20 @@ import (
 	"time"
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
+	"github.com/palantir/log4j-sniffer/pkg/java"
 )
 
 type Finding int
 type Versions map[string]struct{}
 
 const (
-	NothingDetected      Finding = 0
-	ClassName                    = 1 << iota
-	JarName                      = 1 << iota
-	JarNameInsideArchive         = 1 << iota
-	ClassPackageAndName          = 1 << iota
-	ClassFileMd5                 = 1 << iota
+	NothingDetected             Finding = 0
+	ClassName                           = 1 << iota
+	JarName                             = 1 << iota
+	JarNameInsideArchive                = 1 << iota
+	ClassPackageAndName                 = 1 << iota
+	ClassBytecodeInstructionMd5         = 1 << iota
+	ClassFileMd5                        = 1 << iota
 )
 
 func (f Finding) String() string {
@@ -69,7 +72,7 @@ var (
 		".ear": {}, ".jar": {}, ".par": {}, ".war": {}, ".zip": {},
 	}
 	// Generated using log4j-sniffer identify
-	md5s = map[string]string{
+	classMd5s = map[string]string{
 		"6b15f42c333ac39abacfeeeb18852a44": "2.1-2.3",
 		"8b2260b1cce64144f6310876f94b1638": "2.4-2.5",
 		"3bd9f41b89ce4fe8ccbf73e43195a5ce": "2.6-2.6.2",
@@ -83,6 +86,17 @@ var (
 		"5d253e53fa993e122ff012221aa49ec3": "2.15.0",
 		"ba1cf8f81e7b31c709768561ba8ab558": "2.16.0",
 		"3dc5cf97546007be53b2f3d44028fa58": "2.17.0",
+	}
+	bytecodeMd5s = map[string]string{
+		"e873c1367963fad624f7128e74013725-v0": "2.1-2.5",
+		"34603528cf70de0e17669acd122ad110-v0": "2.6-2.8.1",
+		"bdbc07b787588e54870b5e90933d2306-v0": "2.8.2",
+		"bd12d274eef8fa455f303284834ce62b-v0": "2.9.0-2.11.2",
+		"81fcf4a9f7dd4dcb4fa0ab6daaed496f-v0": "2.12.2",
+		"8139e14cd3955ef709139c3f23d38057-v0": "2.12.0 - 2.14.1",
+		"5120cdf3b914bb4347e3235efce4eabf-v0": "2.15.0",
+		"0761bbaeee745db2559b6416a3a30712-v0": "2.16.0",
+		"79cd7e06b1a00b375f221414f06bbdd6-v0": "2.17.0",
 	}
 )
 
@@ -174,9 +188,9 @@ func (i *identifier) lookForMatchInTar(ctx context.Context, path string, parentV
 
 func lookForMatchInFile(ctx context.Context, path string, size int64, contents io.Reader, parentVersion string) (Finding, string, error) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
-		version, md5Match := classMd5Version(contents)
-		if md5Match {
-			return ClassPackageAndName | ClassFileMd5, version, nil
+		finding, version, hashMatch := lookForHashMatch(contents, size)
+		if hashMatch {
+			return ClassPackageAndName | finding, version, nil
 		}
 		return ClassPackageAndName, parentVersion, nil
 	}
@@ -189,13 +203,37 @@ func lookForMatchInFile(ctx context.Context, path string, size int64, contents i
 		return JarNameInsideArchive, version, nil
 	}
 	if strings.HasSuffix(path, "JndiManager.class") {
-		version, md5Match := classMd5Version(contents)
-		if md5Match {
-			return ClassName | ClassFileMd5, version, nil
+		finding, version, hashMatch := lookForHashMatch(contents, size)
+		if hashMatch {
+			return ClassName | finding, version, nil
 		}
 		return ClassName, parentVersion, nil
 	}
 	return NothingDetected, parentVersion, nil
+}
+
+const maxClassSize = 0xffff
+
+var classByteBuf bytes.Buffer = bytes.Buffer{}
+
+func lookForHashMatch(contents io.Reader, size int64) (Finding, string, bool) {
+	if size > maxClassSize {
+		return NothingDetected, UnknownVersion, false
+	}
+	classByteBuf.Reset()
+	_, err := classByteBuf.ReadFrom(contents)
+	if err != nil {
+		return NothingDetected, UnknownVersion, false
+	}
+	version, md5Match := classMd5Version(classByteBuf.Bytes())
+	if md5Match {
+		return ClassFileMd5, version, true
+	}
+	version, md5Match = bytecodeMd5Version(classByteBuf.Bytes())
+	if md5Match {
+		return ClassBytecodeInstructionMd5, version, true
+	}
+	return NothingDetected, UnknownVersion, false
 }
 
 func fileNameMatchesLog4jVersion(filename string) (string, bool) {
@@ -229,13 +267,23 @@ func vulnerableVersion(version string) bool {
 	return (major == 2 && minor < 17) && !(major == 2 && minor == 12 && patch >= 3)
 }
 
-func classMd5Version(contents io.Reader) (string, bool) {
+func classMd5Version(classContents []byte) (string, bool) {
 	sum := md5.New()
-	if _, err := io.Copy(sum, contents); err != nil {
+	_, err := sum.Write(classContents)
+	if err != nil {
 		return "", false
 	}
 	hash := fmt.Sprintf("%x", sum.Sum(nil))
-	version, matches := md5s[hash]
+	version, matches := classMd5s[hash]
+	return version, matches
+}
+
+func bytecodeMd5Version(classContents []byte) (string, bool) {
+	hash, err := java.HashClassInstructions(classContents)
+	if err != nil {
+		return UnknownVersion, false
+	}
+	version, matches := bytecodeMd5s[hash]
 	return version, matches
 }
 
