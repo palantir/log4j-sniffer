@@ -15,6 +15,7 @@
 package crawl
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"fmt"
@@ -187,7 +188,7 @@ func (i *identifier) lookForMatchInTar(ctx context.Context, path string, parentV
 
 func lookForMatchInFile(ctx context.Context, path string, size int64, contents io.Reader, parentVersion string) (Finding, string, error) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
-		finding, version, hashMatch := lookForHashMatch(contents)
+		finding, version, hashMatch := lookForHashMatch(contents, size)
 		if hashMatch {
 			return ClassPackageAndName | finding, version, nil
 		}
@@ -202,7 +203,7 @@ func lookForMatchInFile(ctx context.Context, path string, size int64, contents i
 		return JarNameInsideArchive, version, nil
 	}
 	if strings.HasSuffix(path, "JndiManager.class") {
-		finding, version, hashMatch := lookForHashMatch(contents)
+		finding, version, hashMatch := lookForHashMatch(contents, size)
 		if hashMatch {
 			return ClassName | finding, version, nil
 		}
@@ -213,29 +214,22 @@ func lookForMatchInFile(ctx context.Context, path string, size int64, contents i
 
 const maxClassSize = 0xffff
 
-var classByteBuf []byte = make([]byte, maxClassSize)
+var classByteBuf bytes.Buffer = bytes.Buffer{}
 
-func lookForHashMatch(contents io.Reader) (Finding, string, bool) {
-	i := 0
-	for {
-		read, err := contents.Read(classByteBuf[i:])
-		i += read
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return NothingDetected, UnknownVersion, false
-		}
-		if read > maxClassSize {
-			return NothingDetected, UnknownVersion, false
-		}
+func lookForHashMatch(contents io.Reader, size int64) (Finding, string, bool) {
+	if size > maxClassSize {
+		return NothingDetected, UnknownVersion, false
 	}
-
-	version, md5Match := classMd5Version(classByteBuf[:i])
+	classByteBuf.Reset()
+	_, err := classByteBuf.ReadFrom(contents)
+	if err != nil {
+		return NothingDetected, UnknownVersion, false
+	}
+	version, md5Match := classMd5Version(classByteBuf.Bytes())
 	if md5Match {
 		return ClassFileMd5, version, true
 	}
-	version, md5Match = bytecodeMd5Version(classByteBuf[:i])
+	version, md5Match = bytecodeMd5Version(classByteBuf.Bytes())
 	if md5Match {
 		return ClassBytecodeInstructionMd5, version, true
 	}
