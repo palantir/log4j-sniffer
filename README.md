@@ -18,8 +18,8 @@ log4j-sniffer will scan a filesystem looking for all files of the following type
 
 It will look for the following:
 - Jar files matching `log4j-core-<version>.jar`, including those nested within another archive
-- Class files named `org.apache.logging.log4j.core.lookup.JndiLookup` within Jar files or other archives
-- Class files named `JndiLookup` in other package hierarchies
+- Class files named `org.apache.logging.log4j.core.net.JndiManager` within Jar files or other archives and check against md5 hashes of known versions
+- Class files named `JndiManager` in other package hierarchies and check against md5 hashes of known versions
 
 Installing
 ==========

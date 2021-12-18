@@ -195,7 +195,7 @@ func TestIdentifyFromZipContents(t *testing.T) {
 		result:   crawl.JarName | crawl.ClassPackageAndName,
 		version:  "2.14.1",
 	}, {
-		name:     "fixed log4j version with JndiLookup class",
+		name:     "fixed log4j version with JndiManager class",
 		filename: "log4j-core-2.16.0.jar",
 		zipList:  []string{"org/apache/logging/log4j/core/net/JndiManager.class"},
 		result:   crawl.NothingDetected,
