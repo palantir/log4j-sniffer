@@ -72,4 +72,4 @@ CVE-2021-45105
 
 If you do not wish to report results for CVE-2021-45105 then pass the `--disable-cve-2021-45105-detection` flag to the crawl command.
 
-Both default both CVE-2021-45046 and CVE-2021-45105 will be reported.
+By default both CVE-2021-45046 and CVE-2021-45105 will be reported.
