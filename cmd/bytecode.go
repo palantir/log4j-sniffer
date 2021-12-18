@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"github.com/palantir/log4j-sniffer/internal/bytecode"
 	"github.com/palantir/log4j-sniffer/pkg/metrics"
 	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 	"github.com/spf13/cobra"
@@ -23,7 +24,7 @@ import (
 func bytecodeCmd() *cobra.Command {
 	var className string
 	cmd := cobra.Command{
-		Use:   "identify <root>",
+		Use:   "identify <jar>",
 		Args:  cobra.ExactArgs(1),
 		Short: "Produces hashes to identify a class file within a JAR",
 		Long: `Produces hashes to identify a class file within a JAR.
@@ -41,7 +42,7 @@ Use the class-name option to change which class is analysed within the JAR.
 						svc1log.Stacktrace(err))
 				}
 			}()
-			return nil
+			return bytecode.IdentifyClassFromBytecode(args[0], className)
 		},
 	}
 	cmd.Flags().StringVar(&className, "class-name", "org.apache.logging.log4j.core.net.JndiManager.class", `Specify the full class name and package to scan.
