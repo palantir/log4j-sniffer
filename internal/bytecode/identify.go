@@ -14,6 +14,18 @@
 
 package bytecode
 
+import (
+	"fmt"
+
+	"github.com/palantir/log4j-sniffer/pkg/java"
+)
+
 func IdentifyClassFromBytecode(jarFile string, className string) error {
+	hashes, err := java.HashClass(jarFile, className)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Hash of complete class: %s\n", hashes.CompleteHash)
+	fmt.Printf("Hash of all bytecode instructions: %s\n", hashes.BytecodeInstructionHash)
 	return nil
 }

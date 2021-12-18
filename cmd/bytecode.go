@@ -45,7 +45,7 @@ Use the class-name option to change which class is analysed within the JAR.
 			return bytecode.IdentifyClassFromBytecode(args[0], className)
 		},
 	}
-	cmd.Flags().StringVar(&className, "class-name", "org.apache.logging.log4j.core.net.JndiManager.class", `Specify the full class name and package to scan.
+	cmd.Flags().StringVar(&className, "class-name", "org.apache.logging.log4j.core.net.JndiManager", `Specify the full class name and package to scan.
 Defaults to the log4j JdniManager class.`)
 	return &cmd
 }
