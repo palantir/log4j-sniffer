@@ -29,7 +29,7 @@ func TestBadVersions(t *testing.T) {
 	cli, err := products.Bin("log4j-sniffer")
 	require.NoError(t, err)
 
-	for i, currCase := range []struct {
+	for _, tc := range []struct {
 		name      string
 		directory string
 		count     int
@@ -42,28 +42,30 @@ func TestBadVersions(t *testing.T) {
 		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName},
 		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.ClassName},
 	} {
-		cmd := exec.Command(cli, "crawl", currCase.directory)
-		output, err := cmd.CombinedOutput()
-		require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
-		got := string(output)
-		assert.Contains(t, got, "Files affected by CVE-2021-45046 detected", "Case %d: %s", i, currCase.name)
-		assert.Contains(t, got, fmt.Sprintf("vulnerableFileCount: %d", currCase.count), "Case %d: %s", i, currCase.name)
-		assert.NotContains(t, got, "No files affected by CVE-2021-45046 detected", "Case %d: %s", i, currCase.name)
-		if currCase.finding&crawl.JarName > 0 {
-			assert.Contains(t, got, "jarNameMatched: true")
-		} else {
-			assert.NotContains(t, got, "jarNameMatched: true")
-		}
-		if currCase.finding&crawl.JarNameInsideArchive > 0 {
-			assert.Contains(t, got, "jarNameInsideArchiveMatched: true")
-		} else {
-			assert.NotContains(t, got, "jarNameInsideArchiveMatched: true")
-		}
-		if currCase.finding&crawl.ClassPackageAndName > 0 {
-			assert.Contains(t, got, "classPackageAndNameMatch: true")
-		} else {
-			assert.NotContains(t, got, "classPackageAndNameMatch: true")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := exec.Command(cli, "crawl", tc.directory)
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
+			got := string(output)
+			assert.Contains(t, got, "Files affected by CVE-2021-45046 detected")
+			assert.Contains(t, got, fmt.Sprintf("vulnerableFileCount: %d", tc.count))
+			assert.NotContains(t, got, "No files affected by CVE-2021-45046 detected")
+			if tc.finding&crawl.JarName > 0 {
+				assert.Contains(t, got, "jarNameMatched: true")
+			} else {
+				assert.NotContains(t, got, "jarNameMatched: true")
+			}
+			if tc.finding&crawl.JarNameInsideArchive > 0 {
+				assert.Contains(t, got, "jarNameInsideArchiveMatched: true")
+			} else {
+				assert.NotContains(t, got, "jarNameInsideArchiveMatched: true")
+			}
+			if tc.finding&crawl.ClassPackageAndName > 0 {
+				assert.Contains(t, got, "adsfclassPackageAndNameMatched: true")
+			} else {
+				assert.NotContains(t, got, "asdfclassPackageAndNameMatched: true")
+			}
+		})
 	}
 }
 
