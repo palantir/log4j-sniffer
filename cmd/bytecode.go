@@ -15,7 +15,9 @@
 package cmd
 
 import (
-	"github.com/palantir/log4j-sniffer/internal/bytecode"
+	"fmt"
+
+	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/palantir/log4j-sniffer/pkg/metrics"
 	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 	"github.com/spf13/cobra"
@@ -42,7 +44,13 @@ Use the class-name option to change which class is analysed within the JAR.
 						svc1log.Stacktrace(err))
 				}
 			}()
-			return bytecode.IdentifyClassFromBytecode(args[0], className)
+			hashes, err := java.HashClass(args[0], className)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Hash of complete class: %s\n", hashes.CompleteHash)
+			fmt.Printf("Hash of all bytecode instructions: %s\n", hashes.BytecodeInstructionHash)
+			return nil
 		},
 	}
 	cmd.Flags().StringVar(&className, "class-name", "org.apache.logging.log4j.core.net.JndiManager", `Specify the full class name and package to scan.
