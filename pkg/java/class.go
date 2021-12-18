@@ -38,6 +38,10 @@ import (
 	"github.com/zxh0/jvm.go/classfile"
 )
 
+// This produces a hash of the opcodes that define the methods
+// of the specified class. This is intended to not change if the
+// package name or other details are changed with the resulting
+// changes to the non-opcode parts of the class format.
 func HashClassInstructions(class fs.File) (string, error) {
 	stat, err := class.Stat()
 	if err != nil {
@@ -57,17 +61,28 @@ func HashClassInstructions(class fs.File) (string, error) {
 	h := md52.New()
 	opcodes := OpcodeLookupTables()
 
+	// Classes are made up of lots of things, but we only care
+	// about the code that defines methods here. Iterate down
+	// to just that.
 	for _, method := range classFile.Methods {
 		for _, attribute := range method.AttributeTable {
 			switch t := attribute.(type) {
 			default:
 				// ignore
 			case classfile.CodeAttribute:
+				// Get the raw bytes for the bytecode for this method
+				// Each opcode is exactly one byte in this array
+				// We advance i past any operands for the opcode such
+				// that reading i at any point will always result in
+				// an opcode.
 				code, i := t.Code, 0
 				for i < len(code) {
 					opcode := code[i]
 					h.Write([]byte{opcode})
 
+					// Look in the opcode tables to see how many operands
+					// this opcode takes, and advance to the end which must
+					// be another opcode or the end of the bytecode
 					if opcodes.NoOperandOpcodeLookupTable[opcode] {
 						i++
 					} else if opcodes.SingleOperandOpcodeLookupTable[opcode] {
@@ -83,6 +98,8 @@ func HashClassInstructions(class fs.File) (string, error) {
 								continue
 							}
 						}
+						// These opcodes take a variable amount of data and are not used
+						// in log4j. We're ignoring them for now as a result.
 						for _, otherOpcode := range opcodes.OtherOpcodes {
 							if opcode == otherOpcode {
 								return "", errors.New("unsupported opcode type")
