@@ -15,12 +15,12 @@
 package java
 
 type Opcodes struct {
-	NoOperandOpcodeLookupTable []bool
+	NoOperandOpcodeLookupTable     []bool
 	SingleOperandOpcodeLookupTable []bool
 	DoubleOperandOpcodeLookupTable []bool
-	QuadOperandOpcodeLookupTable []bool
-	TripleOperandOpcodes []uint8
-	OtherOpcodes []uint8
+	QuadOperandOpcodeLookupTable   []bool
+	TripleOperandOpcodes           []uint8
+	OtherOpcodes                   []uint8
 }
 
 var NoOperandOpcodes = make([]bool, 0xff)
@@ -241,8 +241,8 @@ func setQuadOperandOpcodes() {
 	QuadOperandOpcodes[0xb9] = true // invokeinterface
 }
 
-var TripleOperandOpcodes = []uint8 {0xc5}
-var OtherOpcodes = []uint8 {0xc4, 0xab, 0xaa, 0xfe, 0xff, 0xca}
+var TripleOperandOpcodes = []uint8{0xc5}
+var OtherOpcodes = []uint8{0xc4, 0xab, 0xaa, 0xfe, 0xff, 0xca}
 
 var OpcodesInitialised = false
 
@@ -256,11 +256,11 @@ func OpcodeLookupTables() Opcodes {
 	}
 
 	return Opcodes{
-		NoOperandOpcodeLookupTable: NoOperandOpcodes,
+		NoOperandOpcodeLookupTable:     NoOperandOpcodes,
 		SingleOperandOpcodeLookupTable: SingleOperandOpcodes,
 		DoubleOperandOpcodeLookupTable: DoubleOperandOpcodes,
-		QuadOperandOpcodeLookupTable: QuadOperandOpcodes,
-		TripleOperandOpcodes: TripleOperandOpcodes,
-		OtherOpcodes: OtherOpcodes,
+		QuadOperandOpcodeLookupTable:   QuadOperandOpcodes,
+		TripleOperandOpcodes:           TripleOperandOpcodes,
+		OtherOpcodes:                   OtherOpcodes,
 	}
 }

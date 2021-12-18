@@ -34,4 +34,3 @@ func TestLog4jHash(t *testing.T) {
 	assert.Contains(t, got, "Hash of complete class: f1d630c48928096a484e4b95ccb162a0", "Complete hash")
 	assert.Contains(t, got, "Hash of all bytecode instructions: 8139e14cd3955ef709139c3f23d38057-v0", "Bytecode hash")
 }
-
