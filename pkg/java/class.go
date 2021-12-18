@@ -30,12 +30,12 @@ package java
 
 import (
 	md52 "crypto/md5"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 
 	"github.com/zxh0/jvm.go/classfile"
-	"github.com/zxh0/jvm.go/instructions"
 )
 
 func HashClassInstructions(class fs.File) (string, error) {
@@ -55,6 +55,7 @@ func HashClassInstructions(class fs.File) (string, error) {
 	}
 
 	h := md52.New()
+	opcodes := OpcodeLookupTables()
 
 	for _, method := range classFile.Methods {
 		for _, attribute := range method.AttributeTable {
@@ -62,10 +63,32 @@ func HashClassInstructions(class fs.File) (string, error) {
 			default:
 				// ignore
 			case classfile.CodeAttribute:
-				for _, instruction := range instructions.Decode(t.Code) {
-					_, err := fmt.Fprintf(h, "%T", instruction)
-					if err != nil {
-						return "", err
+				code, i := t.Code, 0
+				for i < len(code) {
+					opcode := code[i]
+					h.Write([]byte{opcode})
+
+					if opcodes.NoOperandOpcodeLookupTable[opcode] {
+						i++
+					} else if opcodes.SingleOperandOpcodeLookupTable[opcode] {
+						i += 2
+					} else if opcodes.DoubleOperandOpcodeLookupTable[opcode] {
+						i += 3
+					} else if opcodes.QuadOperandOpcodeLookupTable[opcode] {
+						i += 5
+					} else {
+						for _, tripleOpcode := range opcodes.TripleOperandOpcodes {
+							if opcode == tripleOpcode {
+								i += 4
+								continue
+							}
+						}
+						for _, otherOpcode := range opcodes.OtherOpcodes {
+							if opcode == otherOpcode {
+								return "", errors.New("unsupported opcode type")
+							}
+						}
+						return "", errors.New("unrecognised opcode")
 					}
 				}
 			}
