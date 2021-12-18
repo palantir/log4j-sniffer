@@ -38,11 +38,10 @@ type MatchFunc func(ctx context.Context, path string, d fs.DirEntry) (Finding, s
 // ProcessFunc processes the given matched file.
 type ProcessFunc func(ctx context.Context, path string, d fs.DirEntry, result Finding, version string)
 
-// Crawl the given filesystem, fSys, from the root of it.
-// Each file will be passed to the math function, which should return true if the path should then be processed by the
-// process function.
-// On encountering a directory, the path will be compared against all IgnoreDirs configured in the Crawler. If any pattern
-// matches, all files nested inside the directory will be ignored.
+// Crawl crawls the provided root directory. Each file is passed to the provided match function, which returns true if
+// the path should be processed by the provided process function. On encountering a directory, the path will be compared
+// against all IgnoreDirs configured in the Crawler. If any pattern matches, the directory (and all files nested inside
+// the directory) will be ignored.
 func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, process ProcessFunc) error {
 	var filesScanned int64
 	var permissionDeniedCount int64

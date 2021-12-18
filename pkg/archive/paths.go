@@ -80,7 +80,7 @@ func ReadTarGzFilePaths(ctx context.Context, path string) ([]string, error) {
 	})
 }
 
-// scopedOpenFile the file at path and passes to the do function.
+// scopedOpenFile opens the file at the provided path and passes it to the do function.
 // If either the do function or closing the file returns an error, scopedOpenFile will return an error.
 // This is purely for convenient handling of file closing, where we can ALWAYS return a file close error
 // rather than just logging it.
