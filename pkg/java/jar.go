@@ -77,8 +77,7 @@ func md5Class(r *zip.ReadCloser, classLocation string) (string, error) {
 		return "", err
 	}
 
-	err = c.Close()
-	if err != nil {
+	if err := c.Close(); err != nil {
 		return "", err
 	}
 	return h, nil
