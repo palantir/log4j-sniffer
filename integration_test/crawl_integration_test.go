@@ -35,11 +35,11 @@ func TestBadVersions(t *testing.T) {
 		count     int
 		finding   crawl.Finding
 	}{
-		{name: "single bad version", directory: "../examples/single_bad_version", count: 1, finding: crawl.JarName | crawl.ClassPackageAndName},
-		{name: "multiple bad versions", directory: "../examples/multiple_bad_versions", count: 13, finding: crawl.JarName | crawl.ClassPackageAndName},
+		{name: "single bad version", directory: "../examples/single_bad_version", count: 1, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
+		{name: "multiple bad versions", directory: "../examples/multiple_bad_versions", count: 13, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
 		{name: "inside a dist", directory: "../examples/inside_a_dist", count: 2, finding: crawl.JarNameInsideArchive},
 		{name: "inside a par", directory: "../examples/inside_a_par", count: 1, finding: crawl.JarNameInsideArchive},
-		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName},
+		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName | crawl.ClassFileMd5},
 		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.ClassName},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -64,6 +64,11 @@ func TestBadVersions(t *testing.T) {
 				assert.Contains(t, got, "classPackageAndNameMatched: true")
 			} else {
 				assert.NotContains(t, got, "classPackageAndNameMatched: true")
+			}
+			if tc.finding&crawl.ClassFileMd5 > 0 {
+				assert.Contains(t, got, "classFileMd5Matched: true")
+			} else {
+				assert.NotContains(t, got, "classFileMd5Matched: true")
 			}
 		})
 	}

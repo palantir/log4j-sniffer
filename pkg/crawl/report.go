@@ -41,6 +41,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		svc1log.SafeParam("jarNameMatched", result&JarName > 0),
 		svc1log.SafeParam("jarNameInsideArchiveMatched", result&JarNameInsideArchive > 0),
 		svc1log.SafeParam("classPackageAndNameMatched", result&ClassPackageAndName > 0),
+		svc1log.SafeParam("classFileMd5Matched", result&ClassFileMd5 > 0),
 		filenameParam,
 		svc1log.UnsafeParam("path", path),
 		svc1log.UnsafeParam("log4jVersions", versions))

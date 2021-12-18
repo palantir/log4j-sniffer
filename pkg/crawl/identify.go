@@ -16,6 +16,8 @@ package crawl
 
 import (
 	"context"
+	"crypto/md5"
+	"fmt"
 	"io"
 	"io/fs"
 	"path/filepath"
@@ -36,6 +38,7 @@ const (
 	JarName                      = 1 << iota
 	JarNameInsideArchive         = 1 << iota
 	ClassPackageAndName          = 1 << iota
+	ClassFileMd5                 = 1 << iota
 )
 
 func (f Finding) String() string {
@@ -64,6 +67,17 @@ var (
 	versionRegex  = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:\..*)?$`)
 	zipExtensions = map[string]struct{}{
 		".ear": {}, ".jar": {}, ".par": {}, ".war": {}, ".zip": {},
+	}
+	// Generated using log4j-sniffer identify
+	md5s = map[string]string{
+		"04fdd701809d17465c17c7e603b1b202": "2.9.0-2.11.2",
+		"5824711d6c68162eb535cc4dbf7485d3": "2.12.0",
+		"102cac5b7726457244af1f44e54ff468": "2.12.2",
+		"21f055b62c15453f0d7970a9d994cab7": "2.13.0-2.13.3",
+		"f1d630c48928096a484e4b95ccb162a0": "2.14.0 - 2.14.1",
+		"5d253e53fa993e122ff012221aa49ec3": "2.15.0",
+		"ba1cf8f81e7b31c709768561ba8ab558": "2.16.0",
+		"3dc5cf97546007be53b2f3d44028fa58": "2.17.0",
 	}
 )
 
@@ -139,7 +153,7 @@ func (i *identifier) lookForMatchInTar(ctx context.Context, path string, parentV
 		if err != nil {
 			return false, err
 		}
-		if finding == NothingDetected {
+		if finding == NothingDetected || !vulnerableVersion(version) {
 			return true, nil
 		}
 		archiveResult = finding | archiveResult
@@ -154,7 +168,11 @@ func (i *identifier) lookForMatchInTar(ctx context.Context, path string, parentV
 }
 
 func lookForMatchInFile(ctx context.Context, path string, size int64, contents io.Reader, parentVersion string) (Finding, string, error) {
-	if path == "org/apache/logging/log4j/core/lookup/JndiLookup.class" {
+	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
+		version, md5Match := classMd5Version(contents)
+		if md5Match {
+			return ClassPackageAndName | ClassFileMd5, version, nil
+		}
 		return ClassPackageAndName, parentVersion, nil
 	}
 
@@ -163,12 +181,13 @@ func lookForMatchInFile(ctx context.Context, path string, size int64, contents i
 		filename = path[finalSlashIndex+1:]
 	}
 	if version, match := fileNameMatchesLog4jVersion(filename); match {
-		if vulnerableVersion(version) {
-			return JarNameInsideArchive, version, nil
-		}
-		return NothingDetected, parentVersion, nil
+		return JarNameInsideArchive, version, nil
 	}
-	if strings.HasSuffix(path, "JndiLookup.class") {
+	if strings.HasSuffix(path, "JndiManager.class") {
+		version, md5Match := classMd5Version(contents)
+		if md5Match {
+			return ClassName | ClassFileMd5, version, nil
+		}
 		return ClassName, parentVersion, nil
 	}
 	return NothingDetected, parentVersion, nil
@@ -203,6 +222,16 @@ func vulnerableVersion(version string) bool {
 		patch = 0
 	}
 	return (major == 2 && minor < 16) && !(major == 2 && minor == 12 && patch >= 2)
+}
+
+func classMd5Version(contents io.Reader) (string, bool) {
+	sum := md5.New()
+	if _, err := io.Copy(sum, contents); err != nil {
+		return "", false
+	}
+	hash := fmt.Sprintf("%x", sum.Sum(nil))
+	version, matches := md5s[hash]
+	return version, matches
 }
 
 func hasZipFileEnding(name string) bool {
