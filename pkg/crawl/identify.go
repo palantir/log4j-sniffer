@@ -16,13 +16,15 @@ package crawl
 
 import (
 	"context"
+	"io"
 	"io/fs"
-	gopath "path"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/palantir/log4j-sniffer/pkg/archive"
 )
 
 type Finding int
@@ -69,18 +71,16 @@ type Identifier interface {
 	Identify(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error)
 }
 
-// ArchiveFileLister lists the files contained within an archive.
-type ArchiveFileLister func(ctx context.Context, path string) ([]string, error)
-
 type identifier struct {
-	zipLister, tgzLister ArchiveFileLister
-	listTimeout          time.Duration
+	zipWalker   archive.WalkFn
+	tgzWalker   archive.WalkFn
+	listTimeout time.Duration
 }
 
-func NewIdentifier(archiveListTimeout time.Duration, zipLister, tgzLister ArchiveFileLister) Identifier {
+func NewIdentifier(archiveListTimeout time.Duration, zipWalker, tgzWalker archive.WalkFn) Identifier {
 	return &identifier{
-		zipLister:   zipLister,
-		tgzLister:   tgzLister,
+		zipWalker:   zipWalker,
+		tgzWalker:   tgzWalker,
 		listTimeout: archiveListTimeout,
 	}
 }
@@ -95,78 +95,83 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 
 	lowercaseFilename := strings.ToLower(d.Name())
 	if hasZipFileEnding(lowercaseFilename) {
-		return i.lookForMatchInZip(ctx, path, lowercaseFilename)
+		return i.lookForMatchInZip(ctx, path, lowercaseFilename, UnknownVersion)
 	}
 	if hasTgzFileEnding(lowercaseFilename) {
-		return i.lookForMatchInTar(ctx, path)
+		return i.lookForMatchInTar(ctx, path, UnknownVersion)
 	}
 	return NothingDetected, nil, nil
 }
 
-func (i *identifier) lookForMatchInZip(ctx context.Context, path string, lowercaseFilename string) (Finding, Versions, error) {
-	finding := NothingDetected
+func (i *identifier) lookForMatchInZip(ctx context.Context, path string, lowercaseFilename string, parentVersion string) (Finding, Versions, error) {
+	archiveResult := NothingDetected
 	versions := Versions{}
-
-	if version, match := fileNameMatchesLog4jVersion(lowercaseFilename); match {
-		if !vulnerableVersion(version) {
-			// Confirmed we extracted the version and it is not vulnerable
-			return NothingDetected, nil, nil
+	archiveVersion, match := fileNameMatchesLog4jVersion(lowercaseFilename)
+	if !match {
+		archiveVersion = parentVersion
+	} else if vulnerableVersion(archiveVersion) {
+		archiveResult |= JarName
+		versions[archiveVersion] = struct{}{}
+	}
+	err := i.zipWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
+		finding, version, err := lookForMatchInFile(ctx, filename, size, contents, archiveVersion)
+		if err != nil {
+			return false, err
 		}
-		finding |= JarName
+		if finding == NothingDetected || !vulnerableVersion(version) {
+			return true, nil
+		}
+		archiveResult = finding | archiveResult
 		versions[version] = struct{}{}
-	}
-
-	innerFinding, innerVersions, err := i.lookForMatchInArchive(ctx, path, i.zipLister)
+		return false, nil
+	})
 	if err != nil {
-		return finding, versions, err
+		return NothingDetected, Versions{}, err
 	}
-	finding |= innerFinding
-	for v := range innerVersions {
-		versions[v] = struct{}{}
-	}
-	if finding > NothingDetected && len(versions) == 0 {
-		versions[UnknownVersion] = struct{}{}
-	}
-	return finding, versions, nil
+	return archiveResult, versions, nil
 }
 
-func (i *identifier) lookForMatchInTar(ctx context.Context, path string) (Finding, Versions, error) {
-	finding, versions, err := i.lookForMatchInArchive(ctx, path, i.tgzLister)
-	if err != nil {
-		return finding, versions, err
-	}
-	if finding > NothingDetected && len(versions) == 0 {
-		versions[UnknownVersion] = struct{}{}
-	}
-	return finding, versions, err
-}
-
-func (i *identifier) lookForMatchInArchive(ctx context.Context, path string, lister ArchiveFileLister) (Finding, Versions, error) {
-	finding := NothingDetected
+func (i *identifier) lookForMatchInTar(ctx context.Context, path string, parentVersion string) (Finding, Versions, error) {
+	archiveResult := NothingDetected
 	versions := Versions{}
-
-	paths, err := lister(ctx, path)
-	if err != nil {
-		return NothingDetected, nil, err
-	}
-	for _, innerPath := range paths {
-		filename := gopath.Base(innerPath)
-		version, match := fileNameMatchesLog4jVersion(filename)
-		if match {
-			if !vulnerableVersion(version) {
-				// Confirmed we extracted the version and it is not vulnerable
-				continue
-			}
-			finding |= JarNameInsideArchive
+	if err := i.tgzWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
+		finding, version, err := lookForMatchInFile(ctx, filename, size, contents, parentVersion)
+		if err != nil {
+			return false, err
+		}
+		if finding == NothingDetected {
+			return true, nil
+		}
+		archiveResult = finding | archiveResult
+		if version != "" {
 			versions[version] = struct{}{}
 		}
-		if innerPath == "org/apache/logging/log4j/core/lookup/JndiLookup.class" {
-			finding |= ClassPackageAndName
-		} else if filename == "JndiLookup.class" {
-			finding |= ClassName
-		}
+		return false, nil
+	}); err != nil {
+		return NothingDetected, versions, err
 	}
-	return finding, versions, nil
+	return archiveResult, versions, nil
+}
+
+func lookForMatchInFile(ctx context.Context, path string, size int64, contents io.Reader, parentVersion string) (Finding, string, error) {
+	if path == "org/apache/logging/log4j/core/lookup/JndiLookup.class" {
+		return ClassPackageAndName, parentVersion, nil
+	}
+
+	filename, finalSlashIndex := path, strings.LastIndex(path, "/")
+	if finalSlashIndex > -1 {
+		filename = path[finalSlashIndex+1:]
+	}
+	if version, match := fileNameMatchesLog4jVersion(filename); match {
+		if vulnerableVersion(version) {
+			return JarNameInsideArchive, version, nil
+		}
+		return NothingDetected, parentVersion, nil
+	}
+	if strings.HasSuffix(path, "JndiLookup.class") {
+		return ClassName, parentVersion, nil
+	}
+	return NothingDetected, parentVersion, nil
 }
 
 func fileNameMatchesLog4jVersion(filename string) (string, bool) {
