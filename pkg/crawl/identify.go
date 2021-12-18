@@ -70,6 +70,11 @@ var (
 	}
 	// Generated using log4j-sniffer identify
 	md5s = map[string]string{
+		"6b15f42c333ac39abacfeeeb18852a44": "2.1-2.3",
+		"8b2260b1cce64144f6310876f94b1638": "2.4-2.5",
+		"3bd9f41b89ce4fe8ccbf73e43195a5ce": "2.6-2.6.2",
+		"415c13e7c8505fb056d540eac29b72fa": "2.7-2.8.1",
+		"a193703904a3f18fb3c90a877eb5c8a7": "2.8.2",
 		"04fdd701809d17465c17c7e603b1b202": "2.9.0-2.11.2",
 		"5824711d6c68162eb535cc4dbf7485d3": "2.12.0",
 		"102cac5b7726457244af1f44e54ff468": "2.12.2",
