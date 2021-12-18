@@ -29,5 +29,6 @@ func Execute() int {
 		Short: "Filesystem crawler to identify jars and java classes",
 	}
 	rootCmd.AddCommand(crawlCmd())
+	rootCmd.AddCommand(bytecodeCmd())
 	return cobracli.ExecuteWithDefaultParams(rootCmd, cobracli.VersionFlagParam(Version))
 }

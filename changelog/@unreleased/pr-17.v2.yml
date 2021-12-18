@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: Collect all failing versions before reporting
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/17

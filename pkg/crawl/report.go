@@ -17,8 +17,7 @@ package crawl
 import (
 	"context"
 	"io/fs"
-	"regexp"
-	"strconv"
+	"sort"
 
 	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 )
@@ -27,13 +26,9 @@ type Reporter struct {
 	count int64
 }
 
-var versionRegex = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:\..*)?$`)
-
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
-func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, result Finding, version string) {
-	if !vulnerableVersion(version) {
-		return
-	}
+func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, result Finding, versionSet Versions) {
+	versions := sortVersions(versionSet)
 	r.count++
 	var filenameParam svc1log.Param
 	if result&JarName > 0 {
@@ -45,31 +40,21 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		svc1log.SafeParam("classNameMatched", result&ClassName > 0),
 		svc1log.SafeParam("jarNameMatched", result&JarName > 0),
 		svc1log.SafeParam("jarNameInsideArchiveMatched", result&JarNameInsideArchive > 0),
-		svc1log.SafeParam("classPackageAndNameMatch", result&ClassPackageAndName > 0),
+		svc1log.SafeParam("classPackageAndNameMatched", result&ClassPackageAndName > 0),
+		svc1log.SafeParam("classFileMd5Matched", result&ClassFileMd5 > 0),
 		filenameParam,
-		svc1log.UnsafeParam("path", path))
+		svc1log.UnsafeParam("path", path),
+		svc1log.UnsafeParam("log4jVersions", versions))
 }
 
-func vulnerableVersion(version string) bool {
-	matches := versionRegex.FindStringSubmatch(version)
-	if len(matches) == 0 {
-		return true
+func sortVersions(versions Versions) []string {
+	var out []string
+	for v := range versions {
+		out = append(out, v)
 	}
-	major, err := strconv.Atoi(matches[1])
-	if err != nil {
-		// should not be possible due to group of \d+ in regex
-		return false
-	}
-	minor, err := strconv.Atoi(matches[2])
-	if err != nil {
-		// should not be possible due to group of \d+ in regex
-		return true
-	}
-	patch, err := strconv.Atoi(matches[3])
-	if err != nil {
-		patch = 0
-	}
-	return (major == 2 && minor < 16) && !(major == 2 && minor == 12 && patch >= 2)
+	// N.B. Lexical sort will mess with base-10 versions, but it's better than random.
+	sort.Strings(out)
+	return out
 }
 
 // Count returns the number of times that Collect has been called
