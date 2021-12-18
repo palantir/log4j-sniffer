@@ -54,30 +54,13 @@ func HashClass(jarFile string, className string) (ClassHash, error) {
 	}
 
 	classLocation := strings.ReplaceAll(className, ".", "/")
-	c, err := r.Open(classLocation + ".class")
+
+	completeHash, err := md5Class(r, classLocation)
 	if err != nil {
 		return emptyHash, err
 	}
 
-	completeHash, err := md5File(c)
-	if err != nil {
-		return emptyHash, err
-	}
-
-	c2, err := r.Open(classLocation + ".class")
-	if err != nil {
-		return emptyHash, err
-	}
-	bytecodeHash, err := HashClassInstructions(c2)
-	if err != nil {
-		return emptyHash, err
-	}
-
-	err = c.Close()
-	if err != nil {
-		return emptyHash, err
-	}
-	err = r.Close()
+	bytecodeHash, err := md5Bytecode(r, classLocation)
 	if err != nil {
 		return emptyHash, err
 	}
@@ -88,10 +71,46 @@ func HashClass(jarFile string, className string) (ClassHash, error) {
 	}, nil
 }
 
+func md5Class(r *zip.ReadCloser, classLocation string) (string, error) {
+	c, err := r.Open(classLocation + ".class")
+	if err != nil {
+		return "", err
+	}
+
+	h, err := md5File(c)
+	if err != nil {
+		return "", err
+	}
+
+	err = c.Close()
+	if err != nil {
+		return "", err
+	}
+	return h, nil
+}
+
 func md5File(file fs.File) (string, error) {
 	h := md52.New()
 	if _, err := io.Copy(h, file); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+func md5Bytecode(r *zip.ReadCloser, classLocation string) (string, error) {
+	c, err := r.Open(classLocation + ".class")
+	if err != nil {
+		return "", err
+	}
+
+	h, err := HashClassInstructions(c)
+	if err != nil {
+		return "", err
+	}
+
+	err = c.Close()
+	if err != nil {
+		return "", err
+	}
+	return h, nil
 }
