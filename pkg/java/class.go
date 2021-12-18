@@ -100,6 +100,5 @@ func HashClassInstructions(classBytes []byte) (string, error) {
 			}
 		}
 	}
-	fmt.Printf("%x-v0\n\n\n\n", h.Sum(nil))
 	return fmt.Sprintf("%x-v0", h.Sum(nil)), nil
 }
