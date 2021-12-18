@@ -32,9 +32,6 @@ import (
 	md52 "crypto/md5"
 	"errors"
 	"fmt"
-	"io"
-	"io/fs"
-
 	"github.com/zxh0/jvm.go/classfile"
 )
 
@@ -42,16 +39,7 @@ import (
 // of the specified class. This is intended to not change if the
 // package name or other details are changed with the resulting
 // changes to the non-opcode parts of the class format.
-func HashClassInstructions(class fs.File) (string, error) {
-	stat, err := class.Stat()
-	if err != nil {
-		return "", err
-	}
-	classBytes := make([]byte, stat.Size())
-	_, err = class.Read(classBytes)
-	if err != nil && err != io.EOF {
-		return "", err
-	}
+func HashClassInstructions(classBytes []byte) (string, error) {
 	classFile, err := classfile.Parse(classBytes)
 
 	if err != nil {
@@ -111,6 +99,6 @@ func HashClassInstructions(class fs.File) (string, error) {
 			}
 		}
 	}
-
+	fmt.Printf("%x-v0\n\n\n\n", h.Sum(nil))
 	return fmt.Sprintf("%x-v0", h.Sum(nil)), nil
 }

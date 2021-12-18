@@ -40,7 +40,7 @@ func TestBadVersions(t *testing.T) {
 		{name: "inside a dist", directory: "../examples/inside_a_dist", count: 2, finding: crawl.JarNameInsideArchive},
 		{name: "inside a par", directory: "../examples/inside_a_par", count: 1, finding: crawl.JarNameInsideArchive},
 		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.ClassName},
+		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.ClassName | crawl.ClassBytecodeInstructionMd5},
 		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -70,6 +70,11 @@ func TestBadVersions(t *testing.T) {
 				assert.Contains(t, got, "classFileMd5Matched: true")
 			} else {
 				assert.NotContains(t, got, "classFileMd5Matched: true")
+			}
+			if tc.finding&crawl.ClassBytecodeInstructionMd5 > 0 {
+				assert.Contains(t, got, "bytecodeInstructionMd5Matched: true")
+			} else {
+				assert.NotContains(t, got, "bytecodeInstructionMd5Matched: true")
 			}
 		})
 	}

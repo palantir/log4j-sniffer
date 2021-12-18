@@ -30,6 +30,7 @@ package java
 
 import (
 	"archive/zip"
+	"bytes"
 	md52 "crypto/md5"
 	"fmt"
 	"io"
@@ -38,6 +39,7 @@ import (
 )
 
 type ClassHash struct {
+	ClassSize               int64
 	CompleteHash            string
 	BytecodeInstructionHash string
 }
@@ -50,7 +52,7 @@ func HashClass(jarFile string, className string) (ClassHash, error) {
 
 	classLocation := strings.ReplaceAll(className, ".", "/")
 
-	completeHash, err := md5Class(r, classLocation)
+	completeHash, size, err := md5Class(r, classLocation)
 	if err != nil {
 		return ClassHash{}, err
 	}
@@ -61,34 +63,36 @@ func HashClass(jarFile string, className string) (ClassHash, error) {
 	}
 
 	return ClassHash{
+		ClassSize: size,
 		CompleteHash:            completeHash,
 		BytecodeInstructionHash: bytecodeHash,
 	}, nil
 }
 
-func md5Class(r *zip.ReadCloser, classLocation string) (string, error) {
+func md5Class(r *zip.ReadCloser, classLocation string) (string, int64, error) {
 	c, err := r.Open(classLocation + ".class")
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
-	h, err := md5File(c)
+	h, size, err := md5File(c)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	if err := c.Close(); err != nil {
-		return "", err
+		return "", 0, err
 	}
-	return h, nil
+	return h, size, nil
 }
 
-func md5File(file fs.File) (string, error) {
+func md5File(file fs.File) (string, int64, error) {
 	h := md52.New()
-	if _, err := io.Copy(h, file); err != nil {
-		return "", err
+	size, err := io.Copy(h, file)
+	if err != nil {
+		return "", 0, err
 	}
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
+	return fmt.Sprintf("%x", h.Sum(nil)), size, nil
 }
 
 func md5Bytecode(r *zip.ReadCloser, classLocation string) (string, error) {
@@ -97,7 +101,10 @@ func md5Bytecode(r *zip.ReadCloser, classLocation string) (string, error) {
 		return "", err
 	}
 
-	h, err := HashClassInstructions(c)
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(c)
+
+	h, err := HashClassInstructions(buf.Bytes())
 	if err != nil {
 		return "", err
 	}

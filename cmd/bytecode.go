@@ -48,6 +48,7 @@ Use the class-name option to change which class is analysed within the JAR.
 			if err != nil {
 				return err
 			}
+			fmt.Printf("Size of class: %d\n", hashes.ClassSize)
 			fmt.Printf("Hash of complete class: %s\n", hashes.CompleteHash)
 			fmt.Printf("Hash of all bytecode instructions: %s\n", hashes.BytecodeInstructionHash)
 			return nil
