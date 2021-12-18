@@ -27,14 +27,14 @@ import (
 func TestCrawl(t *testing.T) {
 	t.Run("emits status of 1 on failed crawl", func(t *testing.T) {
 		ctx := testcontext.WithCleanMetricsRegistry(t)
-		require.Error(t, Crawl(ctx, 10*time.Second, "non-existant-root", nil))
+		require.Error(t, Crawl(ctx, 10*time.Second, "non-existant-root", nil, false))
 		assert.EqualValues(t, 1, metrics.Crawl(ctx).Status().Gauge().Value())
 	})
 
 	t.Run("emits status of 0 on successful crawl", func(t *testing.T) {
 		ctx := testcontext.WithCleanMetricsRegistry(t)
 		metrics.Crawl(ctx).Status().Gauge().Update(666)
-		require.NoError(t, Crawl(ctx, 10*time.Second, t.TempDir(), nil))
+		require.NoError(t, Crawl(ctx, 10*time.Second, t.TempDir(), nil, false))
 		assert.EqualValues(t, 0, metrics.Crawl(ctx).Status().Gauge().Value())
 	})
 }
