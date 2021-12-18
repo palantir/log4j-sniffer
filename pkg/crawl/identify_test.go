@@ -15,10 +15,12 @@
 package crawl_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"errors"
 	"io/fs"
+	"os"
 	"testing"
 	"time"
 
@@ -46,7 +48,7 @@ func TestTgzIdentifierImplementsTimeout(t *testing.T) {
 }
 
 func TestZipIdentifierImplementsTimeout(t *testing.T) {
-	identify := crawl.NewIdentifier(time.Millisecond, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+	identify := crawl.NewIdentifier(time.Millisecond, func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
 		time.Sleep(50 * time.Millisecond)
 		select {
 		case <-ctx.Done():
@@ -56,10 +58,24 @@ func TestZipIdentifierImplementsTimeout(t *testing.T) {
 		}
 		return nil
 	}, nil)
-	_, _, err := identify.Identify(context.Background(), "", stubDirEntry{
-		name: "sdlkfjsldkjfs.zip",
+	_, _, err := identify.Identify(context.Background(), validZipFile(t), stubDirEntry{
+		name: "foo.zip",
 	})
 	assert.EqualError(t, err, "context was cancelled")
+}
+
+func validZipFile(t *testing.T) string {
+	f, err := os.CreateTemp(t.TempDir(), "")
+	require.NoError(t, err)
+	require.NoError(t, zip.NewWriter(f).Close())
+	require.NoError(t, f.Close())
+	return f.Name()
+}
+
+func validEmptyZipContent(t *testing.T) []byte {
+	var buf bytes.Buffer
+	require.NoError(t, zip.NewWriter(&buf).Close())
+	return buf.Bytes()
 }
 
 func TestIdentifyFromFileName(t *testing.T) {
@@ -107,12 +123,12 @@ func TestIdentifyFromFileName(t *testing.T) {
 		version: "2.14.0",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+			identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
 				// this is called for jars that are not identified as log4j
 				// these cases are tested elsewhere so we just return nil with no error her
 				return nil
 			}, panicOnWalk)
-			result, version, err := identify.Identify(context.Background(), "", stubDirEntry{
+			result, version, err := identify.Identify(context.Background(), validZipFile(t), stubDirEntry{
 				name: tc.in,
 			})
 			require.NoError(t, err)
@@ -129,100 +145,105 @@ func TestIdentifyFromFileName(t *testing.T) {
 func TestIdentifyFromZipContents(t *testing.T) {
 	t.Run("handles error", func(t *testing.T) {
 		expectedErr := errors.New("err")
-		identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
-			assert.Equal(t, "/path/on/disk/", path)
+		identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
 			return expectedErr
 		}, panicOnWalk)
-		_, _, err := identify.Identify(context.Background(), "/path/on/disk/", stubDirEntry{
+		_, _, err := identify.Identify(context.Background(), validZipFile(t), stubDirEntry{
 			name: "file.zip",
 		})
 		require.Equal(t, expectedErr, err)
 	})
 
 	for _, tc := range []struct {
-		name     string
-		filename string
-		zipList  []string
-		tarList  []string
-		result   crawl.Finding
-		version  string
+		name       string
+		filename   string
+		filesInZip []string
+		filesInTar []string
+		result     crawl.Finding
+		version    string
 	}{{
-		name:     "archive with no log4j",
-		filename: "file.zip",
-		zipList:  []string{"foo.jar"},
+		name:       "archive with no log4j",
+		filename:   "file.zip",
+		filesInZip: []string{"foo.jar"},
 	}, {
-		name:     "archive with vulnerable log4j version",
-		filename: "file.zip",
-		zipList:  []string{"foo.jar", "log4j-core-2.14.1.jar"},
-		result:   crawl.JarNameInsideArchive,
-		version:  "2.14.1",
+		name:       "archive with vulnerable log4j version",
+		filename:   "file.zip",
+		filesInZip: []string{"foo.jar", "log4j-core-2.14.1.jar"},
+		result:     crawl.JarNameInsideArchive,
+		version:    "2.14.1",
 	}, {
-		name:     "archive with vulnerable log4j version in folder",
-		filename: "file.zip",
-		zipList:  []string{"foo.jar", "lib/log4j-core-2.14.1.jar"},
-		result:   crawl.JarNameInsideArchive,
-		version:  "2.14.1",
+		name:       "archive with vulnerable log4j version in folder",
+		filename:   "file.zip",
+		filesInZip: []string{"foo.jar", "lib/log4j-core-2.14.1.jar"},
+		result:     crawl.JarNameInsideArchive,
+		version:    "2.14.1",
 	}, {
-		name:     "tarred and gzipped with vulnerable log4j version",
-		filename: "file.tar.gz",
-		tarList:  []string{"foo.jar", "log4j-core-2.14.1.jar"},
-		result:   crawl.JarNameInsideArchive,
-		version:  "2.14.1",
+		name:       "tarred and gzipped with vulnerable log4j version",
+		filename:   "file.tar.gz",
+		filesInTar: []string{"foo.jar", "log4j-core-2.14.1.jar"},
+		result:     crawl.JarNameInsideArchive,
+		version:    "2.14.1",
 	}, {
-		name:     "tarred and gzipped with vulnerable log4j version, multiple . in filename",
-		filename: "foo.bar.tar.gz",
-		tarList:  []string{"foo.jar", "log4j-core-2.14.1.jar"},
-		result:   crawl.JarNameInsideArchive,
-		version:  "2.14.1",
+		name:       "tarred and gzipped with vulnerable log4j version, multiple . in filename",
+		filename:   "foo.bar.tar.gz",
+		filesInTar: []string{"foo.jar", "log4j-core-2.14.1.jar"},
+		result:     crawl.JarNameInsideArchive,
+		version:    "2.14.1",
 	}, {
-		name:     "archive with JndiManager class in wrong package",
-		filename: "java.jar",
-		zipList:  []string{"a/package/with/JndiManager.class"},
-		result:   crawl.ClassName,
-		version:  crawl.UnknownVersion,
+		name:       "archive with JndiManager class in wrong package",
+		filename:   "java.jar",
+		filesInZip: []string{"a/package/with/JndiManager.class"},
+		result:     crawl.ClassName,
+		version:    crawl.UnknownVersion,
 	}, {
-		name:     "non-log4j archive with JndiManager in the log4j package",
-		filename: "not-log4.jar",
-		zipList:  []string{"org/apache/logging/log4j/core/net/JndiManager.class"},
-		result:   crawl.ClassPackageAndName,
-		version:  crawl.UnknownVersion,
+		name:       "non-log4j archive with JndiManager in the log4j package",
+		filename:   "not-log4.jar",
+		filesInZip: []string{"org/apache/logging/log4j/core/net/JndiManager.class"},
+		result:     crawl.ClassPackageAndName,
+		version:    crawl.UnknownVersion,
 	}, {
-		name:     "vulnerable log4j named jar with JndiManager class",
-		filename: "log4j-core-2.14.1.jar",
-		zipList:  []string{"org/apache/logging/log4j/core/net/JndiManager.class"},
-		result:   crawl.JarName | crawl.ClassPackageAndName,
-		version:  "2.14.1",
+		name:       "vulnerable log4j named jar with JndiManager class",
+		filename:   "log4j-core-2.14.1.jar",
+		filesInZip: []string{"org/apache/logging/log4j/core/net/JndiManager.class"},
+		result:     crawl.JarName | crawl.ClassPackageAndName,
+		version:    "2.14.1",
 	}, {
-		name:     "fixed log4j version with JndiManager class",
-		filename: "log4j-core-2.17.0.jar",
-		zipList:  []string{"org/apache/logging/log4j/core/net/JndiManager.class"},
-		result:   crawl.NothingDetected,
+		name:       "fixed log4j version with JndiManager class",
+		filename:   "log4j-core-2.17.0.jar",
+		filesInZip: []string{"org/apache/logging/log4j/core/net/JndiManager.class"},
+		result:     crawl.NothingDetected,
 	}, {
-		name:     "zip with uppercase log4j inside",
-		filename: "foo.jar",
-		zipList:  []string{"log4j-core-2.14.1.jAr"},
-		result:   crawl.JarNameInsideArchive,
-		version:  "2.14.1",
+		name:       "zip with uppercase log4j inside",
+		filename:   "foo.jar",
+		filesInZip: []string{"log4j-core-2.14.1.jAr"},
+		result:     crawl.JarNameInsideArchive,
+		version:    "2.14.1",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
-				assert.Equal(t, "/path/on/disk/", path)
-				for _, s := range tc.zipList {
-					if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {
+			zipPath := validZipFile(t)
+			// we only write the zip list once otherwise we will continue to recurse forever.
+			var zipContentsWritten bool
+			identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
+				if zipContentsWritten {
+					return nil
+				}
+				zipContentsWritten = true
+				for _, path := range tc.filesInZip {
+					if _, err := walkFn(ctx, path, 0, bytes.NewReader(validEmptyZipContent(t))); err != nil {
 						return err
 					}
 				}
 				return nil
 			}, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
-				assert.Equal(t, "/path/on/disk/", path)
-				for _, s := range tc.tarList {
+				assert.Equal(t, zipPath, path)
+				for _, s := range tc.filesInTar {
 					if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {
 						return err
 					}
 				}
 				return nil
 			})
-			result, version, err := identify.Identify(context.Background(), "/path/on/disk/", stubDirEntry{
+			result, version, err := identify.Identify(context.Background(), zipPath, stubDirEntry{
 				name: tc.filename,
 			})
 			require.NoError(t, err)

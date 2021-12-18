@@ -15,12 +15,14 @@
 package crawl
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"crypto/md5"
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -29,6 +31,7 @@ import (
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/java"
+	"github.com/pkg/errors"
 )
 
 type Finding int
@@ -105,12 +108,12 @@ type Identifier interface {
 }
 
 type identifier struct {
-	zipWalker   archive.WalkFn
+	zipWalker   archive.ZipWalkFn
 	tgzWalker   archive.WalkFn
 	listTimeout time.Duration
 }
 
-func NewIdentifier(archiveListTimeout time.Duration, zipWalker, tgzWalker archive.WalkFn) Identifier {
+func NewIdentifier(archiveListTimeout time.Duration, zipWalker archive.ZipWalkFn, tgzWalker archive.WalkFn) Identifier {
 	return &identifier{
 		zipWalker:   zipWalker,
 		tgzWalker:   tgzWalker,
@@ -130,8 +133,42 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 	}
 
 	lowercaseFilename := strings.ToLower(d.Name())
+	versions := make(Versions)
+	result := NothingDetected
+	archiveVersion, match := fileNameMatchesLog4jVersion(lowercaseFilename)
+	if match {
+		if vulnerableVersion(archiveVersion) {
+			result |= JarName
+			versions[archiveVersion] = struct{}{}
+		} else {
+			return result, versions, nil
+		}
+	} else {
+		archiveVersion = UnknownVersion
+	}
 	if hasZipFileEnding(lowercaseFilename) {
-		return i.lookForMatchInZip(ctx, path, lowercaseFilename, UnknownVersion)
+		file, err := os.Open(path)
+		if err != nil {
+			return 0, nil, err
+		}
+		defer func() {
+			if cErr := file.Close(); err == nil && cErr != nil {
+				err = cErr
+			}
+		}()
+		stat, err := file.Stat()
+		if err != nil {
+			return 0, nil, err
+		}
+		reader, err := zip.NewReader(file, stat.Size())
+		if err != nil {
+			return 0, nil, errors.Wrap(err, "boo")
+		}
+		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, reader, archiveVersion)
+		for v := range inZipVs {
+			versions[v] = struct{}{}
+		}
+		return result | inZip, versions, err
 	}
 	if hasTgzFileEnding(lowercaseFilename) {
 		return i.lookForMatchInTar(ctx, path)
@@ -139,18 +176,38 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 	return NothingDetected, nil, nil
 }
 
-func (i *identifier) lookForMatchInZip(ctx context.Context, path string, lowercaseFilename string, parentVersion string) (Finding, Versions, error) {
+func (i *identifier) lookForMatchInZip(ctx context.Context, depth int, r *zip.Reader, parentVersion string) (Finding, Versions, error) {
+	if depth > 1 {
+		return 0, nil, fmt.Errorf("maximum zip file recursion reached: %d", depth)
+	}
+
 	archiveResult := NothingDetected
 	versions := Versions{}
-	archiveVersion, match := fileNameMatchesLog4jVersion(lowercaseFilename)
-	if !match {
-		archiveVersion = parentVersion
-	} else if vulnerableVersion(archiveVersion) {
-		archiveResult |= JarName
-		versions[archiveVersion] = struct{}{}
-	}
-	err := i.zipWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
-		finding, version, err := lookForMatchInFileInZip(filename, size, contents, archiveVersion)
+	err := i.zipWalker(ctx, r, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+		if hasZipFileEnding(path) {
+			_, filename := filepath.Split(path)
+			archiveVersion, match := fileNameMatchesLog4jVersion(strings.ToLower(filename))
+			if match {
+				if vulnerableVersion(archiveVersion) {
+					archiveResult |= JarNameInsideArchive
+					versions[archiveVersion] = struct{}{}
+				}
+				return true, nil
+			}
+			reader, err := archive.ZipReaderFromReader(contents)
+			if err != nil {
+				return false, errors.Wrap(err, "creating zip reader from reader")
+			}
+			finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, parentVersion)
+			if err != nil {
+				return false, err
+			}
+			archiveResult = finding | archiveResult
+			for vv := range innerVersions {
+				versions[vv] = struct{}{}
+			}
+		}
+		finding, version, err := lookForMatchInFileInZip(path, size, contents, parentVersion)
 		if err != nil {
 			return false, err
 		}

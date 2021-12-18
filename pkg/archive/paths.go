@@ -25,29 +25,12 @@ import (
 
 // A WalkFn iterates through an archive, calling FileWalkFn on each member file.
 type WalkFn func(ctx context.Context, path string, walkFn FileWalkFn) error
+type ZipWalkFn func(ctx context.Context, r *zip.Reader, walkFn FileWalkFn) error
 
 // FileWalkFn is called by a WalkFn on each file contained in an archive.
 type FileWalkFn func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error)
 
-func WalkZipFiles(ctx context.Context, path string, walkFn FileWalkFn) (err error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if cErr := file.Close(); err == nil && cErr != nil {
-			err = cErr
-		}
-	}()
-	stat, err := file.Stat()
-	if err != nil {
-		return err
-	}
-
-	r, err := zip.NewReader(file, stat.Size())
-	if err != nil {
-		return err
-	}
+func WalkZipFiles(ctx context.Context, r *zip.Reader, walkFn FileWalkFn) (err error) {
 	for _, zipFile := range r.File {
 		select {
 		case <-ctx.Done():
