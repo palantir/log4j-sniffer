@@ -42,27 +42,22 @@ type ClassHash struct {
 	BytecodeInstructionHash string
 }
 
-var emptyHash = ClassHash{
-	CompleteHash:            "",
-	BytecodeInstructionHash: "",
-}
-
 func HashClass(jarFile string, className string) (ClassHash, error) {
 	r, err := zip.OpenReader(jarFile)
 	if err != nil {
-		return emptyHash, err
+		return ClassHash{}, err
 	}
 
 	classLocation := strings.ReplaceAll(className, ".", "/")
 
 	completeHash, err := md5Class(r, classLocation)
 	if err != nil {
-		return emptyHash, err
+		return ClassHash{}, err
 	}
 
 	bytecodeHash, err := md5Bytecode(r, classLocation)
 	if err != nil {
-		return emptyHash, err
+		return ClassHash{}, err
 	}
 
 	return ClassHash{
