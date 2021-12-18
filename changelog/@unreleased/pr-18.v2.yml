@@ -1,0 +1,8 @@
+type: fix
+fix:
+  description: |-
+    Correct ignore-dir help text
+
+    The regex operates on absolute paths and so must begin with `/`
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/18

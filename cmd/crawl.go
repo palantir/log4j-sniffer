@@ -61,7 +61,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 	}
 	cmd.Flags().StringSliceVar(&ignoreDirs, "ignore-dir", nil, `Specify directory pattern to ignore. Use multiple times to supply multiple patterns.
 Patterns should be relative to the provided root.
-e.g. ignore "^proc" to ignore "/proc" when using a crawl root of "/"`)
+e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"`)
 	cmd.Flags().DurationVar(&perArchiveTimeout, "per-archive-timeout", 15*time.Minute, `If this duration is exceeded when inspecting an archive, an error will be logged and the crawler will move onto the next file.`)
 	return &cmd
 }
