@@ -7,7 +7,7 @@ require (
 	github.com/palantir/go-metrics v1.1.1
 	github.com/palantir/godel/v2 v2.42.0
 	github.com/palantir/pkg/cobracli v1.0.1
-	github.com/palantir/pkg/metrics v1.2.0
+	github.com/palantir/pkg/metrics v1.3.0
 	github.com/palantir/pkg/signals v1.0.1
 	github.com/palantir/pkg/uuid v1.0.1
 	github.com/palantir/witchcraft-go-error v1.5.0

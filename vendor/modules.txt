@@ -27,7 +27,7 @@ github.com/palantir/pkg/bytesbuffers
 github.com/palantir/pkg/cobracli
 # github.com/palantir/pkg/datetime v1.0.1
 github.com/palantir/pkg/datetime
-# github.com/palantir/pkg/metrics v1.2.0
+# github.com/palantir/pkg/metrics v1.3.0
 ## explicit
 github.com/palantir/pkg/metrics
 # github.com/palantir/pkg/safejson v1.0.1
