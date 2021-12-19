@@ -125,6 +125,20 @@ The class names must be fully qualified and not end with .class.
 					secondBytecode[bestMatchIndex] = nil
 				}
 			}
+
+			fmt.Println("\n\n\n\nUnmatched bytecode from first class")
+			for _, bytecode := range  firstBytecode {
+				if bytecode != nil {
+					fmt.Printf("%x\n", bytecode)
+				}
+			}
+
+			fmt.Println("\n\n\n\nUnmatched bytecode from second class")
+			for _, bytecode := range  secondBytecode {
+				if bytecode != nil {
+					fmt.Printf("%x\n", bytecode)
+				}
+			}
 			return nil
 		},
 	}
