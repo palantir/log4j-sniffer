@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/spf13/cobra"
 )
