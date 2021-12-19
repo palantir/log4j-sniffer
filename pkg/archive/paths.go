@@ -25,7 +25,12 @@ import (
 
 // A WalkFn iterates through an archive, calling FileWalkFn on each member file.
 type WalkFn func(ctx context.Context, path string, walkFn FileWalkFn) error
+
+// A ZipWalkFn iterates through an zip, calling FileWalkFn on each member file.
 type ZipWalkFn func(ctx context.Context, r *zip.Reader, walkFn FileWalkFn) error
+
+// ZipReadCloserProvider should open a zip.ReadCloser when provided with the given path.
+type ZipReadCloserProvider func(path string) (*zip.ReadCloser, error)
 
 // FileWalkFn is called by a WalkFn on each file contained in an archive.
 type FileWalkFn func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error)

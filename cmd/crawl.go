@@ -27,6 +27,7 @@ func crawlCmd() *cobra.Command {
 	var (
 		ignoreDirs        []string
 		perArchiveTimeout time.Duration
+		archiveMaxDepth   uint
 		disableCVE45105   bool
 		outputJSON        bool
 		outputSummary     bool
@@ -54,6 +55,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 			_, err := crawler.Crawl(cmd.Context(), crawler.Config{
 				Root:               args[0],
 				ArchiveListTimeout: perArchiveTimeout,
+				ArchiveMaxDepth:    archiveMaxDepth,
 				DisableCVE45105:    disableCVE45105,
 				Ignores:            ignores,
 				OutputJSON:         outputJSON,
@@ -66,6 +68,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 Patterns should be relative to the provided root.
 e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"`)
 	cmd.Flags().DurationVar(&perArchiveTimeout, "per-archive-timeout", 15*time.Minute, `If this duration is exceeded when inspecting an archive, an error will be logged and the crawler will move onto the next file.`)
+	cmd.Flags().UintVar(&archiveMaxDepth, "archive-max-depth", 0, `The maximum depth to recurse into nested archives. A max depth of 0 will open up an archive on the filesystem but not any nested archives.`)
 	cmd.Flags().BoolVar(&disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
 	cmd.Flags().BoolVar(&outputJSON, "json", false, "If true, output will be in JSON format")
 	cmd.Flags().BoolVar(&outputSummary, "summary", true, "If true, outputs a summary of all operations once program completes")

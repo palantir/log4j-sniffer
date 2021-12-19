@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -108,16 +107,20 @@ type Identifier interface {
 }
 
 type identifier struct {
-	zipWalker   archive.ZipWalkFn
-	tgzWalker   archive.WalkFn
-	listTimeout time.Duration
+	zipWalker         archive.ZipWalkFn
+	tgzWalker         archive.WalkFn
+	listTimeout       time.Duration
+	openFileZipReader archive.ZipReadCloserProvider
+	archiveMaxDepth   uint
 }
 
-func NewIdentifier(archiveListTimeout time.Duration, zipWalker archive.ZipWalkFn, tgzWalker archive.WalkFn) Identifier {
+func NewIdentifier(archiveListTimeout time.Duration, archiveMaxDepth uint, openZipFileReader archive.ZipReadCloserProvider, zipWalker archive.ZipWalkFn, tgzWalker archive.WalkFn) Identifier {
 	return &identifier{
-		zipWalker:   zipWalker,
-		tgzWalker:   tgzWalker,
-		listTimeout: archiveListTimeout,
+		openFileZipReader: openZipFileReader,
+		zipWalker:         zipWalker,
+		tgzWalker:         tgzWalker,
+		listTimeout:       archiveListTimeout,
+		archiveMaxDepth:   archiveMaxDepth,
 	}
 }
 
@@ -147,24 +150,16 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 		archiveVersion = UnknownVersion
 	}
 	if hasZipFileEnding(lowercaseFilename) {
-		file, err := os.Open(path)
+		reader, err := i.openFileZipReader(path)
 		if err != nil {
 			return 0, nil, err
 		}
 		defer func() {
-			if cErr := file.Close(); err == nil && cErr != nil {
+			if cErr := reader.Close(); err == nil && cErr != nil {
 				err = cErr
 			}
 		}()
-		stat, err := file.Stat()
-		if err != nil {
-			return 0, nil, err
-		}
-		reader, err := zip.NewReader(file, stat.Size())
-		if err != nil {
-			return 0, nil, errors.Wrap(err, "boo")
-		}
-		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, reader, archiveVersion)
+		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader, archiveVersion)
 		for v := range inZipVs {
 			versions[v] = struct{}{}
 		}
@@ -176,9 +171,9 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 	return NothingDetected, nil, nil
 }
 
-func (i *identifier) lookForMatchInZip(ctx context.Context, depth int, r *zip.Reader, parentVersion string) (Finding, Versions, error) {
-	if depth > 1 {
-		return 0, nil, fmt.Errorf("maximum zip file recursion reached: %d", depth)
+func (i *identifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader, parentVersion string) (Finding, Versions, error) {
+	if depth > i.archiveMaxDepth {
+		return 0, nil, nil
 	}
 
 	archiveResult := NothingDetected

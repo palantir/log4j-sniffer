@@ -15,6 +15,7 @@
 package crawler
 
 import (
+	"archive/zip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -32,6 +33,9 @@ type Config struct {
 	// ArchiveListTimeout is the maximum amount of time that will be spent analyzing an archive. Once this duration has
 	// passed for a single archive, it is skipped and recorded as such.
 	ArchiveListTimeout time.Duration
+	// ArchiveMaxDepth is the maximum archive depth to recurse into. A value of 0 will open up an archive on the
+	// filesystem but will not recurse into any nested archives within it.
+	ArchiveMaxDepth uint
 	// If true, disables detection of CVE-45105
 	DisableCVE45105 bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.
@@ -50,7 +54,7 @@ type SummaryJSON struct {
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
 // provided configuration. Returns the number of issues that were found.
 func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64, error) {
-	identifier := crawl.NewIdentifier(config.ArchiveListTimeout, archive.WalkZipFiles, archive.WalkTarGzFiles)
+	identifier := crawl.NewIdentifier(config.ArchiveListTimeout, config.ArchiveMaxDepth, zip.OpenReader, archive.WalkZipFiles, archive.WalkTarGzFiles)
 	crawler := crawl.Crawler{
 		ErrorWriter: stderr,
 		IgnoreDirs:  config.Ignores,
