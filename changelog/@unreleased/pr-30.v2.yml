@@ -1,0 +1,22 @@
+type: feature
+feature:
+  description: |-
+    Update output behavior
+
+    Updates output behavior as follows:
+    * Writes to stdout and stderr directly rather than using loggers
+    * Removes metric loggers
+    * In default mode, prints output in human-readable form with summary
+    * Adds "--json" flag that, when specified, prints all output as structured JSON
+    * Adds "--summary" flag that is enabled by default and, when set to false, does not print the summary
+    * Updates crawler tests to test crawler behavior on examples
+    * Updates crawl.Crawler.Crawl to return summary statistics
+    * Updates cralwer.Crawl to take in crawler.Config struct instead of individual command-line options
+    * Uses standard Go style for capitalization in variable names
+
+    These modifications make it such that the project no longer has dependencies on witchcraft-go-logging
+    or witchcraft-go-error.
+
+    Fixes #15
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/30
