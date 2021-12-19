@@ -69,6 +69,22 @@ func HashClass(jarFile string, className string) (ClassHash, error) {
 	}, nil
 }
 
+func ReadMethodByteCode(jarFile string, className string) ([][]byte, error) {
+	r, err := zip.OpenReader(jarFile)
+	if err != nil {
+		return nil, err
+	}
+
+	classLocation := strings.ReplaceAll(className, ".", "/")
+
+	buf, err := readClassBytes(r, classLocation)
+	if err != nil {
+		return nil, err
+	}
+
+	return ExtractBytecode(buf.Bytes())
+}
+
 func md5Class(r *zip.ReadCloser, classLocation string) (string, int64, error) {
 	c, err := r.Open(classLocation + ".class")
 	if err != nil {
@@ -96,13 +112,7 @@ func md5File(file fs.File) (string, int64, error) {
 }
 
 func md5Bytecode(r *zip.ReadCloser, classLocation string) (string, error) {
-	c, err := r.Open(classLocation + ".class")
-	if err != nil {
-		return "", err
-	}
-
-	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(c)
+	buf, err := readClassBytes(r, classLocation)
 	if err != nil {
 		return "", err
 	}
@@ -112,9 +122,21 @@ func md5Bytecode(r *zip.ReadCloser, classLocation string) (string, error) {
 		return "", err
 	}
 
-	err = c.Close()
-	if err != nil {
-		return "", err
-	}
 	return h, nil
+}
+
+func readClassBytes(r *zip.ReadCloser, classLocation string) (*bytes.Buffer, error) {
+	c, err := r.Open(classLocation + ".class")
+	if err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(c)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Close()
+	return buf, nil
 }

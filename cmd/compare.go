@@ -41,13 +41,22 @@ The class names must be fully qualified and not end with .class.
 						svc1log.Stacktrace(err))
 				}
 			}()
-			hashes, err := java.HashClass(args[0], args[1])
+			bytecode, err := java.ReadMethodByteCode(args[0], args[1])
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Size of class: %d\n", hashes.ClassSize)
-			fmt.Printf("Hash of complete class: %s\n", hashes.CompleteHash)
-			fmt.Printf("Hash of all bytecode instructions: %s\n", hashes.BytecodeInstructionHash)
+			for _, methodBytecode := range bytecode {
+				fmt.Printf("%x\n", methodBytecode)
+			}
+
+			fmt.Println("\n\n\n\nSecond class")
+			bytecode, err = java.ReadMethodByteCode(args[2], args[3])
+			if err != nil {
+				return err
+			}
+			for _, methodBytecode := range bytecode {
+				fmt.Printf("%x\n", methodBytecode)
+			}
 			return nil
 		},
 	}
