@@ -15,7 +15,9 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"sort"
 
 	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/palantir/log4j-sniffer/pkg/metrics"
@@ -41,21 +43,87 @@ The class names must be fully qualified and not end with .class.
 						svc1log.Stacktrace(err))
 				}
 			}()
-			bytecode, err := java.ReadMethodByteCode(args[0], args[1])
+			firstBytecode, err := java.ReadMethodByteCode(args[0], args[1])
 			if err != nil {
 				return err
 			}
-			for _, methodBytecode := range bytecode {
+			for _, methodBytecode := range firstBytecode {
 				fmt.Printf("%x\n", methodBytecode)
 			}
 
 			fmt.Println("\n\n\n\nSecond class")
-			bytecode, err = java.ReadMethodByteCode(args[2], args[3])
+			secondBytecode, err := java.ReadMethodByteCode(args[2], args[3])
 			if err != nil {
 				return err
 			}
-			for _, methodBytecode := range bytecode {
+			for _, methodBytecode := range secondBytecode {
 				fmt.Printf("%x\n", methodBytecode)
+			}
+
+			fmt.Println("\n\n\n\nExact matches")
+			for i, firstClassMethodBytecode := range firstBytecode {
+				for j, secondClassMethodBytecode := range secondBytecode {
+					if bytes.Compare(firstClassMethodBytecode, secondClassMethodBytecode) == 0 {
+						fmt.Printf("%x\n", firstClassMethodBytecode)
+						firstBytecode[i] = nil
+						secondBytecode[j] = nil
+					}
+				}
+			}
+
+			sort.SliceStable(firstBytecode, func(i, j int) bool {
+				return len(firstBytecode[i]) > len(firstBytecode[j])
+			})
+			sort.SliceStable(secondBytecode, func(i, j int) bool {
+				return len(secondBytecode[i]) > len(secondBytecode[j])
+			})
+
+			fmt.Println("\n\n\n\nPartial matches")
+			for i, firstClassMethodBytecode := range firstBytecode {
+				if len(firstClassMethodBytecode) < 3 {
+					// Can't have a partial match unless ther are enough opcodes
+					continue
+				}
+				bestMatchIndex :=  -1
+				bestMatchPrefixLength := 0
+				bestMatchSuffixLength := 0
+				for j, secondClassMethodBytecode := range secondBytecode {
+					if len(secondClassMethodBytecode) < 3 {
+						continue
+					}
+					x := 0
+					y := len(firstClassMethodBytecode)
+					z := len(secondClassMethodBytecode)
+					for x < len(firstClassMethodBytecode) && x < len(secondClassMethodBytecode) && firstClassMethodBytecode[x] == secondClassMethodBytecode[x] {
+						x++
+					}
+					for y > x && z > x && firstClassMethodBytecode[y - 1] == secondClassMethodBytecode[z - 1] {
+						y--
+						z--
+					}
+					if x < 1 || y == len(firstClassMethodBytecode) {
+						// No match at one or both of the ends
+						continue
+					}
+
+					matchLength := x + len(firstClassMethodBytecode) - y
+					if matchLength > bestMatchPrefixLength + bestMatchSuffixLength {
+						bestMatchIndex = j
+						bestMatchPrefixLength = x
+						bestMatchSuffixLength = len(firstClassMethodBytecode) - y
+					}
+				}
+
+				if bestMatchIndex > -1 {
+					fmt.Printf("%x", firstClassMethodBytecode[:bestMatchPrefixLength])
+					for i := bestMatchSuffixLength; i < len(firstClassMethodBytecode); i++ {
+						fmt.Printf("_")
+					}
+					suffixIndex := len(firstClassMethodBytecode) - bestMatchSuffixLength
+					fmt.Printf("%x\n", firstClassMethodBytecode[suffixIndex:])
+					firstBytecode[i] = nil
+					secondBytecode[bestMatchIndex] = nil
+				}
 			}
 			return nil
 		},
