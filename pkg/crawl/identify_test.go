@@ -73,6 +73,36 @@ func TestZipIdentifierImplementsTimeout(t *testing.T) {
 		_, _, err := identify.Identify(context.Background(), "foo", stubDirEntry{name: ".zip"})
 		require.Equal(t, expectedErr, err)
 	})
+
+	t.Run("does not recurse into nested archives when archiveMaxDepth set to 0", func(t *testing.T) {
+		identify := crawl.NewIdentifier(time.Second, 0, func(path string) (*zip.ReadCloser, error) {
+			zipContent := createZipContent(t, "nested.zip",
+				createZipContent(t, "log4j-core-2.14.1.jar", []byte{}).Bytes())
+			reader, err := archive.ZipReaderFromReader(zipContent)
+			require.NoError(t, err)
+			return &zip.ReadCloser{Reader: *reader}, nil
+		}, archive.WalkZipFiles, nil)
+
+		finding, version, err := identify.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		require.NoError(t, err)
+		assert.Equal(t, crawl.NothingDetected, finding)
+		assert.Equal(t, crawl.Versions{}, version)
+	})
+
+	t.Run("supports nested archives", func(t *testing.T) {
+		identify := crawl.NewIdentifier(time.Second, 10, func(path string) (*zip.ReadCloser, error) {
+			zipContent := createZipContent(t, "nested.zip",
+				createZipContent(t, "log4j-core-2.14.1.jar", []byte{}).Bytes())
+			reader, err := archive.ZipReaderFromReader(zipContent)
+			require.NoError(t, err)
+			return &zip.ReadCloser{Reader: *reader}, nil
+		}, archive.WalkZipFiles, nil)
+
+		finding, version, err := identify.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		require.NoError(t, err)
+		assert.Equal(t, crawl.JarNameInsideArchive, finding)
+		assert.Equal(t, crawl.Versions{"2.14.1": {}}, version)
+	})
 }
 
 func TestIdentifyFromFileName(t *testing.T) {
@@ -282,6 +312,20 @@ func TestFindingString(t *testing.T) {
 
 func emptyZipReadCloserProvider(string) (*zip.ReadCloser, error) {
 	return &zip.ReadCloser{}, nil
+}
+
+func createZipContent(t *testing.T, containedFilename string, containedFileContent []byte) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	header, err := w.CreateHeader(&zip.FileHeader{
+		Name: containedFilename,
+	})
+	require.NoError(t, err)
+	_, err = header.Write(containedFileContent)
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+	return &buf
 }
 
 type stubDirEntry struct {

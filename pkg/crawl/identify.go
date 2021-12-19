@@ -38,12 +38,12 @@ type Versions map[string]struct{}
 
 const (
 	NothingDetected             Finding = 0
-	ClassName                           = 1 << iota
-	JarName                             = 1 << iota
-	JarNameInsideArchive                = 1 << iota
-	ClassPackageAndName                 = 1 << iota
-	ClassBytecodeInstructionMd5         = 1 << iota
-	ClassFileMd5                        = 1 << iota
+	ClassName                   Finding = 1 << iota
+	JarName                     Finding = 1 << iota
+	JarNameInsideArchive        Finding = 1 << iota
+	ClassPackageAndName         Finding = 1 << iota
+	ClassBytecodeInstructionMd5 Finding = 1 << iota
+	ClassFileMd5                Finding = 1 << iota
 )
 
 func (f Finding) String() string {
