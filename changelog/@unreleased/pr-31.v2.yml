@@ -1,0 +1,7 @@
+type: improvement
+improvement:
+  description: |+
+    We now only look for class files in zips such as zip, jar, ear, war.
+
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/31
