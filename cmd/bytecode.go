@@ -18,8 +18,6 @@ import (
 	"fmt"
 
 	"github.com/palantir/log4j-sniffer/pkg/java"
-	"github.com/palantir/log4j-sniffer/pkg/metrics"
-	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 	"github.com/spf13/cobra"
 )
 
@@ -36,21 +34,13 @@ with modifications.
 Use the class-name option to change which class is analysed within the JAR.
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, closeLogger := contextWithDefaultLogger()
-			defer func() {
-				metrics.Flush(ctx)
-				if err := closeLogger(); err != nil {
-					svc1log.FromContext(ctx).Error("Error closing logger",
-						svc1log.Stacktrace(err))
-				}
-			}()
 			hashes, err := java.HashClass(args[0], className)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Size of class: %d\n", hashes.ClassSize)
-			fmt.Printf("Hash of complete class: %s\n", hashes.CompleteHash)
-			fmt.Printf("Hash of all bytecode instructions: %s\n", hashes.BytecodeInstructionHash)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Size of class: %d\n", hashes.ClassSize)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Hash of complete class: %s\n", hashes.CompleteHash)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Hash of all bytecode instructions: %s\n", hashes.BytecodeInstructionHash)
 			return nil
 		},
 	}

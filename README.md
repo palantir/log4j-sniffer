@@ -52,35 +52,60 @@ ionice -c 3 nice -n 19 log4j-sniffer crawl /path/to/a/directory
 Output for vulnerable files looks as follows:
 
 ```
-INFO  [2021-12-17T14:10:10.046706-08:00] github.com/palantir/log4j-sniffer/pkg/crawl/crawler.go:50: Crawl started (runID: 0132794a-6b5a-4632-b7ee-7e92672990ee)
-INFO  [2021-12-17T14:10:10.053085-08:00] github.com/palantir/log4j-sniffer/pkg/crawl/report.go:44: CVE-2021-45046 detected (classFileMd5Matched: true, classNameMatched: false, classPackageAndNameMatch: true, filename: log4j-core-2.14.1.jar, jarNameInsideArchiveMatched: false, jarNameMatched: true, runID: 0132794a-6b5a-4632-b7ee-7e92672990ee) (log4jVersions: [2.14.0 - 2.14.1 2.14.1]) (path: examples/single_bad_version/log4j-core-2.14.1.jar)
-INFO  [2021-12-17T14:10:10.053327-08:00] github.com/palantir/log4j-sniffer/pkg/crawl/crawler.go:54: Crawl complete (crawlDuration: 6.867927ms, filesScanned: 1, permissionDeniedCount: 0, runID: 0132794a-6b5a-4632-b7ee-7e92672990ee)
-INFO  [2021-12-17T14:10:10.053455-08:00] github.com/palantir/log4j-sniffer/internal/crawler/crawl.go:46: Files affected by CVE-2021-45046 detected (runID: 0132794a-6b5a-4632-b7ee-7e92672990ee, vulnerableFileCount: 1)
+CVE-2021-45046 and CVE-2021-45105 detected in file examples/single_bad_version/log4j-core-2.14.1.jar. log4j versions: 2.14.0 - 2.14.1, 2.14.1. Reasons: jar name matched, class and package name matched, class file MD5 matched
+Files affected by CVE-2021-45046 or CVE-2021-45105 detected: 1 file(s) impacted by CVE-2021-45046 or CVE-2021-45105
+1 total files scanned, skipped 0 paths due to permission denied errors, encountered 0 errors processing paths
 ```
-
-With the following meaning:
-- classFileMd5Matched: there was a .class file called `JndiManager` that matched the md5 hash of a known version
-- bytecodeInstructionMd5Matched: the bytecode of a .class file called `JndiManager` exactly matched a known version, see below for more details
-- classNameMatched: there was a .class file called `JndiManager`
-- classPackageAndNameMatched: there was a .class file called `JndiManager` with a package of `org.apache.logging.log4j.core.net`
-- jarNameInsideArchiveMatched: there was a .jar file called `log4j-core-<version>.jar` inside the archive
-- jarNameMatched: the file scanned was a .jar file called `log4j-core-<version>.jar`
-- log4jVersions: the versions detected at this location based on a combination of filenames and md5 hash matching
-- filename: the filename matched
-- path: the full path on disk for the file
-
-Bytecode matching
-=================
-
-If a class is shaded, for example to build a fat jar, then the bytecode is rewritten to update the package. This means the hash of the class will no longer match against known versions, nor will the class appear where expected within a jar.
-
-To account for this we perform a less accurate hash of a class file: we only hash the fixed parts of the bytecode defining each method, ignoring all parts that might vary upon shading. We take an md5 hash of the resulting bytecode and compare against known versions.
-
-Testing against shaded jars shows this matches when the package version has been changed but the class otherwise left intact. Shading which further modifies classes, such as by removing methods, will not be found with this approach.
 
 CVE-2021-45105
 ==============
 
 If you do not wish to report results for CVE-2021-45105 then pass the `--disable-cve-2021-45105-detection` flag to the crawl command.
 
-By default both CVE-2021-45046 and CVE-2021-45105 will be reported.
+By default, both CVE-2021-45046 and CVE-2021-45105 will be reported.
+
+Usage
+=====
+The primary command for the tool is `crawl` which takes an argument that is the path to the directory to be crawled.
+Thus, the standard usage is:
+
+```
+log4j-sniffer crawl [pathToDirectory]
+```
+
+The standard mode prints output in a human-readable format and prints a summary that states the number of
+vulnerabilities found after running.
+
+Specifying the `--json` flag makes it such that the output of the program is all in JSON: each line of output is JSON
+that describes the vulnerability that is found, and if summary mode is enabled then the final summary is also output as
+a line of JSON.
+
+Here is an example of the output with `--json`:
+
+```
+{"message":"CVE-2021-45046 and CVE-2021-45105 detected","filePath":"examples/single_bad_version/log4j-core-2.14.1.jar","classNameMatched":false,"classPackageAndNameMatch":true,"classFileMd5Matched":true,"bytecodeInstructionMd5Matched":false,"jarNameMatched":true,"jarNameInsideArchiveMatched":false,"log4jVersions":["2.14.0 - 2.14.1","2.14.1"]}
+{"filesScanned":1,"permissionDeniedErrors":0,"pathErrors":0,"numImpactedFiles":1}
+```
+
+The JSON fields have the following meaning:
+- message: information about the output
+- filePath: the path to the file in which the vulnerability was detected 
+- classNameMatched: there was a .class file called `JndiLookup`
+- classPackageAndNameMatched: there was a .class file called `JndiLookup` with a package of `org.apache.logging.log4j.core.lookup`
+- classFileMd5Matched: there was a .class file called JndiManager that matched the md5 hash of a known version
+- bytecodeInstructionMd5Matched: the bytecode of a .class file called JndiManager exactly matched a known version, see [Bytecode matching](#bytecode-matching) section for more details
+- jarNameMatched: the file scanned was a .jar file called `log4j-core-<version>.jar`
+- jarNameInsideArchiveMatched: there was a .jar file called `log4j-core-<version>.jar` inside the archive
+- log4jVersions: the versions detected at this location based on a combination of filenames and md5 hash matching
+
+Specifying `--summary=false` makes it such that the program does not output a summary line at the end. In this case,
+the program will only print output if vulnerabilities are found.
+
+Bytecode matching
+=================
+
+If a class is shaded (for example, to build a fat jar), then the bytecode is rewritten to update the package. This means the hash of the class will no longer match against known versions, nor will the class appear where expected within a jar.
+
+To account for this, we perform a less accurate hash of a class file: we only hash the fixed parts of the bytecode defining each method, ignoring all parts that might vary upon shading. We take an md5 hash of the resulting bytecode and compare against known versions.
+
+Testing against shaded jars shows this matches when the package version has been changed but the class otherwise left intact. Shading which further modifies classes, such as by removing methods, will not be found with this approach.

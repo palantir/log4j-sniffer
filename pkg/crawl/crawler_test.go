@@ -22,10 +22,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"testing"
-	"time"
 
-	"github.com/palantir/log4j-sniffer/internal/generated/metrics/metrics"
-	"github.com/palantir/log4j-sniffer/pkg/testcontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,45 +44,38 @@ func TestCrawler_Crawl(t *testing.T) {
 			"qux/qux",
 		})
 		require.NoError(t, os.Symlink(filepath.Join(root, "bar/bar"), filepath.Join(root, "bar/bar")))
-		require.NoError(t, Crawler{
+		_, err := Crawler{
 			IgnoreDirs: []*regexp.Regexp{
 				regexp.MustCompile(filepath.Join(root, `foo`)),
 				regexp.MustCompile(filepath.Join(root, `baz`)),
 			},
-		}.Crawl(testcontext.GetTestContext(t), root, func(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error) {
+		}.Crawl(context.Background(), root, func(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error) {
 			matchPathInputs = append(matchPathInputs, path)
 			matchDirEntryInputs = append(matchDirEntryInputs, d.Name())
 			return JarName, nil, nil
 		}, func(ctx context.Context, path string, d fs.DirEntry, result Finding, version Versions) {
 			processInputs = append(processInputs, path)
 			processDirEntryInputs = append(processDirEntryInputs, d.Name())
-		}))
+		})
+		require.NoError(t, err)
 		assert.Equal(t, []string{filepath.Join(root, "qux/qux")}, matchPathInputs)
 		assert.Equal(t, []string{"qux"}, matchDirEntryInputs)
 		assert.Equal(t, []string{filepath.Join(root, "qux/qux")}, processInputs)
 		assert.Equal(t, []string{"qux"}, processDirEntryInputs)
 	})
 
-	t.Run("updates duration metric", func(t *testing.T) {
-		ctx := testcontext.WithCleanMetricsRegistry(t)
-		require.NoError(t, Crawler{}.Crawl(ctx, makeTestFS(t, nil, []string{"foo"}), func(context.Context, string, fs.DirEntry) (Finding, Versions, error) {
-			time.Sleep(time.Millisecond)
-			return JarName, nil, nil
-		}, func(ctx context.Context, path string, d fs.DirEntry, result Finding, version Versions) {}))
-		assert.Greater(t, metrics.Crawl(ctx).DurationMilliseconds().Gauge().Value(), int64(0))
-	})
-
 	t.Run("returns without processing if context is done", func(t *testing.T) {
 		var countMatch int
 		var countProcess int
-		ctx, cancel := context.WithCancel(testcontext.GetTestContext(t))
+		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		require.Equal(t, ctx.Err(), Crawler{}.Crawl(ctx, t.TempDir(), func(context.Context, string, fs.DirEntry) (Finding, Versions, error) {
+		_, err := Crawler{}.Crawl(ctx, t.TempDir(), func(context.Context, string, fs.DirEntry) (Finding, Versions, error) {
 			countMatch++
 			return JarName, nil, nil
 		}, func(context.Context, string, fs.DirEntry, Finding, Versions) {
 			countProcess++
-		}))
+		})
+		require.Equal(t, ctx.Err(), err)
 		assert.Zero(t, countMatch)
 		assert.Zero(t, countProcess)
 	})
@@ -94,13 +84,14 @@ func TestCrawler_Crawl(t *testing.T) {
 		var matchInputs []string
 		var countProcess int
 		root := makeTestFS(t, nil, []string{"foo"})
-		require.NoError(t, Crawler{}.Crawl(testcontext.GetTestContext(t), root,
+		_, err := Crawler{}.Crawl(context.Background(), root,
 			func(ctx context.Context, path string, entry fs.DirEntry) (Finding, Versions, error) {
 				matchInputs = append(matchInputs, path)
 				return NothingDetected, nil, errors.New("")
 			}, func(context.Context, string, fs.DirEntry, Finding, Versions) {
 				countProcess++
-			}))
+			})
+		require.NoError(t, err)
 		assert.Equal(t, []string{filepath.Join(root, "foo")}, matchInputs)
 		assert.Zero(t, countProcess)
 	})
@@ -109,28 +100,30 @@ func TestCrawler_Crawl(t *testing.T) {
 		var matchInputs []string
 		var countProcess int
 		root := makeTestFS(t, nil, []string{"foo"})
-		require.NoError(t, Crawler{}.Crawl(testcontext.GetTestContext(t), root,
+		_, err := Crawler{}.Crawl(context.Background(), root,
 			func(ctx context.Context, path string, entry fs.DirEntry) (Finding, Versions, error) {
 				matchInputs = append(matchInputs, path)
 				return NothingDetected, nil, nil
 			}, func(context.Context, string, fs.DirEntry, Finding, Versions) {
 				countProcess++
-			}))
+			})
+		require.NoError(t, err)
 		assert.Equal(t, []string{filepath.Join(root, "foo")}, matchInputs)
 		assert.Zero(t, countProcess)
 	})
 
 	t.Run("processes files on match", func(t *testing.T) {
 		var processInputs []string
-		ctx := testcontext.GetTestContext(t)
+		ctx := context.Background()
 		root := makeTestFS(t, nil, []string{"foo", "bar"})
-		require.NoError(t, Crawler{}.Crawl(ctx, root,
+		_, err := Crawler{}.Crawl(ctx, root,
 			func(context.Context, string, fs.DirEntry) (Finding, Versions, error) {
 				return JarName, nil, nil
 			}, func(innerCtx context.Context, path string, entry fs.DirEntry, result Finding, version Versions) {
 				processInputs = append(processInputs, path)
 				assert.Equal(t, ctx, innerCtx)
-			}))
+			})
+		require.NoError(t, err)
 		assert.Equal(t, []string{
 			filepath.Join(root, "bar"),
 			filepath.Join(root, "foo"),
