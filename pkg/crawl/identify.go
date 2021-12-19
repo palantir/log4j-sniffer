@@ -123,8 +123,11 @@ func NewIdentifier(archiveListTimeout time.Duration, zipWalker, tgzWalker archiv
 // - vulnerable log4j jar files.
 // - zipped files containing vulnerable log4j files, using the provided ZipFileLister.
 func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error) {
-	ctx, cancel := context.WithTimeout(ctx, i.listTimeout)
-	defer cancel()
+	if i.listTimeout > 0 {
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, i.listTimeout)
+		defer cancel()
+		ctx = ctxWithTimeout
+	}
 
 	lowercaseFilename := strings.ToLower(d.Name())
 	if hasZipFileEnding(lowercaseFilename) {

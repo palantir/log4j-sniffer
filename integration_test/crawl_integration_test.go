@@ -49,34 +49,23 @@ func TestBadVersions(t *testing.T) {
 			require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
 			got := string(output)
 			assert.Contains(t, got, "Files affected by CVE-2021-45046 or CVE-2021-45105 detected")
-			assert.Contains(t, got, fmt.Sprintf("vulnerableFileCount: %d", tc.count))
+			assert.Contains(t, got, fmt.Sprintf("Files affected by CVE-2021-45046 or CVE-2021-45105 detected: %d file(s) impacted by CVE-2021-45046 or CVE-2021-45105", tc.count))
 			assert.NotContains(t, got, "No files affected by CVE-2021-45046 or CVE-2021-45105 detected")
-			if tc.finding&crawl.JarName > 0 {
-				assert.Contains(t, got, "jarNameMatched: true")
-			} else {
-				assert.NotContains(t, got, "jarNameMatched: true")
-			}
-			if tc.finding&crawl.JarNameInsideArchive > 0 {
-				assert.Contains(t, got, "jarNameInsideArchiveMatched: true")
-			} else {
-				assert.NotContains(t, got, "jarNameInsideArchiveMatched: true")
-			}
-			if tc.finding&crawl.ClassPackageAndName > 0 {
-				assert.Contains(t, got, "classPackageAndNameMatched: true")
-			} else {
-				assert.NotContains(t, got, "classPackageAndNameMatched: true")
-			}
-			if tc.finding&crawl.ClassFileMd5 > 0 {
-				assert.Contains(t, got, "classFileMd5Matched: true")
-			} else {
-				assert.NotContains(t, got, "classFileMd5Matched: true")
-			}
-			if tc.finding&crawl.ClassBytecodeInstructionMd5 > 0 {
-				assert.Contains(t, got, "bytecodeInstructionMd5Matched: true")
-			} else {
-				assert.NotContains(t, got, "bytecodeInstructionMd5Matched: true")
-			}
+
+			testMatched(t, got, tc.finding, crawl.JarName, "jar name matched")
+			testMatched(t, got, tc.finding, crawl.JarNameInsideArchive, "jar name inside archive matched")
+			testMatched(t, got, tc.finding, crawl.ClassPackageAndName, "class and package name matched")
+			testMatched(t, got, tc.finding, crawl.ClassFileMd5, "class file MD5 matched")
+			testMatched(t, got, tc.finding, crawl.ClassBytecodeInstructionMd5, "byte code instruction MD5 matched")
 		})
+	}
+}
+
+func testMatched(t *testing.T, got string, tcFinding, currFinding crawl.Finding, msg string) {
+	if tcFinding&currFinding > 0 {
+		assert.Contains(t, got, msg)
+	} else {
+		assert.NotContains(t, got, msg)
 	}
 }
 
@@ -99,16 +88,16 @@ func TestCve45105Flag(t *testing.T) {
 	for _, tc := range []struct {
 		name            string
 		directory       string
-		disableCve45105 bool
+		disableCVE45105 bool
 		count           int
 		finding         crawl.Finding
 	}{
 		{name: "cve-2021-45105 enabled", directory: "../examples/cve-2021-45105-versions"},
-		{name: "cve-2021-45105 disabled on 2.16.0", disableCve45105: true, directory: "../examples/cve-2021-45105-versions"},
+		{name: "cve-2021-45105 disabled on 2.16.0", disableCVE45105: true, directory: "../examples/cve-2021-45105-versions"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var cmd *exec.Cmd
-			if tc.disableCve45105 {
+			if tc.disableCVE45105 {
 				cmd = exec.Command(cli, "crawl", "--disable-cve-2021-45105-detection", tc.directory)
 			} else {
 				cmd = exec.Command(cli, "crawl", tc.directory)
@@ -116,7 +105,7 @@ func TestCve45105Flag(t *testing.T) {
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
 			got := string(output)
-			if tc.disableCve45105 {
+			if tc.disableCVE45105 {
 				assert.NotContains(t, got, "Files affected by CVE-2021-45046 or CVE-2021-45105 detected")
 				assert.Contains(t, got, "No files affected by CVE-2021-45046 detected")
 			} else {

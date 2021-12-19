@@ -15,26 +15,82 @@
 package crawler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
+	"strings"
 	"testing"
-	"time"
 
-	"github.com/palantir/log4j-sniffer/internal/generated/metrics/metrics"
-	"github.com/palantir/log4j-sniffer/pkg/testcontext"
+	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCrawl(t *testing.T) {
-	t.Run("emits status of 1 on failed crawl", func(t *testing.T) {
-		ctx := testcontext.WithCleanMetricsRegistry(t)
-		require.Error(t, Crawl(ctx, 10*time.Second, "non-existant-root", nil, false))
-		assert.EqualValues(t, 1, metrics.Crawl(ctx).Status().Gauge().Value())
+	t.Run("returns non-nil error and 0 issues on failed crawl", func(t *testing.T) {
+		numIssues, err := Crawl(context.Background(), Config{
+			Root: "non-existent-root",
+		}, io.Discard, io.Discard)
+		require.Error(t, err)
+
+		assert.Equal(t, int64(0), numIssues)
 	})
 
-	t.Run("emits status of 0 on successful crawl", func(t *testing.T) {
-		ctx := testcontext.WithCleanMetricsRegistry(t)
-		metrics.Crawl(ctx).Status().Gauge().Update(666)
-		require.NoError(t, Crawl(ctx, 10*time.Second, t.TempDir(), nil, false))
-		assert.EqualValues(t, 0, metrics.Crawl(ctx).Status().Gauge().Value())
+	t.Run("returns nil error and 0 issues on successful crawl with no issues", func(t *testing.T) {
+		numIssues, err := Crawl(context.Background(), Config{
+			Root: t.TempDir(),
+		}, io.Discard, io.Discard)
+
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), numIssues)
 	})
+}
+
+func TestCrawlGoodVersion(t *testing.T) {
+	buf := &bytes.Buffer{}
+	numIssues, err := Crawl(context.Background(), Config{
+		Root:       "../../examples/good_version",
+		OutputJSON: true,
+	}, buf, io.Discard)
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(0), numIssues)
+	assert.Equal(t, "", buf.String())
+}
+
+func TestCrawlBadVersions(t *testing.T) {
+	for _, currCase := range []struct {
+		name      string
+		directory string
+		count     int64
+		finding   crawl.Finding
+	}{
+		{name: "single bad version", directory: "../../examples/single_bad_version", count: 1, finding: crawl.JarName | crawl.ClassPackageAndName},
+		{name: "multiple bad versions", directory: "../../examples/multiple_bad_versions", count: 13, finding: crawl.JarName | crawl.ClassPackageAndName},
+		{name: "inside a dist", directory: "../../examples/inside_a_dist", count: 2, finding: crawl.JarNameInsideArchive},
+		{name: "inside a par", directory: "../../examples/inside_a_par", count: 1, finding: crawl.JarNameInsideArchive},
+		{name: "fat jar", directory: "../../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName},
+		{name: "light shading", directory: "../../examples/light_shading", count: 1, finding: crawl.ClassName},
+	} {
+		t.Run(currCase.name, func(t *testing.T) {
+			buf := &bytes.Buffer{}
+			numIssues, err := Crawl(context.Background(), Config{
+				Root:       currCase.directory,
+				OutputJSON: true,
+			}, buf, io.Discard)
+			require.NoError(t, err)
+
+			assert.Equal(t, currCase.count, numIssues)
+
+			for _, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+				var cveInstance crawl.JavaCVEInstance
+				err = json.Unmarshal([]byte(line), &cveInstance)
+				require.NoError(t, err)
+				assert.Equal(t, currCase.finding&crawl.JarName > 0, cveInstance.JarNameMatched)
+				assert.Equal(t, currCase.finding&crawl.JarNameInsideArchive > 0, cveInstance.JarNameInsideArchiveMatched)
+				assert.Equal(t, currCase.finding&crawl.ClassPackageAndName > 0, cveInstance.ClassPackageAndNameMatch)
+			}
+		})
+	}
 }
