@@ -128,9 +128,6 @@ func (d Scanner) scanImage(ctx context.Context, image dockertypes.ImageSummary) 
 	}
 
 	defer func() {
-		if err := outFile.Close(); err != nil {
-			_, _ = fmt.Fprintf(d.crawler.ErrorWriter, "failed to remove temporary image directory %s\n", imageTmpDir)
-		}
 		if err := os.RemoveAll(imageTmpDir); err != nil {
 			_, _ = fmt.Fprintf(d.crawler.ErrorWriter, "failed to remove temporary image directory %s\n", imageTmpDir)
 		}
