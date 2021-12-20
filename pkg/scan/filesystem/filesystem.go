@@ -15,6 +15,7 @@
 package filesystem
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
 	"io"
@@ -27,7 +28,14 @@ import (
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.DefaultReporter using the
 // provided configuration. Returns the number of issues that were found.
 func Crawl(ctx context.Context, config scan.Config, stdout, stderr io.Writer) (int64, error) {
-	identifier := crawl.NewIdentifier(config.ArchiveListTimeout, archive.WalkZipFiles, archive.WalkTarGzFiles)
+	identifier := crawl.Log4jIdentifier{
+		ZipWalker:          archive.WalkZipFiles,
+		TgzZWalker:         archive.WalkTarGzFiles,
+		ArchiveWalkTimeout: config.ArchiveListTimeout,
+		OpenFileZipReader:  zip.OpenReader,
+		ArchiveMaxDepth:    config.ArchiveMaxDepth,
+		ArchiveMaxSize:     config.ArchiveMaxSize,
+	}
 	crawler := crawl.Crawler{
 		ErrorWriter: stderr,
 		IgnoreDirs:  config.Ignores,

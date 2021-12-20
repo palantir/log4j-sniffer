@@ -15,10 +15,10 @@
 package docker
 
 import (
+	"archive/zip"
 	"context"
 	"io"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/palantir/log4j-sniffer/pkg/archive"
@@ -37,7 +37,11 @@ func TestScanner_ScanImages(t *testing.T) {
 			reporter: &crawl.Reporter{
 				OutputWriter: io.Discard,
 			},
-			identifier: crawl.NewIdentifier(time.Second, archive.WalkZipFiles, archive.WalkTarGzFiles),
+			identifier: &crawl.Log4jIdentifier{
+				ZipWalker:         archive.WalkZipFiles,
+				TgzZWalker:        archive.WalkTarGzFiles,
+				OpenFileZipReader: zip.OpenReader,
+			},
 			client: &mockDockerClient{
 				imageFile: "../../../examples/docker/log4j.tar",
 				imageSummary: types.ImageSummary{

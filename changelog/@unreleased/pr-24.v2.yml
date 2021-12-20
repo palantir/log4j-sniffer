@@ -1,0 +1,8 @@
+type: feature
+feature:
+  description: |-
+    Recursing into zip files is now supported up to a configurable depth, `--nested-archive-max-depth`. By default this is set to `0`, which means an archive on disk will have its contents inspected but an archive within it would not be unarchived for inspection.
+    Nested archives will only be inspected if they are below a configurable size, `--nested-archive-max-depth`.
+    To control memory usage for unarchiving, a combination of `--nested-archive-max-depth` and `--nested-archive-max-depth` should be used. This will only control the memory usage on top of the base memory usage of `log4j-sniffer`.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/24

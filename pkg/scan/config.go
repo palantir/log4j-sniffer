@@ -27,6 +27,11 @@ type Config struct {
 	// ArchiveListTimeout is the maximum amount of time that will be spent analyzing an archive. Once this duration has
 	// passed for a single archive, it is skipped and recorded as such.
 	ArchiveListTimeout time.Duration
+	// ArchiveMaxDepth is the maximum archive depth to recurse into. A value of 0 will open up an archive on the
+	// filesystem but will not recurse into any nested archives within it.
+	ArchiveMaxDepth uint
+	// ArchiveMaxDepth is the maximum nested archive size that will be unarchived for inspection.
+	ArchiveMaxSize uint
 	// If true, disables detection of CVE-45105
 	DisableCVE45105 bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.

@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"regexp"
-	"time"
 
 	"github.com/palantir/log4j-sniffer/pkg/scan"
 	"github.com/palantir/log4j-sniffer/pkg/scan/docker"
@@ -25,14 +24,6 @@ import (
 )
 
 func dockerCmd() *cobra.Command {
-	var (
-		ignoreDirs        []string
-		perArchiveTimeout time.Duration
-		disableCVE45105   bool
-		outputJSON        bool
-		outputSummary     bool
-	)
-
 	cmd := cobra.Command{
 		Use:   "docker",
 		Args:  cobra.NoArgs,
@@ -49,6 +40,8 @@ func dockerCmd() *cobra.Command {
 
 			dockerScanner, err := docker.NewDockerScanner(scan.Config{
 				ArchiveListTimeout: perArchiveTimeout,
+				ArchiveMaxDepth:    nestedArchiveMaxDepth,
+				ArchiveMaxSize:     nestedArchiveMaxSize,
 				DisableCVE45105:    disableCVE45105,
 				Ignores:            ignores,
 				OutputJSON:         outputJSON,
@@ -62,10 +55,5 @@ func dockerCmd() *cobra.Command {
 			return err
 		},
 	}
-	cmd.Flags().StringSliceVar(&ignoreDirs, "ignore-dir", nil, `Specify directory pattern to ignore within images. Use multiple times to supply multiple patterns.`)
-	cmd.Flags().DurationVar(&perArchiveTimeout, "per-archive-timeout", 15*time.Minute, `If this duration is exceeded when inspecting an archive, an error will be logged and the crawler will move onto the next file.`)
-	cmd.Flags().BoolVar(&disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
-	cmd.Flags().BoolVar(&outputJSON, "json", false, "If true, output will be in JSON format")
-	cmd.Flags().BoolVar(&outputSummary, "summary", true, "If true, outputs a summary of all operations once program completes")
 	return &cmd
 }

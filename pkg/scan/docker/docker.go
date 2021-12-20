@@ -15,6 +15,7 @@
 package docker
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
 	"io"
@@ -58,8 +59,15 @@ func NewDockerScanner(config scan.Config, stdout, stderr io.Writer) (*Scanner, e
 			OutputWriter:    stdout,
 			DisableCVE45105: config.DisableCVE45105,
 		},
-		identifier: crawl.NewIdentifier(config.ArchiveListTimeout, archive.WalkZipFiles, archive.WalkTarGzFiles),
-		client:     dockerClient,
+		identifier: &crawl.Log4jIdentifier{
+			ZipWalker:          archive.WalkZipFiles,
+			TgzZWalker:         archive.WalkTarGzFiles,
+			ArchiveWalkTimeout: config.ArchiveListTimeout,
+			OpenFileZipReader:  zip.OpenReader,
+			ArchiveMaxDepth:    config.ArchiveMaxDepth,
+			ArchiveMaxSize:     config.ArchiveMaxSize,
+		},
+		client: dockerClient,
 	}, nil
 }
 
