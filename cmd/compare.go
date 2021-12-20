@@ -71,7 +71,7 @@ The class names must be fully qualified and not end with .class.
 			fmt.Println("\n\n\n\nPartial matches")
 			for i, firstClassMethodBytecode := range firstBytecode {
 				if len(firstClassMethodBytecode) < 3 {
-					// Can't have a partial match unless ther are enough opcodes
+					// Can't have a partial match unless there are enough opcodes
 					continue
 				}
 				bestMatchIndex := -1
