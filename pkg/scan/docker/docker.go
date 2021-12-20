@@ -35,14 +35,15 @@ import (
 )
 
 type Scanner struct {
-	config     scan.Config
-	crawler    crawl.Crawler
-	reporter   *crawl.Reporter
-	identifier crawl.Identifier
-	client     client.CommonAPIClient
+	config             scan.Config
+	crawler            crawl.Crawler
+	reporter           *crawl.Reporter
+	identifier         crawl.Identifier
+	client             client.CommonAPIClient
+	imageExtractionDir string
 }
 
-func NewDockerScanner(config scan.Config, stdout, stderr io.Writer) (*Scanner, error) {
+func NewDockerScanner(config scan.Config, stdout, stderr io.Writer, imageExtractionDir string) (*Scanner, error) {
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create docker client")
@@ -67,7 +68,8 @@ func NewDockerScanner(config scan.Config, stdout, stderr io.Writer) (*Scanner, e
 			ArchiveMaxDepth:    config.ArchiveMaxDepth,
 			ArchiveMaxSize:     config.ArchiveMaxSize,
 		},
-		client: dockerClient,
+		client:             dockerClient,
+		imageExtractionDir: imageExtractionDir,
 	}, nil
 }
 
@@ -115,7 +117,7 @@ func (d Scanner) scanImage(ctx context.Context, image dockertypes.ImageSummary) 
 	}
 
 	// create a temporary directory where the docker image tarball can be exported to
-	imageTmpDir, err := os.MkdirTemp("", fmt.Sprintf("log4j-sniffer-%s", image.ID))
+	imageTmpDir, err := os.MkdirTemp(d.imageExtractionDir, fmt.Sprintf("log4j-sniffer-%s", image.ID))
 	if err != nil {
 		return crawl.Stats{}, errors.Wrap(err, "could not create temporary directory for image")
 	}

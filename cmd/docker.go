@@ -24,6 +24,9 @@ import (
 )
 
 func dockerCmd() *cobra.Command {
+	var (
+		imageExtractionDir string
+	)
 	cmd := cobra.Command{
 		Use:   "docker",
 		Args:  cobra.NoArgs,
@@ -46,7 +49,7 @@ func dockerCmd() *cobra.Command {
 				Ignores:            ignores,
 				OutputJSON:         outputJSON,
 				OutputSummary:      outputSummary,
-			}, cmd.OutOrStdout(), cmd.OutOrStderr())
+			}, cmd.OutOrStdout(), cmd.OutOrStderr(), imageExtractionDir)
 			if err != nil {
 				return err
 			}
@@ -55,5 +58,6 @@ func dockerCmd() *cobra.Command {
 			return err
 		},
 	}
+	cmd.Flags().StringVar(&imageExtractionDir, "image-dir", "", "The directory where docker images should be temporarily extracted to, defaults to system temporary directory")
 	return &cmd
 }
