@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
+	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
 )
@@ -169,7 +170,6 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 					versions[archiveVersion] = struct{}{}
 				}
 			}
-
 			// Check depth here before recursing because we don't want to create a zip reader unnecessarily.
 			if depth+1 < i.ArchiveMaxDepth {
 				reader, err := archive.ZipReaderFromReader(contents, int(i.ArchiveMaxSize))
