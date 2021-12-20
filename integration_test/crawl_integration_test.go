@@ -42,6 +42,7 @@ func TestBadVersions(t *testing.T) {
 		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName | crawl.ClassFileMd5},
 		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.ClassName | crawl.ClassBytecodeInstructionMd5},
 		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
+		{name: "obfuscation", directory: "../examples/obfuscated", count: 1, finding: crawl.NothingDetected},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(cli, "crawl", tc.directory, `--nested-archive-max-depth`, `2`)
