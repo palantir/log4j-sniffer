@@ -137,6 +137,9 @@ func readClassBytes(r *zip.ReadCloser, classLocation string) (*bytes.Buffer, err
 		return nil, err
 	}
 
-	c.Close()
+	err = c.Close()
+	if err != nil {
+		return nil, err
+	}
 	return buf, nil
 }

@@ -20,8 +20,6 @@ import (
 	"sort"
 
 	"github.com/palantir/log4j-sniffer/pkg/java"
-	"github.com/palantir/log4j-sniffer/pkg/metrics"
-	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 	"github.com/spf13/cobra"
 )
 
@@ -35,14 +33,6 @@ Outputs the parts the jars have in common in order to build signatures for match
 The class names must be fully qualified and not end with .class.
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, closeLogger := contextWithDefaultLogger()
-			defer func() {
-				metrics.Flush(ctx)
-				if err := closeLogger(); err != nil {
-					svc1log.FromContext(ctx).Error("Error closing logger",
-						svc1log.Stacktrace(err))
-				}
-			}()
 			firstBytecode, err := java.ReadMethodByteCode(args[0], args[1])
 			if err != nil {
 				return err
@@ -84,7 +74,7 @@ The class names must be fully qualified and not end with .class.
 					// Can't have a partial match unless ther are enough opcodes
 					continue
 				}
-				bestMatchIndex :=  -1
+				bestMatchIndex := -1
 				bestMatchPrefixLength := 0
 				bestMatchSuffixLength := 0
 				for j, secondClassMethodBytecode := range secondBytecode {
@@ -97,7 +87,7 @@ The class names must be fully qualified and not end with .class.
 					for x < len(firstClassMethodBytecode) && x < len(secondClassMethodBytecode) && firstClassMethodBytecode[x] == secondClassMethodBytecode[x] {
 						x++
 					}
-					for y > x && z > x && firstClassMethodBytecode[y - 1] == secondClassMethodBytecode[z - 1] {
+					for y > x && z > x && firstClassMethodBytecode[y-1] == secondClassMethodBytecode[z-1] {
 						y--
 						z--
 					}
@@ -107,7 +97,7 @@ The class names must be fully qualified and not end with .class.
 					}
 
 					matchLength := x + len(firstClassMethodBytecode) - y
-					if matchLength > bestMatchPrefixLength + bestMatchSuffixLength {
+					if matchLength > bestMatchPrefixLength+bestMatchSuffixLength {
 						bestMatchIndex = j
 						bestMatchPrefixLength = x
 						bestMatchSuffixLength = len(firstClassMethodBytecode) - y
@@ -127,14 +117,14 @@ The class names must be fully qualified and not end with .class.
 			}
 
 			fmt.Println("\n\n\n\nUnmatched bytecode from first class")
-			for _, bytecode := range  firstBytecode {
+			for _, bytecode := range firstBytecode {
 				if bytecode != nil {
 					fmt.Printf("%x\n", bytecode)
 				}
 			}
 
 			fmt.Println("\n\n\n\nUnmatched bytecode from second class")
-			for _, bytecode := range  secondBytecode {
+			for _, bytecode := range secondBytecode {
 				if bytecode != nil {
 					fmt.Printf("%x\n", bytecode)
 				}
