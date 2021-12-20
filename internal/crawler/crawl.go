@@ -16,49 +16,83 @@ package crawler
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"regexp"
 	"time"
 
-	"github.com/palantir/log4j-sniffer/internal/generated/metrics/metrics"
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
-	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 )
 
-// Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter.
-// Crawl will emit a status metric each time it is run to signify whether the crawl was successful or not.
-// The archiveListTimeout is the per-archive timeout.
-func Crawl(ctx context.Context, archiveListTimeout time.Duration, root string, ignores []*regexp.Regexp, disableCve45105 bool) error {
-	identifier := crawl.NewIdentifier(archiveListTimeout, archive.WalkZipFiles, archive.WalkTarGzFiles)
-	crawler := crawl.Crawler{IgnoreDirs: ignores}
+type Config struct {
+	// Root is the root directory for the crawl operation
+	Root string
+	// ArchiveListTimeout is the maximum amount of time that will be spent analyzing an archive. Once this duration has
+	// passed for a single archive, it is skipped and recorded as such.
+	ArchiveListTimeout time.Duration
+	// If true, disables detection of CVE-45105
+	DisableCVE45105 bool
+	// Ignores specifies the regular expressions used to determine which directories to omit.
+	Ignores []*regexp.Regexp
+	// If true, causes all output to be in JSON format (one JSON object per line).
+	OutputJSON bool
+	// If true, prints summary output after completion.
+	OutputSummary bool
+}
+
+type SummaryJSON struct {
+	crawl.Stats
+	NumImpactedFiles int64 `json:"numImpactedFiles"`
+}
+
+// Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
+// provided configuration. Returns the number of issues that were found.
+func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64, error) {
+	identifier := crawl.NewIdentifier(config.ArchiveListTimeout, archive.WalkZipFiles, archive.WalkTarGzFiles)
+	crawler := crawl.Crawler{
+		ErrorWriter: stderr,
+		IgnoreDirs:  config.Ignores,
+	}
 	reporter := crawl.Reporter{
-		DisableCve45105: disableCve45105,
+		OutputJSON:      config.OutputJSON,
+		OutputWriter:    stdout,
+		DisableCVE45105: config.DisableCVE45105,
 	}
 
-	if err := crawler.Crawl(ctx, root, identifier.Identify, reporter.Collect); err != nil {
-		svc1log.FromContext(ctx).Error("Error crawling",
-			svc1log.Stacktrace(err))
-		metrics.Crawl(ctx).Status().Gauge().Update(1)
-		return err
+	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, reporter.Collect)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "Error crawling: %v", err)
+		return 0, err
 	}
-	metrics.Crawl(ctx).Status().Gauge().Update(0)
 
 	count := reporter.Count()
-	if count > 0 {
-		if disableCve45105 {
-			svc1log.FromContext(ctx).Info("Files affected by CVE-2021-45046 detected",
-				svc1log.SafeParam("vulnerableFileCount", count))
-		} else {
-			svc1log.FromContext(ctx).Info("Files affected by CVE-2021-45046 or CVE-2021-45105 detected",
-				svc1log.SafeParam("vulnerableFileCount", count))
+	if config.OutputSummary {
+		cveInfo := "CVE-2021-45046"
+		if !config.DisableCVE45105 {
+			cveInfo += " or CVE-2021-45105"
 		}
-	} else {
-		if disableCve45105 {
-			svc1log.FromContext(ctx).Info("No files affected by CVE-2021-45046 detected")
+
+		var output string
+		if config.OutputJSON {
+			jsonBytes, err := json.Marshal(SummaryJSON{
+				Stats:            crawlStats,
+				NumImpactedFiles: count,
+			})
+			if err != nil {
+				return 0, err
+			}
+			output = string(jsonBytes)
 		} else {
-			svc1log.FromContext(ctx).Info("No files affected by CVE-2021-45046 or CVE-2021-45105 detected")
+			if count > 0 {
+				output = fmt.Sprintf("Files affected by %s detected: %d file(s) impacted by %s", cveInfo, count, cveInfo)
+			} else {
+				output = fmt.Sprintf("No files affected by %s detected", cveInfo)
+			}
+			output += fmt.Sprintf("\n%d total files scanned, skipped %d paths due to permission denied errors, encountered %d errors processing paths", crawlStats.FilesScanned, crawlStats.PermissionDeniedCount, crawlStats.PathErrorCount)
 		}
+		_, _ = fmt.Fprintln(stdout, output)
 	}
-	metrics.Report(ctx).VulnerableFilesFound().Gauge().Update(count)
-	return nil
+	return count, nil
 }

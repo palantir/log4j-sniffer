@@ -19,14 +19,13 @@ import (
 	"io"
 	"testing"
 
-	"github.com/palantir/log4j-sniffer/pkg/testcontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestWalkTarGzFiles(t *testing.T) {
 	t.Run("cancels on context done", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(testcontext.GetTestContext(t))
+		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		err := WalkTarGzFiles(ctx, "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
 			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
@@ -37,7 +36,7 @@ func TestWalkTarGzFiles(t *testing.T) {
 
 	t.Run("successfully lists paths", func(t *testing.T) {
 		var paths []string
-		err := WalkTarGzFiles(testcontext.GetTestContext(t), "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
+		err := WalkTarGzFiles(context.Background(), "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
 			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 				paths = append(paths, path)
 				return true, nil
@@ -49,7 +48,7 @@ func TestWalkTarGzFiles(t *testing.T) {
 
 func TesWalkZipFiles(t *testing.T) {
 	t.Run("cancels on context done", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(testcontext.GetTestContext(t))
+		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		err := WalkZipFiles(ctx, "../../examples/fat_jar/fat_jar.jar",
 			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
@@ -60,7 +59,7 @@ func TesWalkZipFiles(t *testing.T) {
 
 	t.Run("successfully lists paths", func(t *testing.T) {
 		var paths []string
-		err := WalkZipFiles(testcontext.GetTestContext(t), "../../examples/fat_jar/fat_jar.jar",
+		err := WalkZipFiles(context.Background(), "../../examples/fat_jar/fat_jar.jar",
 			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 				paths = append(paths, path)
 				return true, nil

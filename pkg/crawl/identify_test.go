@@ -24,43 +24,42 @@ import (
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
-	"github.com/palantir/log4j-sniffer/pkg/testcontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTgzIdentifierImplementsTimeout(t *testing.T) {
-	identify := crawl.NewIdentifier(0, nil, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+	identify := crawl.NewIdentifier(time.Millisecond, nil, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 		time.Sleep(50 * time.Millisecond)
 		select {
 		case <-ctx.Done():
-			return errors.New("Context was Cancelled")
+			return errors.New("context was cancelled")
 		default:
 			require.FailNow(t, "context should have been cancelled")
 		}
 		return nil
 	})
-	_, _, err := identify.Identify(testcontext.GetTestContext(t), "", stubDirEntry{
+	_, _, err := identify.Identify(context.Background(), "", stubDirEntry{
 		name: "sdlkfjsldkjfs.tar.gz",
 	})
-	assert.EqualError(t, err, "Context was Cancelled")
+	assert.EqualError(t, err, "context was cancelled")
 }
 
 func TestZipIdentifierImplementsTimeout(t *testing.T) {
-	identify := crawl.NewIdentifier(0, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+	identify := crawl.NewIdentifier(time.Millisecond, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 		time.Sleep(50 * time.Millisecond)
 		select {
 		case <-ctx.Done():
-			return errors.New("Context was Cancelled")
+			return errors.New("context was cancelled")
 		default:
 			require.FailNow(t, "context should have been cancelled")
 		}
 		return nil
 	}, nil)
-	_, _, err := identify.Identify(testcontext.GetTestContext(t), "", stubDirEntry{
+	_, _, err := identify.Identify(context.Background(), "", stubDirEntry{
 		name: "sdlkfjsldkjfs.zip",
 	})
-	assert.EqualError(t, err, "Context was Cancelled")
+	assert.EqualError(t, err, "context was cancelled")
 }
 
 func TestIdentifyFromFileName(t *testing.T) {
@@ -113,7 +112,7 @@ func TestIdentifyFromFileName(t *testing.T) {
 				// these cases are tested elsewhere so we just return nil with no error her
 				return nil
 			}, panicOnWalk)
-			result, version, err := identify.Identify(testcontext.GetTestContext(t), "", stubDirEntry{
+			result, version, err := identify.Identify(context.Background(), "", stubDirEntry{
 				name: tc.in,
 			})
 			require.NoError(t, err)
@@ -128,14 +127,13 @@ func TestIdentifyFromFileName(t *testing.T) {
 }
 
 func TestIdentifyFromZipContents(t *testing.T) {
-	ctx := testcontext.GetTestContext(t)
 	t.Run("handles error", func(t *testing.T) {
 		expectedErr := errors.New("err")
 		identify := crawl.NewIdentifier(time.Second, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 			assert.Equal(t, "/path/on/disk/", path)
 			return expectedErr
 		}, panicOnWalk)
-		_, _, err := identify.Identify(ctx, "/path/on/disk/", stubDirEntry{
+		_, _, err := identify.Identify(context.Background(), "/path/on/disk/", stubDirEntry{
 			name: "file.zip",
 		})
 		require.Equal(t, expectedErr, err)
@@ -224,7 +222,7 @@ func TestIdentifyFromZipContents(t *testing.T) {
 				}
 				return nil
 			})
-			result, version, err := identify.Identify(testcontext.GetTestContext(t), "/path/on/disk/", stubDirEntry{
+			result, version, err := identify.Identify(context.Background(), "/path/on/disk/", stubDirEntry{
 				name: tc.filename,
 			})
 			require.NoError(t, err)

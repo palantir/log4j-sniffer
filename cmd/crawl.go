@@ -19,16 +19,19 @@ import (
 	"time"
 
 	"github.com/palantir/log4j-sniffer/internal/crawler"
-	"github.com/palantir/log4j-sniffer/pkg/metrics"
-	werror "github.com/palantir/witchcraft-go-error"
-	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 func crawlCmd() *cobra.Command {
-	var ignoreDirs []string
-	var perArchiveTimeout time.Duration
-	var disableCve45105 bool
+	var (
+		ignoreDirs        []string
+		perArchiveTimeout time.Duration
+		disableCVE45105   bool
+		outputJSON        bool
+		outputSummary     bool
+	)
+
 	cmd := cobra.Command{
 		Use:   "crawl <root>",
 		Args:  cobra.ExactArgs(1),
@@ -39,31 +42,32 @@ If a directory is provided, it is traversed and all files are scanned.
 Use the ignore-dir flag to provide directories of which to ignore all nested files.
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, closeLogger := contextWithDefaultLogger()
-			defer func() {
-				metrics.Flush(ctx)
-				if err := closeLogger(); err != nil {
-					svc1log.FromContext(ctx).Error("Error closing logger",
-						svc1log.Stacktrace(err))
-				}
-			}()
 			var ignores []*regexp.Regexp
 			for _, pattern := range ignoreDirs {
 				compiled, err := regexp.Compile(pattern)
 				if err != nil {
-					return werror.ErrorWithContextParams(ctx, "Error compile ignore-dir pattern",
-						werror.SafeParam("pattern", pattern))
+					return errors.Wrapf(err, "failed to compile ignore-dir pattern %q", pattern)
 				}
 				ignores = append(ignores, compiled)
 			}
 
-			return crawler.Crawl(ctx, perArchiveTimeout, args[0], ignores, disableCve45105)
+			_, err := crawler.Crawl(cmd.Context(), crawler.Config{
+				Root:               args[0],
+				ArchiveListTimeout: perArchiveTimeout,
+				DisableCVE45105:    disableCVE45105,
+				Ignores:            ignores,
+				OutputJSON:         outputJSON,
+				OutputSummary:      outputSummary,
+			}, cmd.OutOrStdout(), cmd.OutOrStderr())
+			return err
 		},
 	}
 	cmd.Flags().StringSliceVar(&ignoreDirs, "ignore-dir", nil, `Specify directory pattern to ignore. Use multiple times to supply multiple patterns.
 Patterns should be relative to the provided root.
 e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"`)
 	cmd.Flags().DurationVar(&perArchiveTimeout, "per-archive-timeout", 15*time.Minute, `If this duration is exceeded when inspecting an archive, an error will be logged and the crawler will move onto the next file.`)
-	cmd.Flags().BoolVar(&disableCve45105, "disable-cve-2021-45105-detection", false, `Disable detetion of CVE-2021-45105 in versions up to 2.16.0`)
+	cmd.Flags().BoolVar(&disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
+	cmd.Flags().BoolVar(&outputJSON, "json", false, "If true, output will be in JSON format")
+	cmd.Flags().BoolVar(&outputSummary, "summary", true, "If true, outputs a summary of all operations once program completes")
 	return &cmd
 }

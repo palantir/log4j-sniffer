@@ -16,19 +16,28 @@ package crawl
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
-	"time"
-
-	"github.com/palantir/log4j-sniffer/internal/generated/metrics/metrics"
-	"github.com/palantir/witchcraft-go-logging/wlog/svclog/svc1log"
 )
 
 // Crawler crawls filesystems, matching and conditionally processing files.
 type Crawler struct {
-	IgnoreDirs []*regexp.Regexp
+	// if non-nil, error output is written to this writer
+	ErrorWriter io.Writer
+	IgnoreDirs  []*regexp.Regexp
+}
+
+type Stats struct {
+	// Total number of files scanned.
+	FilesScanned int64 `json:"filesScanned"`
+	// Number of paths that were not considered due to "permission denied" errors
+	PermissionDeniedCount int64 `json:"permissionDeniedErrors"`
+	// Number of paths that were attempted to be processed but encountered errors.
+	PathErrorCount int64 `json:"pathErrors"`
 }
 
 // MatchFunc is used to match a file for processing.
@@ -42,24 +51,13 @@ type ProcessFunc func(ctx context.Context, path string, d fs.DirEntry, result Fi
 // the path should be processed by the provided process function. On encountering a directory, the path will be compared
 // against all IgnoreDirs configured in the Crawler. If any pattern matches, the directory (and all files nested inside
 // the directory) will be ignored.
-func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, process ProcessFunc) error {
-	var filesScanned int64
-	var permissionDeniedCount int64
-	start := time.Now()
-	svc1log.FromContext(ctx).Info("Crawl started")
-	defer func() {
-		duration := time.Since(start)
-		metrics.Crawl(ctx).DurationMilliseconds().Gauge().Update(duration.Milliseconds())
-		svc1log.FromContext(ctx).Info("Crawl complete",
-			svc1log.SafeParam("crawlDuration", duration.String()),
-			svc1log.SafeParam("permissionDeniedCount", permissionDeniedCount),
-			svc1log.SafeParam("filesScanned", filesScanned))
-	}()
-	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, process ProcessFunc) (Stats, error) {
+	stats := Stats{}
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			switch {
 			case os.IsPermission(err):
-				permissionDeniedCount++
+				stats.PermissionDeniedCount++
 				return nil
 			case os.IsNotExist(err):
 				// Root should always exist, to pick up on misconfigured service, but log4j-sniffer can encounter transient
@@ -86,13 +84,13 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 		if !d.Type().IsRegular() {
 			return nil
 		}
-		filesScanned++
+		stats.FilesScanned++
 		matched, version, err := match(ctx, path, d)
 		if err != nil {
-			svc1log.FromContext(ctx).Warn("Error processing path",
-				svc1log.Stacktrace(err),
-				svc1log.UnsafeParam("path", path),
-				svc1log.UnsafeParam("name", d.Name()))
+			stats.PathErrorCount++
+			if c.ErrorWriter != nil {
+				_, _ = fmt.Fprintf(c.ErrorWriter, "Error processing path %s: %v\n", path, err)
+			}
 			return nil
 		}
 		if matched == NothingDetected {
@@ -101,6 +99,7 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 		process(ctx, path, d, matched, version)
 		return err
 	})
+	return stats, err
 }
 
 func (c Crawler) includeDir(path string) bool {

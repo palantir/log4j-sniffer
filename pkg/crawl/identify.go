@@ -123,15 +123,18 @@ func NewIdentifier(archiveListTimeout time.Duration, zipWalker, tgzWalker archiv
 // - vulnerable log4j jar files.
 // - zipped files containing vulnerable log4j files, using the provided ZipFileLister.
 func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error) {
-	ctx, cancel := context.WithTimeout(ctx, i.listTimeout)
-	defer cancel()
+	if i.listTimeout > 0 {
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, i.listTimeout)
+		defer cancel()
+		ctx = ctxWithTimeout
+	}
 
 	lowercaseFilename := strings.ToLower(d.Name())
 	if hasZipFileEnding(lowercaseFilename) {
 		return i.lookForMatchInZip(ctx, path, lowercaseFilename, UnknownVersion)
 	}
 	if hasTgzFileEnding(lowercaseFilename) {
-		return i.lookForMatchInTar(ctx, path, UnknownVersion)
+		return i.lookForMatchInTar(ctx, path)
 	}
 	return NothingDetected, nil, nil
 }
@@ -147,7 +150,7 @@ func (i *identifier) lookForMatchInZip(ctx context.Context, path string, lowerca
 		versions[archiveVersion] = struct{}{}
 	}
 	err := i.zipWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
-		finding, version, err := lookForMatchInFile(ctx, filename, size, contents, archiveVersion)
+		finding, version, err := lookForMatchInFileInZip(filename, size, contents, archiveVersion)
 		if err != nil {
 			return false, err
 		}
@@ -164,18 +167,38 @@ func (i *identifier) lookForMatchInZip(ctx context.Context, path string, lowerca
 	return archiveResult, versions, nil
 }
 
-func (i *identifier) lookForMatchInTar(ctx context.Context, path string, parentVersion string) (Finding, Versions, error) {
+func lookForMatchInFileInZip(path string, size int64, contents io.Reader, parentVersion string) (Finding, string, error) {
+	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
+		finding, version, hashMatch := lookForHashMatch(contents, size)
+		if hashMatch {
+			return ClassPackageAndName | finding, version, nil
+		}
+		return ClassPackageAndName, parentVersion, nil
+	}
+
+	if version, match := pathMatchesLog4JVersion(path); match {
+		return JarNameInsideArchive, version, nil
+	}
+
+	if strings.HasSuffix(path, "JndiManager.class") {
+		finding, version, hashMatch := lookForHashMatch(contents, size)
+		if hashMatch {
+			return ClassName | finding, version, nil
+		}
+		return ClassName, parentVersion, nil
+	}
+	return NothingDetected, parentVersion, nil
+}
+
+func (i *identifier) lookForMatchInTar(ctx context.Context, path string) (Finding, Versions, error) {
 	archiveResult := NothingDetected
 	versions := Versions{}
 	if err := i.tgzWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
-		finding, version, err := lookForMatchInFile(ctx, filename, size, contents, parentVersion)
-		if err != nil {
-			return false, err
-		}
-		if finding == NothingDetected || !vulnerableVersion(version) {
+		version, match := pathMatchesLog4JVersion(filename)
+		if !match || !vulnerableVersion(version) {
 			return true, nil
 		}
-		archiveResult = finding | archiveResult
+		archiveResult = JarNameInsideArchive | archiveResult
 		if version != "" {
 			versions[version] = struct{}{}
 		}
@@ -186,30 +209,12 @@ func (i *identifier) lookForMatchInTar(ctx context.Context, path string, parentV
 	return archiveResult, versions, nil
 }
 
-func lookForMatchInFile(ctx context.Context, path string, size int64, contents io.Reader, parentVersion string) (Finding, string, error) {
-	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
-		finding, version, hashMatch := lookForHashMatch(contents, size)
-		if hashMatch {
-			return ClassPackageAndName | finding, version, nil
-		}
-		return ClassPackageAndName, parentVersion, nil
-	}
-
+func pathMatchesLog4JVersion(path string) (string, bool) {
 	filename, finalSlashIndex := path, strings.LastIndex(path, "/")
 	if finalSlashIndex > -1 {
 		filename = path[finalSlashIndex+1:]
 	}
-	if version, match := fileNameMatchesLog4jVersion(filename); match {
-		return JarNameInsideArchive, version, nil
-	}
-	if strings.HasSuffix(path, "JndiManager.class") {
-		finding, version, hashMatch := lookForHashMatch(contents, size)
-		if hashMatch {
-			return ClassName | finding, version, nil
-		}
-		return ClassName, parentVersion, nil
-	}
-	return NothingDetected, parentVersion, nil
+	return fileNameMatchesLog4jVersion(filename)
 }
 
 const maxClassSize = 0xffff
@@ -269,8 +274,7 @@ func vulnerableVersion(version string) bool {
 
 func classMd5Version(classContents []byte) (string, bool) {
 	sum := md5.New()
-	_, err := sum.Write(classContents)
-	if err != nil {
+	if _, err := sum.Write(classContents); err != nil {
 		return "", false
 	}
 	hash := fmt.Sprintf("%x", sum.Sum(nil))
