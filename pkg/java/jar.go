@@ -121,7 +121,7 @@ func readClassBytes(r *zip.ReadCloser, classLocation string) (*bytes.Buffer, err
 	if _, err = buf.ReadFrom(c); err != nil {
 		return nil, err
 	}
-	
+
 	if err = c.Close(); err != nil {
 		return nil, err
 	}
