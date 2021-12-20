@@ -42,6 +42,7 @@ type JavaCVEInstance struct {
 	ClassPackageAndNameMatch      bool     `json:"classPackageAndNameMatch"`
 	ClassFileMD5Matched           bool     `json:"classFileMd5Matched"`
 	ByteCodeInstructionMD5Matched bool     `json:"bytecodeInstructionMd5Matched"`
+	ByteCodePartialMatch          bool     `json:"bytecodePartialMatch"`
 	JarNameMatched                bool     `json:"jarNameMatched"`
 	JarNameInsideArchiveMatched   bool     `json:"jarNameInsideArchiveMatched"`
 	Log4JVersions                 []string `json:"log4jVersions"`
@@ -70,6 +71,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		ClassPackageAndNameMatch:      result&ClassPackageAndName > 0,
 		ClassFileMD5Matched:           result&ClassFileMd5 > 0,
 		ByteCodeInstructionMD5Matched: result&ClassBytecodeInstructionMd5 > 0,
+		ByteCodePartialMatch:          result&ClassBytecodePartialMatch > 0,
 		Log4JVersions:                 versions,
 	}
 
@@ -97,6 +99,9 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		}
 		if cveInfo.ByteCodeInstructionMD5Matched {
 			reasons = append(reasons, "byte code instruction MD5 matched")
+		}
+		if cveInfo.ByteCodePartialMatch {
+			reasons = append(reasons, "byte code partially matched known version")
 		}
 		output = fmt.Sprintf(cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(reasons, ", "))
 	}

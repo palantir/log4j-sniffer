@@ -42,3 +42,37 @@ var bytecodeMd5s = map[string]string{
 	"0761bbaeee745db2559b6416a3a30712-v0": "2.16.0",
 	"79cd7e06b1a00b375f221414f06bbdd6-v0": "2.17.0",
 }
+
+type PartialMethodMatchSignature struct {
+	Prefix []byte
+	Suffix []byte
+}
+
+type PartialBytecodeSignature struct {
+	Version        string
+	ExactMatches   [][]byte
+	PartialMatches []PartialMethodMatchSignature
+}
+
+var partialBytecodeSignatures = []PartialBytecodeSignature{
+	{
+		Version: "2.14.1",
+		ExactMatches: [][]byte{
+			{0x2a, 0x01, 0x2b, 0xb7, 0x2a, 0x2c, 0xb5, 0xb1},
+			{0x12, 0xb6, 0xb2, 0x01, 0xb8, 0xc0, 0xb0},
+			{0x2a, 0xb4, 0x2b, 0xb9, 0xb0},
+			{0x2a, 0x2b, 0x2c, 0xb7, 0xb1},
+			{0x2a, 0xb4, 0xb8, 0xac},
+		},
+		PartialMatches: []PartialMethodMatchSignature{
+			{
+				Prefix: []byte{0xbb, 0x59},
+				Suffix: []byte{0x2a, 0xb4, 0xb6, 0x12, 0xb6, 0x2a, 0xb4, 0xb6, 0x12, 0xb6, 0xb6, 0xb0},
+			},
+			{
+				Prefix: []byte{0xbb, 0x59},
+				Suffix: []byte{0xb7, 0xb3, 0xb1},
+			},
+		},
+	},
+}

@@ -42,7 +42,7 @@ func TestBadVersions(t *testing.T) {
 		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName | crawl.ClassFileMd5},
 		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.ClassName | crawl.ClassBytecodeInstructionMd5},
 		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "obfuscation", directory: "../examples/obfuscated", count: 1, finding: crawl.NothingDetected},
+		{name: "obfuscation", directory: "../examples/obfuscated", count: 1, finding: crawl.ClassBytecodePartialMatch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(cli, "crawl", tc.directory, `--nested-archive-max-depth`, `2`)
@@ -58,6 +58,7 @@ func TestBadVersions(t *testing.T) {
 			testMatched(t, got, tc.finding, crawl.ClassPackageAndName, "class and package name matched")
 			testMatched(t, got, tc.finding, crawl.ClassFileMd5, "class file MD5 matched")
 			testMatched(t, got, tc.finding, crawl.ClassBytecodeInstructionMd5, "byte code instruction MD5 matched")
+			testMatched(t, got, tc.finding, crawl.ClassBytecodePartialMatch, "byte code partially matched known version")
 		})
 	}
 }
