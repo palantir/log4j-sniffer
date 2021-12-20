@@ -162,10 +162,6 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 }
 
 func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader, parentVersion string) (Finding, Versions, error) {
-	if depth > i.ArchiveMaxDepth {
-		return 0, nil, nil
-	}
-
 	archiveResult := NothingDetected
 	versions := Versions{}
 	err := i.ZipWalker(ctx, r, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
