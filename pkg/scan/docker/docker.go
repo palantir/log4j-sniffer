@@ -127,6 +127,8 @@ func (d Scanner) scanImage(ctx context.Context, image types.ImageSummary) (crawl
 		return stats, errors.Wrap(err, "could not export image")
 	}
 
+	// this can be removed when we do recursive tars as we can just scan from the
+	// imageTmpDir but for now we have to extract the image tarball
 	if err := archiver.Unarchive(outFile.Name(), imageTmpDir); err != nil {
 		return crawl.Stats{}, errors.Wrap(err, "failed to extract image")
 	}

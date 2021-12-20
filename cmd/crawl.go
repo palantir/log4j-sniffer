@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/palantir/log4j-sniffer/pkg/scan"
-	"github.com/palantir/log4j-sniffer/pkg/scan/fs"
+	"github.com/palantir/log4j-sniffer/pkg/scan/filesystem"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -52,7 +52,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				ignores = append(ignores, compiled)
 			}
 
-			_, err := fs.Crawl(cmd.Context(), scan.Config{
+			_, err := filesystem.Crawl(cmd.Context(), scan.Config{
 				Root:               args[0],
 				ArchiveListTimeout: perArchiveTimeout,
 				DisableCVE45105:    disableCVE45105,
