@@ -37,14 +37,14 @@ func TestBadVersions(t *testing.T) {
 	}{
 		{name: "single bad version", directory: "../examples/single_bad_version", count: 1, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
 		{name: "multiple bad versions", directory: "../examples/multiple_bad_versions", count: 13, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "inside a dist", directory: "../examples/inside_a_dist", count: 2, finding: crawl.JarNameInsideArchive},
-		{name: "inside a par", directory: "../examples/inside_a_par", count: 1, finding: crawl.JarNameInsideArchive},
+		{name: "inside a dist", directory: "../examples/inside_a_dist", count: 2, finding: crawl.JarNameInsideArchive | crawl.ClassPackageAndName | crawl.ClassFileMd5},
+		{name: "inside a par", directory: "../examples/inside_a_par", count: 1, finding: crawl.JarNameInsideArchive | crawl.ClassPackageAndName | crawl.ClassFileMd5},
 		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName | crawl.ClassFileMd5},
 		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.ClassName | crawl.ClassBytecodeInstructionMd5},
 		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := exec.Command(cli, "crawl", tc.directory)
+			cmd := exec.Command(cli, "crawl", tc.directory, `--nested-archive-max-depth`, `2`)
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
 			got := string(output)

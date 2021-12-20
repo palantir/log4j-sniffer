@@ -15,8 +15,10 @@
 package archive
 
 import (
+	"archive/zip"
 	"context"
 	"io"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,11 +48,13 @@ func TestWalkTarGzFiles(t *testing.T) {
 	})
 }
 
-func TesWalkZipFiles(t *testing.T) {
+func TestWalkZipFiles(t *testing.T) {
 	t.Run("cancels on context done", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		err := WalkZipFiles(ctx, "../../examples/fat_jar/fat_jar.jar",
+		r, close := mustZipFileReader(t, "../../examples/fat_jar/fat_jar.jar")
+		defer close(t)
+		err := WalkZipFiles(ctx, r,
 			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 				return true, nil
 			})
@@ -59,7 +63,9 @@ func TesWalkZipFiles(t *testing.T) {
 
 	t.Run("successfully lists paths", func(t *testing.T) {
 		var paths []string
-		err := WalkZipFiles(context.Background(), "../../examples/fat_jar/fat_jar.jar",
+		r, close := mustZipFileReader(t, "../../examples/fat_jar/fat_jar.jar")
+		defer close(t)
+		err := WalkZipFiles(context.Background(), r,
 			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 				paths = append(paths, path)
 				return true, nil
@@ -67,4 +73,28 @@ func TesWalkZipFiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, paths)
 	})
+}
+
+func mustZipFileReader(t *testing.T, path string) (*zip.Reader, func(*testing.T)) {
+	t.Helper()
+
+	file, err := os.Open(path)
+	require.NoError(t, err)
+
+	stat, err := file.Stat()
+	if err != nil {
+		assert.NoError(t, file.Close())
+		require.NoError(t, err)
+	}
+
+	r, err := zip.NewReader(file, stat.Size())
+	if err != nil {
+		assert.NoError(t, file.Close())
+		require.NoError(t, err)
+	}
+
+	return r, func(t *testing.T) {
+		t.Helper()
+		assert.NoError(t, file.Close())
+	}
 }
