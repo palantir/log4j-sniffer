@@ -62,13 +62,14 @@ type SummaryJSON struct {
 // provided configuration. Returns the number of issues that were found.
 func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64, error) {
 	identifier := crawl.Log4jIdentifier{
-		ZipWalker:          archive.WalkZipFiles,
-		TarWalker:          archive.WalkTarFiles,
-		Limiter:            limiterFromConfig(config.ArchivesCrawledPerSecond),
-		ArchiveWalkTimeout: config.ArchiveListTimeout,
-		OpenFileZipReader:  zip.OpenReader,
-		ArchiveMaxDepth:    config.ArchiveMaxDepth,
-		ArchiveMaxSize:     config.ArchiveMaxSize,
+		ZipWalker:           archive.WalkZipFiles,
+		TarWalker:           archive.WalkTarFiles,
+		Limiter:             limiterFromConfig(config.ArchivesCrawledPerSecond),
+		ArchiveWalkTimeout:  config.ArchiveListTimeout,
+		OpenFileZipReader:   zip.OpenReader,
+		ArchiveMaxDepth:     config.ArchiveMaxDepth,
+		ArchiveMaxSize:      config.ArchiveMaxSize,
+		IdentifyObfuscation: true,
 	}
 	crawler := crawl.Crawler{
 		Limiter:     limiterFromConfig(config.DirectoriesCrawledPerSecond),

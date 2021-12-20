@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
+	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
 )
@@ -76,13 +77,14 @@ type Identifier interface {
 
 // Log4jIdentifier identifies files that are vulnerable to Log4J-related CVEs.
 type Log4jIdentifier struct {
-	OpenFileZipReader  archive.ZipReadCloserProvider
-	ZipWalker          archive.ZipWalkFn
-	TarWalker          archive.WalkFn
-	Limiter            ratelimit.Limiter
-	ArchiveWalkTimeout time.Duration
-	ArchiveMaxDepth    uint
-	ArchiveMaxSize     uint
+	OpenFileZipReader   archive.ZipReadCloserProvider
+	ZipWalker           archive.ZipWalkFn
+	TarWalker           archive.WalkFn
+	Limiter             ratelimit.Limiter
+	ArchiveWalkTimeout  time.Duration
+	ArchiveMaxDepth     uint
+	ArchiveMaxSize      uint
+	IdentifyObfuscation bool
 }
 
 // Identify identifies vulnerable files.
@@ -120,7 +122,11 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 				err = cErr
 			}
 		}()
-		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader)
+		obfuscated, err := i.checkForObfuscation(path)
+		if err != nil {
+			return 0, nil, err
+		}
+		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader, obfuscated)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -147,7 +153,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	return NothingDetected, nil, nil
 }
 
-func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader) (Finding, Versions, error) {
+func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader, obfuscated bool) (Finding, Versions, error) {
 	archiveResult := NothingDetected
 	versions := Versions{}
 	i.Limiter.Take()
@@ -162,13 +168,17 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 					versions[archiveVersion] = struct{}{}
 				}
 			}
+			innerObfuscated, err := i.checkForObfuscation(path)
+			if err != nil {
+				return false, err
+			}
 			// Check depth here before recursing because we don't want to create a zip reader unnecessarily.
 			if depth+1 < i.ArchiveMaxDepth {
 				reader, err := archive.ZipReaderFromReader(contents, int(i.ArchiveMaxSize))
 				if err != nil {
 					return false, errors.Wrap(err, "creating zip reader from reader")
 				}
-				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader)
+				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, innerObfuscated)
 				if err != nil {
 					return false, err
 				}
@@ -178,7 +188,7 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				}
 			}
 		}
-		finding, versionInFile, versionMatch := lookForMatchInFileInZip(path, size, contents)
+		finding, versionInFile, versionMatch := lookForMatchInFileInZip(path, size, contents, obfuscated)
 		if finding == NothingDetected {
 			return true, nil
 		}
@@ -197,8 +207,21 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 	return archiveResult, versions, nil
 }
 
-// boolean returned is whether the version was matched.
-func lookForMatchInFileInZip(path string, size int64, contents io.Reader) (Finding, string, bool) {
+func (i *Log4jIdentifier) checkForObfuscation(path string) (bool, error) {
+	if !i.IdentifyObfuscation {
+		return false, nil
+	}
+	averageSizes, err := java.AveragePackageAndClassLength(path)
+	if err != nil {
+		return false, err
+	}
+	if 0 < averageSizes.PackageName && averageSizes.PackageName < 3 && 0 < averageSizes.ClassName && averageSizes.ClassName < 3 {
+		return true, nil
+	}
+	return false, nil
+}
+
+func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
 		finding, version, hashMatch := lookForHashMatch(contents, size)
 		if hashMatch {
@@ -211,12 +234,19 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader) (Findi
 		return JarNameInsideArchive, version, true
 	}
 
-	if strings.HasSuffix(path, "JndiManager.class") || strings.HasSuffix(path, ".class") {
+	hashClass := strings.HasSuffix(path, "JndiManager.class")
+	if obfuscated {
+		hashClass = hashClass || strings.HasSuffix(path, ".class")
+	}
+	if hashClass {
 		finding, version, hashMatch := lookForHashMatch(contents, size)
-		if hashMatch {
-			return ClassName | finding, version, true
+		if strings.HasSuffix(path, "JndiManager.class") {
+			finding |= ClassName
 		}
-		return ClassName, "", false
+		if hashMatch {
+			return finding, version, false
+		}
+		return finding, "", false
 	}
 	return NothingDetected, "", false
 }

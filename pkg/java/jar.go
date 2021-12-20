@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"strings"
 )
 
@@ -74,6 +75,58 @@ func ReadMethodByteCode(jarFile string, className string) (bytecode [][]byte, er
 	}
 
 	return ExtractBytecode(buf.Bytes())
+}
+
+type AverageJavaNameSizes struct {
+	PackageName float32
+	ClassName   float32
+}
+
+func AveragePackageAndClassLength(jarFile string) (AverageJavaNameSizes, error) {
+	r, err := zip.OpenReader(jarFile)
+	if err != nil {
+		return AverageJavaNameSizes{}, err
+	}
+
+	packageNames := make(map[string]struct{})
+	var classesFound, totalClassesNameSize uint32 = 0, 0
+	for _, file := range r.File {
+		if strings.HasSuffix(file.Name, ".class") {
+			parts := strings.Split(file.Name, "/") // Zip/jar is always /
+			for _, packageName := range parts[:len(parts)-1] {
+				packageNames[packageName] = struct{}{}
+			}
+			className := parts[len(parts)-1]
+			classesFound = addAvoidingOverflow(classesFound, 1)
+			totalClassesNameSize = addAvoidingOverflow(totalClassesNameSize, len(className)-5) // Don't count .class
+		}
+	}
+
+	var packagesFound, totalPackagesNameSize uint32 = 0, 0
+	for uniquePackageName := range packageNames {
+		packagesFound = addAvoidingOverflow(packagesFound, 1)
+		totalPackagesNameSize = addAvoidingOverflow(totalPackagesNameSize, len(uniquePackageName))
+	}
+
+	return AverageJavaNameSizes{
+		PackageName: average(totalPackagesNameSize, packagesFound),
+		ClassName:   average(totalClassesNameSize, classesFound),
+	}, nil
+}
+
+func average(totalSize, numberFound uint32) float32 {
+	if numberFound == 0 {
+		return 0
+	}
+	average := float32(totalSize) / float32(numberFound)
+	return average
+}
+
+func addAvoidingOverflow(left uint32, right int) uint32 {
+	if left > math.MaxInt32-uint32(right) {
+		return math.MaxInt32
+	}
+	return left + uint32(right)
 }
 
 func md5Class(r *zip.ReadCloser, classLocation string) (string, int64, error) {
