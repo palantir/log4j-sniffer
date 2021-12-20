@@ -190,13 +190,18 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				}
 			}
 		}
-		finding, version, err := lookForMatchInFileInZip(path, size, contents, parentVersion)
-		if err != nil {
-			return false, err
-		}
-		if finding == NothingDetected || !vulnerableVersion(version) {
+		finding, versionInFile, versionMatch := lookForMatchInFileInZip(path, size, contents)
+		if finding == NothingDetected {
 			return true, nil
 		}
+		version := parentVersion
+		if versionMatch {
+			version = versionInFile
+		}
+		if !vulnerableVersion(version) {
+			return true, nil
+		}
+
 		archiveResult = finding | archiveResult
 		versions[version] = struct{}{}
 		return false, nil
@@ -207,27 +212,28 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 	return archiveResult, versions, nil
 }
 
-func lookForMatchInFileInZip(path string, size int64, contents io.Reader, parentVersion string) (Finding, string, error) {
+// boolean returned is whether the version was matched.
+func lookForMatchInFileInZip(path string, size int64, contents io.Reader) (Finding, string, bool) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
 		finding, version, hashMatch := lookForHashMatch(contents, size)
 		if hashMatch {
-			return ClassPackageAndName | finding, version, nil
+			return ClassPackageAndName | finding, version, true
 		}
-		return ClassPackageAndName, parentVersion, nil
+		return ClassPackageAndName, "", false
 	}
 
 	if version, match := pathMatchesLog4JVersion(path); match {
-		return JarNameInsideArchive, version, nil
+		return JarNameInsideArchive, version, true
 	}
 
 	if strings.HasSuffix(path, "JndiManager.class") {
 		finding, version, hashMatch := lookForHashMatch(contents, size)
 		if hashMatch {
-			return ClassName | finding, version, nil
+			return ClassName | finding, version, true
 		}
-		return ClassName, parentVersion, nil
+		return ClassName, "", false
 	}
-	return NothingDetected, parentVersion, nil
+	return NothingDetected, "", false
 }
 
 func (i *Log4jIdentifier) lookForMatchInTar(ctx context.Context, path string) (Finding, Versions, error) {
