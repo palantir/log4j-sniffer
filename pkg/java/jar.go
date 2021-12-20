@@ -108,12 +108,7 @@ func md5Bytecode(r *zip.ReadCloser, classLocation string) (string, error) {
 		return "", err
 	}
 
-	h, err := HashClassInstructions(buf.Bytes())
-	if err != nil {
-		return "", err
-	}
-
-	return h, nil
+	return HashClassInstructions(buf.Bytes())
 }
 
 func readClassBytes(r *zip.ReadCloser, classLocation string) (*bytes.Buffer, error) {
