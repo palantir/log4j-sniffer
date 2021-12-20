@@ -168,6 +168,7 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 					versions[archiveVersion] = struct{}{}
 				}
 			}
+
 			innerObfuscated, err := i.checkForObfuscation(path)
 			if err != nil {
 				return false, err
