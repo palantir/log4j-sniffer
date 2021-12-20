@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
-	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
 )
