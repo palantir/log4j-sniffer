@@ -27,7 +27,7 @@ func TestWalkTarGzFiles(t *testing.T) {
 	t.Run("cancels on context done", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		err := WalkTarGzFiles(ctx, "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
+		err := WalkTarFiles(ctx, "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
 			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 				return true, nil
 			})
@@ -36,7 +36,7 @@ func TestWalkTarGzFiles(t *testing.T) {
 
 	t.Run("successfully lists paths", func(t *testing.T) {
 		var paths []string
-		err := WalkTarGzFiles(context.Background(), "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
+		err := WalkTarFiles(context.Background(), "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
 			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 				paths = append(paths, path)
 				return true, nil
@@ -79,9 +79,18 @@ func TestCheckArchiveType(t *testing.T) {
 	})
 	t.Run("tar archives", func(t *testing.T) {
 		assert.Equal(t, CheckArchiveType("generic.tar"), TarArchive)
-		assert.Equal(t, CheckArchiveType("compressed.tar.gz"), TarArchive)
-		assert.Equal(t, CheckArchiveType("many.dots.tar.gz"), TarArchive)
-		assert.Equal(t, CheckArchiveType("compressed.tgz"), TarArchive)
+		assert.Equal(t, CheckArchiveType("many.dots.tar"), TarArchive)
+	})
+	t.Run("tar gz archives", func(t *testing.T) {
+		assert.Equal(t, CheckArchiveType("compressed.tar.gz"), TarGzArchive)
+		assert.Equal(t, CheckArchiveType("many.dots.tar.gz"), TarGzArchive)
+		assert.Equal(t, CheckArchiveType("compressed.tgz"), TarGzArchive)
+
+	})
+	t.Run("tar bz2 archives", func(t *testing.T) {
+		assert.Equal(t, CheckArchiveType("bz2compressed.tar.bz2"), TarBz2Archive)
+		assert.Equal(t, CheckArchiveType("many.dots.tar.bz2"), TarBz2Archive)
+		assert.Equal(t, CheckArchiveType("bz2compressed.tbz2"), TarBz2Archive)
 
 	})
 	t.Run("unsupported archives", func(t *testing.T) {

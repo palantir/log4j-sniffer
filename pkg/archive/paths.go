@@ -17,30 +17,36 @@ package archive
 import (
 	"archive/tar"
 	"archive/zip"
+	"compress/bzip2"
 	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 const (
 	TarArchive FormatType = iota
+	TarGzArchive
+	TarBz2Archive
 	ZipArchive
 	UnsupportedArchive
 )
 
 var (
 	extensions = map[string]FormatType{
-		".ear":    ZipArchive,
-		".jar":    ZipArchive,
-		".par":    ZipArchive,
-		".war":    ZipArchive,
-		".zip":    ZipArchive,
-		".tar":    TarArchive,
-		".tar.gz": TarArchive,
-		".tgz":    TarArchive,
+		".ear":     ZipArchive,
+		".jar":     ZipArchive,
+		".par":     ZipArchive,
+		".war":     ZipArchive,
+		".zip":     ZipArchive,
+		".tar":     TarArchive,
+		".tar.gz":  TarGzArchive,
+		".tgz":     TarGzArchive,
+		".tar.bz2": TarBz2Archive,
+		".tbz2":    TarBz2Archive,
 	}
 )
 
@@ -90,7 +96,7 @@ func WalkZipFiles(ctx context.Context, path string, walkFn FileWalkFn) (err erro
 	return nil
 }
 
-func WalkTarGzFiles(ctx context.Context, path string, walkFn FileWalkFn) (err error) {
+func WalkTarFiles(ctx context.Context, path string, walkFn FileWalkFn) (err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -100,13 +106,22 @@ func WalkTarGzFiles(ctx context.Context, path string, walkFn FileWalkFn) (err er
 			err = cErr
 		}
 	}()
-
-	gzipReader, err := gzip.NewReader(file)
-
-	if err != nil {
-		return err
+	var reader io.Reader
+	switch CheckArchiveType(filepath.Base(path)) {
+	case TarGzArchive:
+		reader, err = gzip.NewReader(file)
+		if err != nil {
+			return err
+		}
+	case TarBz2Archive:
+		reader = bzip2.NewReader(file)
+	case TarArchive:
+		reader = file
+	default:
+		return fmt.Errorf("could not extract archive: %s (supported: uncompressed, gzip, bzip2)", path)
 	}
-	tarReader := tar.NewReader(gzipReader)
+
+	tarReader := tar.NewReader(reader)
 	for {
 		select {
 		case <-ctx.Done():
@@ -127,6 +142,7 @@ func WalkTarGzFiles(ctx context.Context, path string, walkFn FileWalkFn) (err er
 		}
 	}
 	return nil
+
 }
 
 func CheckArchiveType(filename string) FormatType {

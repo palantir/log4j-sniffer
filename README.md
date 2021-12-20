@@ -16,7 +16,7 @@ What this does
 log4j-sniffer will scan a filesystem looking for all files of the following types based upon suffix:
 - Zips: .zip
 - Java archives: .jar, .war, .ear
-- Tar: .tar.gz, .tgz
+- Tar: .tar, .tar.gz, .tgz, .tar.bz2, .tbz2
 
 It will look for the following:
 - Jar files matching `log4j-core-<version>.jar`, including those nested within another archive

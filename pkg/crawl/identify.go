@@ -126,10 +126,13 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 	}
 
 	lowercaseFilename := strings.ToLower(d.Name())
-	file := archive.CheckArchiveType(lowercaseFilename)
-	switch file {
+	switch archive.CheckArchiveType(lowercaseFilename) {
 	case archive.ZipArchive:
 		return i.lookForMatchInZip(ctx, path, lowercaseFilename, UnknownVersion)
+	case archive.TarGzArchive:
+		fallthrough
+	case archive.TarBz2Archive:
+		fallthrough
 	case archive.TarArchive:
 		return i.lookForMatchInTar(ctx, path, UnknownVersion)
 	}

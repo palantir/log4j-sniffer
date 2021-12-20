@@ -50,7 +50,7 @@ type SummaryJSON struct {
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
 // provided configuration. Returns the number of issues that were found.
 func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64, error) {
-	identifier := crawl.NewIdentifier(config.ArchiveListTimeout, archive.WalkZipFiles, archive.WalkTarGzFiles)
+	identifier := crawl.NewIdentifier(config.ArchiveListTimeout, archive.WalkZipFiles, archive.WalkTarFiles)
 	crawler := crawl.Crawler{
 		ErrorWriter: stderr,
 		IgnoreDirs:  config.Ignores,
