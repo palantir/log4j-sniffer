@@ -83,7 +83,6 @@ func HashClassInstructions(classBytes []byte) (string, error) {
 
 func ExtractBytecode(classBytes []byte) ([][]byte, error) {
 	classFile, err := classfile.Parse(classBytes)
-
 	if err != nil {
 		return nil, err
 	}
