@@ -43,6 +43,10 @@ type Config struct {
 	DirectoriesCrawledPerSecond int
 	// Maximum number of archives to scan per second, or 0 for no limit.
 	ArchivesCrawledPerSecond int
+	// The maximum average class name length for a jar to be considered obfuscated.
+	ObfuscatedClassNameAverageLength uint32
+	// The maxmimum average package name length for a jar to be considered obfuscated.
+	ObfuscatedPackageNameAverageLength uint32
 	// If true, disables detection of CVE-45105
 	DisableCVE45105 bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.
@@ -62,14 +66,16 @@ type SummaryJSON struct {
 // provided configuration. Returns the number of issues that were found.
 func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64, error) {
 	identifier := crawl.Log4jIdentifier{
-		ZipWalker:           archive.WalkZipFiles,
-		TarWalker:           archive.WalkTarFiles,
-		Limiter:             limiterFromConfig(config.ArchivesCrawledPerSecond),
-		ArchiveWalkTimeout:  config.ArchiveListTimeout,
-		OpenFileZipReader:   zip.OpenReader,
-		ArchiveMaxDepth:     config.ArchiveMaxDepth,
-		ArchiveMaxSize:      config.ArchiveMaxSize,
-		IdentifyObfuscation: true,
+		ZipWalker:                          archive.WalkZipFiles,
+		TarWalker:                          archive.WalkTarFiles,
+		Limiter:                            limiterFromConfig(config.ArchivesCrawledPerSecond),
+		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
+		OpenFileZipReader:                  zip.OpenReader,
+		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
+		ArchiveMaxSize:                     config.ArchiveMaxSize,
+		IdentifyObfuscation:                config.ObfuscatedClassNameAverageLength > 0 && config.ObfuscatedPackageNameAverageLength > 0,
+		ObfuscatedClassNameAverageLength:   float32(config.ObfuscatedClassNameAverageLength),
+		ObfuscatedPackageNameAverageLength: float32(config.ObfuscatedPackageNameAverageLength),
 	}
 	crawler := crawl.Crawler{
 		Limiter:     limiterFromConfig(config.DirectoriesCrawledPerSecond),

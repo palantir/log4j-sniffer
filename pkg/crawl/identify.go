@@ -77,14 +77,16 @@ type Identifier interface {
 
 // Log4jIdentifier identifies files that are vulnerable to Log4J-related CVEs.
 type Log4jIdentifier struct {
-	OpenFileZipReader   archive.ZipReadCloserProvider
-	ZipWalker           archive.ZipWalkFn
-	TarWalker           archive.WalkFn
-	Limiter             ratelimit.Limiter
-	ArchiveWalkTimeout  time.Duration
-	ArchiveMaxDepth     uint
-	ArchiveMaxSize      uint
-	IdentifyObfuscation bool
+	OpenFileZipReader                  archive.ZipReadCloserProvider
+	ZipWalker                          archive.ZipWalkFn
+	TarWalker                          archive.WalkFn
+	Limiter                            ratelimit.Limiter
+	ArchiveWalkTimeout                 time.Duration
+	ArchiveMaxDepth                    uint
+	ArchiveMaxSize                     uint
+	IdentifyObfuscation                bool
+	ObfuscatedClassNameAverageLength   float32
+	ObfuscatedPackageNameAverageLength float32
 }
 
 // Identify identifies vulnerable files.
@@ -122,7 +124,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 				err = cErr
 			}
 		}()
-		obfuscated, err := i.checkForObfuscation(path)
+		obfuscated := i.checkForObfuscation(&reader.Reader)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -169,16 +171,13 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				}
 			}
 
-			innerObfuscated, err := i.checkForObfuscation(path)
-			if err != nil {
-				return false, err
-			}
 			// Check depth here before recursing because we don't want to create a zip reader unnecessarily.
 			if depth+1 < i.ArchiveMaxDepth {
 				reader, err := archive.ZipReaderFromReader(contents, int(i.ArchiveMaxSize))
 				if err != nil {
 					return false, errors.Wrap(err, "creating zip reader from reader")
 				}
+				innerObfuscated := i.checkForObfuscation(reader)
 				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, innerObfuscated)
 				if err != nil {
 					return false, err
@@ -208,18 +207,15 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 	return archiveResult, versions, nil
 }
 
-func (i *Log4jIdentifier) checkForObfuscation(path string) (bool, error) {
+func (i *Log4jIdentifier) checkForObfuscation(reader *zip.Reader) bool {
 	if !i.IdentifyObfuscation {
-		return false, nil
+		return false
 	}
-	averageSizes, err := java.AveragePackageAndClassLength(path)
-	if err != nil {
-		return false, err
+	averageSizes := java.AveragePackageAndClassLength(reader.File)
+	if 0 < averageSizes.PackageName && averageSizes.PackageName < i.ObfuscatedPackageNameAverageLength && 0 < averageSizes.ClassName && averageSizes.ClassName < i.ObfuscatedClassNameAverageLength {
+		return true
 	}
-	if 0 < averageSizes.PackageName && averageSizes.PackageName < 3 && 0 < averageSizes.ClassName && averageSizes.ClassName < 3 {
-		return true, nil
-	}
-	return false, nil
+	return false
 }
 
 func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {

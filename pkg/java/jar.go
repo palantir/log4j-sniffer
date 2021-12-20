@@ -82,15 +82,10 @@ type AverageJavaNameSizes struct {
 	ClassName   float32
 }
 
-func AveragePackageAndClassLength(jarFile string) (AverageJavaNameSizes, error) {
-	r, err := zip.OpenReader(jarFile)
-	if err != nil {
-		return AverageJavaNameSizes{}, err
-	}
-
+func AveragePackageAndClassLength(files []*zip.File) AverageJavaNameSizes {
 	packageNames := make(map[string]struct{})
 	var classesFound, totalClassesNameSize uint32 = 0, 0
-	for _, file := range r.File {
+	for _, file := range files {
 		if strings.HasSuffix(file.Name, ".class") {
 			parts := strings.Split(file.Name, "/") // Zip/jar is always /
 			for _, packageName := range parts[:len(parts)-1] {
@@ -111,7 +106,7 @@ func AveragePackageAndClassLength(jarFile string) (AverageJavaNameSizes, error) 
 	return AverageJavaNameSizes{
 		PackageName: average(totalPackagesNameSize, packagesFound),
 		ClassName:   average(totalClassesNameSize, classesFound),
-	}, nil
+	}
 }
 
 func average(totalSize, numberFound uint32) float32 {

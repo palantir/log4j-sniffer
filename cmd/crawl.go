@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"math"
 	"regexp"
 	"time"
 
@@ -25,15 +26,19 @@ import (
 
 func crawlCmd() *cobra.Command {
 	var (
-		ignoreDirs                  []string
-		perArchiveTimeout           time.Duration
-		nestedArchiveMaxDepth       uint
-		nestedArchiveMaxSize        uint
-		directoriesCrawledPerSecond int
-		archivesCrawledPerSecond    int
-		disableCVE45105             bool
-		outputJSON                  bool
-		outputSummary               bool
+		ignoreDirs                         []string
+		perArchiveTimeout                  time.Duration
+		nestedArchiveMaxDepth              uint
+		nestedArchiveMaxSize               uint
+		directoriesCrawledPerSecond        int
+		archivesCrawledPerSecond           int
+		enableObfuscationDetection         bool
+		obfuscatedClassNameAverageLength   uint32
+		obfuscatedPackageNameAverageLength uint32
+		enablePartialMatchingOnAllClasses  bool
+		disableCVE45105                    bool
+		outputJSON                         bool
+		outputSummary                      bool
 	)
 
 	cmd := cobra.Command{
@@ -55,17 +60,26 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				ignores = append(ignores, compiled)
 			}
 
+			if !enableObfuscationDetection {
+				obfuscatedClassNameAverageLength, obfuscatedPackageNameAverageLength = 0, 0
+			}
+			if enablePartialMatchingOnAllClasses {
+				obfuscatedClassNameAverageLength, obfuscatedPackageNameAverageLength = math.MaxInt32, math.MaxInt32
+			}
+
 			_, err := crawler.Crawl(cmd.Context(), crawler.Config{
-				Root:                        args[0],
-				ArchiveListTimeout:          perArchiveTimeout,
-				ArchiveMaxDepth:             nestedArchiveMaxDepth,
-				ArchiveMaxSize:              nestedArchiveMaxSize,
-				DirectoriesCrawledPerSecond: directoriesCrawledPerSecond,
-				ArchivesCrawledPerSecond:    archivesCrawledPerSecond,
-				DisableCVE45105:             disableCVE45105,
-				Ignores:                     ignores,
-				OutputJSON:                  outputJSON,
-				OutputSummary:               outputSummary,
+				Root:                               args[0],
+				ArchiveListTimeout:                 perArchiveTimeout,
+				ArchiveMaxDepth:                    nestedArchiveMaxDepth,
+				ArchiveMaxSize:                     nestedArchiveMaxSize,
+				DirectoriesCrawledPerSecond:        directoriesCrawledPerSecond,
+				ArchivesCrawledPerSecond:           archivesCrawledPerSecond,
+				ObfuscatedClassNameAverageLength:   obfuscatedClassNameAverageLength,
+				ObfuscatedPackageNameAverageLength: obfuscatedPackageNameAverageLength,
+				DisableCVE45105:                    disableCVE45105,
+				Ignores:                            ignores,
+				OutputJSON:                         outputJSON,
+				OutputSummary:                      outputSummary,
 			}, cmd.OutOrStdout(), cmd.OutOrStderr())
 			return err
 		},
@@ -80,6 +94,10 @@ The overall limit to nested archive size unarchived should be controlled by both
 	cmd.Flags().UintVar(&nestedArchiveMaxDepth, "nested-archive-max-depth", 0, `The maximum depth to recurse into nested archives. A max depth of 0 will open up an archive on the filesystem but not any nested archives.`)
 	cmd.Flags().IntVar(&directoriesCrawledPerSecond, "directories-per-second-rate-limit", 0, `The maximum number of directories to crawl per second. 0 for unlimited.`)
 	cmd.Flags().IntVar(&archivesCrawledPerSecond, "archives-per-second-rate-limit", 0, `The maximum number of archives to scan per second. 0 for unlimited.`)
+	cmd.Flags().BoolVar(&enableObfuscationDetection, "enable-obfuscation-detection", true, `Enable applying partial bytecode matching to Jars that appear to be obfuscated.`)
+	cmd.Flags().BoolVar(&enablePartialMatchingOnAllClasses, "enable-partial-matching-on-all-classes", false, `Enable partial bytecode matching to all class files found.`)
+	cmd.Flags().Uint32Var(&obfuscatedClassNameAverageLength, "maximum-average-obfuscated-class-name-length", 3, `The maximum average class name length for classes within a Jar to be considered obfuscated.`)
+	cmd.Flags().Uint32Var(&obfuscatedPackageNameAverageLength, "maximum-average-obfuscated-package-name-length", 3, `The maximum average package name length for packages within a Jar to be considered obfuscated.`)
 	cmd.Flags().BoolVar(&disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
 	cmd.Flags().BoolVar(&outputJSON, "json", false, "If true, output will be in JSON format")
 	cmd.Flags().BoolVar(&outputSummary, "summary", true, "If true, outputs a summary of all operations once program completes")
