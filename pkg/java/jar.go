@@ -55,11 +55,16 @@ func HashClass(jarFile string, className string) (ClassHash, error) {
 	}, nil
 }
 
-func ReadMethodByteCode(jarFile string, className string) ([][]byte, error) {
+func ReadMethodByteCode(jarFile string, className string) (bytecode [][]byte, err error) {
 	r, err := zip.OpenReader(jarFile)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if cErr := r.Close(); err == nil && cErr != nil {
+			err = cErr
+		}
+	}()
 
 	classLocation := strings.ReplaceAll(className, ".", "/")
 
