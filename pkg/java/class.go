@@ -88,7 +88,7 @@ func ExtractBytecode(classBytes []byte) ([][]byte, error) {
 		return nil, err
 	}
 
-	bytecode := make([][]byte, 0)
+	var bytecode [][]byte
 	opcodes := OpcodeLookupTables()
 
 	for _, method := range classFile.Methods {

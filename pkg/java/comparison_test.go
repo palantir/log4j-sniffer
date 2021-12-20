@@ -16,11 +16,11 @@ package java_test
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/palantir/log4j-sniffer/pkg/java"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestComparisonWithObfuscatedClass(t *testing.T) {
@@ -50,10 +50,10 @@ func TestComparisonWithObfuscatedClass(t *testing.T) {
 		for i := 0; i < partialMatch.AmountSkipped; i++ {
 			hex = fmt.Sprintf("%s_", hex)
 		}
-		hex = fmt.Sprintf( "%s%x", hex, partialMatch.Suffix)
+		hex = fmt.Sprintf("%s%x", hex, partialMatch.Suffix)
 		partialMatchesInHex = append(partialMatchesInHex, hex)
 	}
-	assert.Equal(t, partialMatchesInHex, []string {
+	assert.Equal(t, partialMatchesInHex, []string{
 		"bb59_____2ab4b612b62ab4b612b6b6b0",
 		"bb59___b7b3b1",
 	})
@@ -96,4 +96,3 @@ func TestComparisonWithSelf(t *testing.T) {
 	assert.Empty(t, comparison.FirstClassUnmatchedBytecode)
 	assert.Empty(t, comparison.SecondClassUnmatchedBytecode)
 }
-
