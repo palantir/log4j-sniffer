@@ -23,9 +23,9 @@ import (
 
 func TestSizeLimitedBuffer(t *testing.T) {
 	t.Run("write over size of limit should error", func(t *testing.T) {
-		buf := NewSizeLimitedBuffer(0)
-		_, err := buf.Write(make([]byte, 1))
-		require.Equal(t, WriteTooLargeError(0), err)
+		buf := NewSizeLimitedBuffer(2)
+		_, err := buf.Write(make([]byte, 3))
+		require.Equal(t, WriteTooLargeError(2), err)
 	})
 
 	t.Run("write under limit should not error", func(t *testing.T) {

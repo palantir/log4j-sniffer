@@ -110,7 +110,7 @@ func TestZipIdentifierImplementsTimeout(t *testing.T) {
 		identifier := crawl.Log4jIdentifier{
 			OpenFileZipReader: func(path string) (*zip.ReadCloser, error) {
 				zipContent := createZipContent(t, "nested.zip",
-					createZipContent(t, "log4j-core-2.14.1.jar", []byte{}).Bytes())
+					createZipContent(t, "log4j-core-2.14.1.jar", emptyZipContent(t)).Bytes())
 				return zip.OpenReader(mustWriteTempFile(t, "outer.z", zipContent.Bytes()))
 			},
 			ZipWalker:          archive.WalkZipFiles,
@@ -305,7 +305,7 @@ func TestIdentifyFromZipContents(t *testing.T) {
 					}
 					zipContentsWritten = true
 					for _, path := range tc.filesInZip {
-						if _, err := walkFn(ctx, path, 0, bytes.NewReader(validEmptyZipContent(t))); err != nil {
+						if _, err := walkFn(ctx, path, 0, bytes.NewReader(emptyZipContent(t))); err != nil {
 							return err
 						}
 					}
@@ -334,12 +334,6 @@ func TestIdentifyFromZipContents(t *testing.T) {
 			}
 		})
 	}
-}
-
-func validEmptyZipContent(t *testing.T) []byte {
-	var buf bytes.Buffer
-	require.NoError(t, zip.NewWriter(&buf).Close())
-	return buf.Bytes()
 }
 
 func TestFindingString(t *testing.T) {
@@ -389,6 +383,12 @@ func createZipContent(t *testing.T, containedFilename string, containedFileConte
 	require.NoError(t, err)
 	require.NoError(t, w.Close())
 	return &buf
+}
+
+func emptyZipContent(t *testing.T) []byte {
+	var buf bytes.Buffer
+	require.NoError(t, zip.NewWriter(&buf).Close())
+	return buf.Bytes()
 }
 
 type stubDirEntry struct {

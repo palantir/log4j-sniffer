@@ -135,8 +135,6 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		if vulnerableVersion(archiveVersion) {
 			result |= JarName
 			versions[archiveVersion] = struct{}{}
-		} else {
-			return result, versions, nil
 		}
 	} else {
 		archiveVersion = UnknownVersion
@@ -179,7 +177,6 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 					archiveResult |= JarNameInsideArchive
 					versions[archiveVersion] = struct{}{}
 				}
-				return true, nil
 			}
 			// Check depth here before recursing because we don't want to create a zip reader unnecessarily.
 			if depth+1 < i.ArchiveMaxDepth {

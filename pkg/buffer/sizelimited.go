@@ -18,10 +18,15 @@ import (
 	"bytes"
 )
 
+// NewSizeLimitedBuffer initialises a new SizeLimitedBuffer.
 func NewSizeLimitedBuffer(limit int) SizeLimitedBuffer {
 	return SizeLimitedBuffer{limit: limit}
 }
 
+// SizeLimitedBuffer contains a buffer that can be written to up to a given limit size.
+// When attempting to write content that would push it over the limit, a `WriteTooLargeError` will
+// be returned.
+// NewSizeLimitedBuffer should be used to create a SizeLimitedBuffer.
 type SizeLimitedBuffer struct {
 	limit   int
 	written int
