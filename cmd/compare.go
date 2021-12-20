@@ -33,6 +33,7 @@ Outputs the parts the jars have in common in order to build signatures for match
 The class names must be fully qualified and not end with .class.
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(),"First class method bytecode (hex)\n")
 			firstBytecode, err := java.ReadMethodByteCode(args[0], args[1])
 			if err != nil {
 				return err
@@ -41,20 +42,20 @@ The class names must be fully qualified and not end with .class.
 				fmt.Printf("%x\n", methodBytecode)
 			}
 
-			fmt.Println("\n\n\n\nSecond class")
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(),"\n\n\n\nSecond class method bytecode (hex)\n")
 			secondBytecode, err := java.ReadMethodByteCode(args[2], args[3])
 			if err != nil {
 				return err
 			}
 			for _, methodBytecode := range secondBytecode {
-				fmt.Printf("%x\n", methodBytecode)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(),"%x\n", methodBytecode)
 			}
 
-			fmt.Println("\n\n\n\nExact matches")
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(),"\n\n\n\nExact matches\n")
 			for i, firstClassMethodBytecode := range firstBytecode {
 				for j, secondClassMethodBytecode := range secondBytecode {
 					if bytes.Compare(firstClassMethodBytecode, secondClassMethodBytecode) == 0 {
-						fmt.Printf("%x\n", firstClassMethodBytecode)
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(),"%x\n", firstClassMethodBytecode)
 						firstBytecode[i] = nil
 						secondBytecode[j] = nil
 					}
@@ -68,7 +69,7 @@ The class names must be fully qualified and not end with .class.
 				return len(secondBytecode[i]) > len(secondBytecode[j])
 			})
 
-			fmt.Println("\n\n\n\nPartial matches")
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(),"\n\n\n\nPartial matches\n")
 			for i, firstClassMethodBytecode := range firstBytecode {
 				if len(firstClassMethodBytecode) < 3 {
 					// Can't have a partial match unless there are enough opcodes
@@ -105,28 +106,28 @@ The class names must be fully qualified and not end with .class.
 				}
 
 				if bestMatchIndex > -1 {
-					fmt.Printf("%x", firstClassMethodBytecode[:bestMatchPrefixLength])
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(),"%x", firstClassMethodBytecode[:bestMatchPrefixLength])
 					for i := bestMatchSuffixLength; i < len(firstClassMethodBytecode); i++ {
-						fmt.Printf("_")
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(),"_")
 					}
 					suffixIndex := len(firstClassMethodBytecode) - bestMatchSuffixLength
-					fmt.Printf("%x\n", firstClassMethodBytecode[suffixIndex:])
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(),"%x\n", firstClassMethodBytecode[suffixIndex:])
 					firstBytecode[i] = nil
 					secondBytecode[bestMatchIndex] = nil
 				}
 			}
 
-			fmt.Println("\n\n\n\nUnmatched bytecode from first class")
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(),"\n\n\n\nUnmatched bytecode from first class\n")
 			for _, bytecode := range firstBytecode {
 				if bytecode != nil {
-					fmt.Printf("%x\n", bytecode)
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(),"%x\n", bytecode)
 				}
 			}
 
-			fmt.Println("\n\n\n\nUnmatched bytecode from second class")
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(),"\n\n\n\nUnmatched bytecode from second class\n")
 			for _, bytecode := range secondBytecode {
 				if bytecode != nil {
-					fmt.Printf("%x\n", bytecode)
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(),"%x\n", bytecode)
 				}
 			}
 			return nil
