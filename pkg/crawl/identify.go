@@ -302,6 +302,8 @@ func hasTgzFileEnding(name string) bool {
 		return true
 	case ".gz":
 		return strings.HasSuffix(name, ".tar.gz")
+	case ".tar":
+		return true
 	}
 	return false
 }

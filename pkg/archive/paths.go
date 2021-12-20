@@ -19,8 +19,10 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"context"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // A WalkFn iterates through an archive, calling FileWalkFn on each member file.
@@ -78,26 +80,33 @@ func WalkTarGzFiles(ctx context.Context, path string, walkFn FileWalkFn) (err er
 		}
 	}()
 
-	gzipReader, err := gzip.NewReader(file)
-
-	if err != nil {
-		return err
+	var reader *tar.Reader
+	switch filepath.Ext(path) {
+	case ".tgz", ".gz":
+		gzipReader, err := gzip.NewReader(file)
+		if err != nil {
+			return err
+		}
+		reader = tar.NewReader(gzipReader)
+	case ".tar":
+		reader = tar.NewReader(file)
+	default:
+		return fmt.Errorf("%s is not a recognised tar format", path)
 	}
-	tarReader := tar.NewReader(gzipReader)
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
-		header, err := tarReader.Next()
+		header, err := reader.Next()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return err
 		}
-		if proceed, err := walkFn(ctx, header.Name, header.Size, tarReader); err != nil {
+		if proceed, err := walkFn(ctx, header.Name, header.Size, reader); err != nil {
 			return err
 		} else if !proceed {
 			break

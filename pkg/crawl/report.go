@@ -33,6 +33,10 @@ type Reporter struct {
 	DisableCVE45105 bool
 	// Number of issues that have been found
 	count int64
+
+	// docker scanner references
+	imageTags []string
+	imageID   string
 }
 
 type JavaCVEInstance struct {
@@ -45,12 +49,14 @@ type JavaCVEInstance struct {
 	JarNameMatched                bool     `json:"jarNameMatched"`
 	JarNameInsideArchiveMatched   bool     `json:"jarNameInsideArchiveMatched"`
 	Log4JVersions                 []string `json:"log4jVersions"`
+	ImageID                       string   `json:"imageID,omitempty"`
+	ImageTags                     []string `json:"imageTags,omitempty"`
 }
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
 func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, result Finding, versionSet Versions) {
-	versions := sortVersions(versionSet)
-	if r.DisableCVE45105 && cve45105VersionsOnly(versions) {
+	versions := SortVersions(versionSet)
+	if r.DisableCVE45105 && Cve45105VersionsOnly(versions) {
 		return
 	}
 	r.count++
@@ -60,7 +66,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		return
 	}
 
-	cveMessage := r.buildCVEMessage(versions)
+	cveMessage := r.buildCVEMessage(versions, path)
 	cveInfo := JavaCVEInstance{
 		Message:                       cveMessage,
 		FilePath:                      path,
@@ -71,6 +77,8 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		ClassFileMD5Matched:           result&ClassFileMd5 > 0,
 		ByteCodeInstructionMD5Matched: result&ClassBytecodeInstructionMd5 > 0,
 		Log4JVersions:                 versions,
+		ImageTags:                     r.imageTags,
+		ImageID:                       r.imageID,
 	}
 
 	var output string
@@ -98,22 +106,36 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		if cveInfo.ByteCodeInstructionMD5Matched {
 			reasons = append(reasons, "byte code instruction MD5 matched")
 		}
-		output = fmt.Sprintf(cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(reasons, ", "))
+		output = fmt.Sprintf(cveMessage+" log4j versions: %s. Reasons: %s", strings.Join(versions, ", "), strings.Join(reasons, ", "))
 	}
 	_, _ = fmt.Fprintln(r.OutputWriter, output)
 }
 
-func (r *Reporter) buildCVEMessage(versions []string) string {
+func (r *Reporter) buildCVEMessage(versions []string, path string) string {
+	if r.imageID != "" {
+		return r.buildCVEDockerMessage(versions, path)
+	}
+
 	if r.DisableCVE45105 {
-		return "CVE-2021-45046 detected"
+		return fmt.Sprintf("CVE-2021-45046 detected in file %s.", path)
 	}
-	if cve45105VersionsOnly(versions) {
-		return "CVE-2021-45105 detected"
+	if Cve45105VersionsOnly(versions) {
+		return fmt.Sprintf("CVE-2021-45105 detected in file %s.", path)
 	}
-	return "CVE-2021-45046 and CVE-2021-45105 detected"
+	return fmt.Sprintf("CVE-2021-45046 and CVE-2021-45105 detected in file %s.", path)
 }
 
-func cve45105VersionsOnly(versions []string) bool {
+func (r *Reporter) buildCVEDockerMessage(versions []string, path string) string {
+	if r.DisableCVE45105 {
+		return fmt.Sprintf("CVE-2021-45046 detected in image %s %s at %s.", r.imageID, r.imageTags, path)
+	}
+	if Cve45105VersionsOnly(versions) {
+		return fmt.Sprintf("CVE-2021-45105 detected in image %s %s at %s.", r.imageID, r.imageTags, path)
+	}
+	return fmt.Sprintf("CVE-2021-45046 and CVE-2021-45105 detected in image %s %s at %s.", r.imageID, r.imageTags, path)
+}
+
+func Cve45105VersionsOnly(versions []string) bool {
 	if len(versions) == 1 && (versions[0] == "2.16.0" || versions[0] == "2.12.2") {
 		return true
 	}
@@ -123,7 +145,7 @@ func cve45105VersionsOnly(versions []string) bool {
 	return false
 }
 
-func sortVersions(versions Versions) []string {
+func SortVersions(versions Versions) []string {
 	var out []string
 	for v := range versions {
 		out = append(out, v)
@@ -136,4 +158,12 @@ func sortVersions(versions Versions) []string {
 // Count returns the number of times that Collect has been called
 func (r Reporter) Count() int64 {
 	return r.count
+}
+
+func (r *Reporter) SetImageTags(tags []string) {
+	r.imageTags = tags
+}
+
+func (r *Reporter) SetImageID(id string) {
+	r.imageID = id
 }

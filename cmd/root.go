@@ -30,5 +30,6 @@ func Execute() int {
 	}
 	rootCmd.AddCommand(crawlCmd())
 	rootCmd.AddCommand(bytecodeCmd())
+	rootCmd.AddCommand(dockerCmd())
 	return cobracli.ExecuteWithDefaultParams(rootCmd, cobracli.VersionFlagParam(Version))
 }
