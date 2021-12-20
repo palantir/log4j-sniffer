@@ -33,10 +33,10 @@ type Reporter struct {
 	DisableCVE45105 bool
 	// Number of issues that have been found
 	count int64
-
-	// docker scanner references
+	// The tags of the image currently being reported
 	imageTags []string
-	imageID   string
+	// The ID of the image currently being reported
+	imageID string
 }
 
 type JavaCVEInstance struct {

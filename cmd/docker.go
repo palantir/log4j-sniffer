@@ -37,7 +37,6 @@ func dockerCmd() *cobra.Command {
 		Use:   "docker",
 		Args:  cobra.NoArgs,
 		Short: "Scan docker images for jars vulnerable to CVE-2021-45046.",
-		Long:  ``,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var ignores []*regexp.Regexp
 			for _, pattern := range ignoreDirs {

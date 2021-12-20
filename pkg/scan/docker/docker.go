@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/api/types"
+	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -42,7 +42,7 @@ type Scanner struct {
 }
 
 func NewDockerScanner(config scan.Config, stdout, stderr io.Writer) (*Scanner, error) {
-	c, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create docker client")
 	}
@@ -59,12 +59,12 @@ func NewDockerScanner(config scan.Config, stdout, stderr io.Writer) (*Scanner, e
 			DisableCVE45105: config.DisableCVE45105,
 		},
 		identifier: crawl.NewIdentifier(config.ArchiveListTimeout, archive.WalkZipFiles, archive.WalkTarGzFiles),
-		client:     c,
+		client:     dockerClient,
 	}, nil
 }
 
 func (d Scanner) ScanImages(ctx context.Context) (int64, error) {
-	imageList, err := d.client.ImageList(ctx, types.ImageListOptions{All: true})
+	imageList, err := d.client.ImageList(ctx, dockertypes.ImageListOptions{})
 	if err != nil {
 		return 0, errors.Wrap(err, "could not list docker images")
 	}
@@ -92,26 +92,26 @@ func (d Scanner) ScanImages(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-func (d Scanner) scanImage(ctx context.Context, image types.ImageSummary) (crawl.Stats, error) {
-	var stats crawl.Stats
-	ref, err := name.ParseReference(image.RepoTags[0], name.WeakValidation)
+func (d Scanner) scanImage(ctx context.Context, image dockertypes.ImageSummary) (crawl.Stats, error) {
+	ref, err := name.ParseReference(image.RepoTags[0])
 	if err != nil {
-		return stats, errors.Wrapf(err, "failed to get image reference")
+		return crawl.Stats{}, errors.Wrapf(err, "failed to get image reference")
 	}
 
 	img, err := daemon.Image(ref, daemon.WithClient(d.client), daemon.WithContext(ctx))
 	if err != nil {
-		return stats, err
+		return crawl.Stats{}, err
 	}
 
+	// create a temporary directory where the docker image tarball can be exported to
 	imageTmpDir, err := os.MkdirTemp("", fmt.Sprintf("log4j-sniffer-%s", image.ID))
 	if err != nil {
-		return stats, errors.Wrapf(err, "could not create temporary directory for image '%s'", image.ID)
+		return crawl.Stats{}, errors.Wrap(err, "could not create temporary directory for image")
 	}
 
 	outFile, err := os.Create(filepath.Join(imageTmpDir, "image.tar"))
 	if err != nil {
-		return stats, err
+		return crawl.Stats{}, err
 	}
 
 	defer func() {
@@ -123,8 +123,9 @@ func (d Scanner) scanImage(ctx context.Context, image types.ImageSummary) (crawl
 		}
 	}()
 
+	// flatten all layers into a single layer and export image to tarball
 	if err := crane.Export(img, outFile); err != nil {
-		return stats, errors.Wrap(err, "could not export image")
+		return crawl.Stats{}, errors.Wrap(err, "could not export image")
 	}
 
 	// this can be removed when we do recursive tars as we can just scan from the
@@ -138,6 +139,8 @@ func (d Scanner) scanImage(ctx context.Context, image types.ImageSummary) (crawl
 		return crawl.Stats{}, err
 	}
 
+	// change to the extracted image directory so paths are reported relative to
+	// the root of the container
 	if err := os.Chdir(imageTmpDir); err != nil {
 		return crawl.Stats{}, err
 	}
