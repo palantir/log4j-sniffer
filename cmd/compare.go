@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/spf13/cobra"
 )
@@ -35,7 +36,7 @@ The class names must be fully qualified and not end with .class.
 				return err
 			}
 
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(),"First class method bytecode (hex)\n")
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "First class method bytecode (hex)\n")
 			printBytecode(cmd, comparison.FirstClassMethodBytecode)
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n\n\n\nSecond class method bytecode (hex)\n")
 			printBytecode(cmd, comparison.SecondClassMethodBytecode)
