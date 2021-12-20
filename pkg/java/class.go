@@ -31,7 +31,6 @@ package java
 import (
 	"bytes"
 	md52 "crypto/md5"
-	"errors"
 	"fmt"
 
 	"github.com/zxh0/jvm.go/classfile"
@@ -69,7 +68,7 @@ func HashClassInstructions(classBytes []byte) (string, error) {
 				for i < len(code) {
 					opcode := code[i]
 					h.Write([]byte{opcode})
-					operands, err := opcodeOperands(opcode, opcodes)
+					operands, err := opcodes.OpcodeOperands(opcode)
 					if err != nil {
 						return "", err
 					}
@@ -101,7 +100,7 @@ func ExtractBytecode(classBytes []byte) ([][]byte, error) {
 					opcode := code[i]
 					extracted.WriteByte(opcode)
 
-					operands, err := opcodeOperands(opcode, opcodes)
+					operands, err := opcodes.OpcodeOperands(opcode)
 					if err != nil {
 						return nil, err
 					}
@@ -112,33 +111,4 @@ func ExtractBytecode(classBytes []byte) ([][]byte, error) {
 		}
 	}
 	return bytecode, nil
-}
-
-func opcodeOperands(opcode byte, opcodes Opcodes) (int, error) {
-	// Look in the opcode tables to see how many operands
-	// this opcode takes, and advance to the end which must
-	// be another opcode or the end of the bytecode
-	if opcodes.NoOperandOpcodeLookupTable[opcode] {
-		return 0, nil
-	} else if opcodes.SingleOperandOpcodeLookupTable[opcode] {
-		return 1, nil
-	} else if opcodes.DoubleOperandOpcodeLookupTable[opcode] {
-		return 2, nil
-	} else if opcodes.QuadOperandOpcodeLookupTable[opcode] {
-		return 4, nil
-	} else {
-		for _, tripleOpcode := range opcodes.TripleOperandOpcodes {
-			if opcode == tripleOpcode {
-				return 3, nil
-			}
-		}
-		// These opcodes take a variable amount of data and are not used
-		// in log4j. We're ignoring them for now as a result.
-		for _, otherOpcode := range opcodes.OtherOpcodes {
-			if opcode == otherOpcode {
-				return -1, errors.New("unsupported opcode type")
-			}
-		}
-		return -1, errors.New("unrecognised opcode")
-	}
 }
