@@ -70,7 +70,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 Patterns should be relative to the provided root.
 e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"`)
 	cmd.Flags().DurationVar(&perArchiveTimeout, "per-archive-timeout", 15*time.Minute, `If this duration is exceeded when inspecting an archive, an error will be logged and the crawler will move onto the next file.`)
-	cmd.Flags().UintVar(&nestedArchiveMaxSize, "nested-archive-max-size", 2*1024*1024, `The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.
+	cmd.Flags().UintVar(&nestedArchiveMaxSize, "nested-archive-max-size", 5*1024*1024, `The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.
 This limit is made a per-depth level.
 The overall limit to nested archive size unarchived should be controlled by both the nested-archive-max-size and nested-archive-max-depth.`)
 	cmd.Flags().UintVar(&nestedArchiveMaxDepth, "nested-archive-max-depth", 0, `The maximum depth to recurse into nested archives. A max depth of 0 will open up an archive on the filesystem but not any nested archives.`)

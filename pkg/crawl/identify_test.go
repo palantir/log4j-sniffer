@@ -346,7 +346,6 @@ func TestFindingString(t *testing.T) {
 		{crawl.JarName, "JarName"},
 		{crawl.JarNameInsideArchive, "JarNameInsideArchive"},
 		{crawl.ClassPackageAndName, "ClassPackageAndName"},
-
 		{crawl.ClassName | crawl.JarName, "ClassName,JarName"},
 		{crawl.ClassName | crawl.ClassPackageAndName, "ClassName,ClassPackageAndName"},
 		{crawl.ClassName | crawl.JarName | crawl.ClassPackageAndName, "ClassName,JarName,ClassPackageAndName"},
