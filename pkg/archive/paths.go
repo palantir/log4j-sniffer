@@ -19,8 +19,29 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"context"
+	"fmt"
 	"io"
 	"os"
+	"strings"
+)
+
+const (
+	TarArchive FormatType = iota
+	ZipArchive
+	UnsupportedArchive
+)
+
+var (
+	extensions = map[string]FormatType{
+		".ear":    ZipArchive,
+		".jar":    ZipArchive,
+		".par":    ZipArchive,
+		".war":    ZipArchive,
+		".zip":    ZipArchive,
+		".tar":    TarArchive,
+		".tar.gz": TarArchive,
+		".tgz":    TarArchive,
+	}
 )
 
 // A WalkFn iterates through an archive, calling FileWalkFn on each member file.
@@ -28,6 +49,8 @@ type WalkFn func(ctx context.Context, path string, walkFn FileWalkFn) error
 
 // FileWalkFn is called by a WalkFn on each file contained in an archive.
 type FileWalkFn func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error)
+
+type FormatType int
 
 func WalkZipFiles(ctx context.Context, path string, walkFn FileWalkFn) (err error) {
 	file, err := os.Open(path)
@@ -104,4 +127,19 @@ func WalkTarGzFiles(ctx context.Context, path string, walkFn FileWalkFn) (err er
 		}
 	}
 	return nil
+}
+
+func CheckArchiveType(filename string) FormatType {
+	fileSplit := strings.Split(filename, ".")
+	if len(fileSplit) < 2 {
+		return UnsupportedArchive
+	}
+
+	for i := len(fileSplit) - 1; i > 0; i-- {
+		if archive, ok := extensions[fmt.Sprintf(".%s", strings.Join(fileSplit[i:], "."))]; ok {
+			return archive
+		}
+	}
+
+	return UnsupportedArchive
 }

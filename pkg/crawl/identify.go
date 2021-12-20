@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -66,11 +65,8 @@ const (
 )
 
 var (
-	log4jRegex    = regexp.MustCompile(`(?i)^log4j-core-(\d+\.\d+(?:\..*)?)\.jar$`)
-	versionRegex  = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:\..*)?$`)
-	zipExtensions = map[string]struct{}{
-		".ear": {}, ".jar": {}, ".par": {}, ".war": {}, ".zip": {},
-	}
+	log4jRegex   = regexp.MustCompile(`(?i)^log4j-core-(\d+\.\d+(?:\..*)?)\.jar$`)
+	versionRegex = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:\..*)?$`)
 	// Generated using log4j-sniffer identify
 	classMd5s = map[string]string{
 		"6b15f42c333ac39abacfeeeb18852a44": "2.1-2.3",
@@ -130,10 +126,11 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 	}
 
 	lowercaseFilename := strings.ToLower(d.Name())
-	if hasZipFileEnding(lowercaseFilename) {
+	file := archive.CheckArchiveType(lowercaseFilename)
+	switch file {
+	case archive.ZipArchive:
 		return i.lookForMatchInZip(ctx, path, lowercaseFilename, UnknownVersion)
-	}
-	if hasTgzFileEnding(lowercaseFilename) {
+	case archive.TarArchive:
 		return i.lookForMatchInTar(ctx, path, UnknownVersion)
 	}
 	return NothingDetected, nil, nil
@@ -288,19 +285,4 @@ func bytecodeMd5Version(classContents []byte) (string, bool) {
 	}
 	version, matches := bytecodeMd5s[hash]
 	return version, matches
-}
-
-func hasZipFileEnding(name string) bool {
-	_, ok := zipExtensions[filepath.Ext(name)]
-	return ok
-}
-
-func hasTgzFileEnding(name string) bool {
-	switch lastExt := filepath.Ext(name); lastExt {
-	case ".tgz":
-		return true
-	case ".gz":
-		return strings.HasSuffix(name, ".tar.gz")
-	}
-	return false
 }

@@ -46,7 +46,7 @@ func TestWalkTarGzFiles(t *testing.T) {
 	})
 }
 
-func TesWalkZipFiles(t *testing.T) {
+func TestWalkZipFiles(t *testing.T) {
 	t.Run("cancels on context done", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -66,5 +66,28 @@ func TesWalkZipFiles(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.NotEmpty(t, paths)
+	})
+}
+
+func TestCheckArchiveType(t *testing.T) {
+	t.Run("zip archives", func(t *testing.T) {
+		assert.Equal(t, CheckArchiveType("filename.zip"), ZipArchive)
+		assert.Equal(t, CheckArchiveType("fat_jar.jar"), ZipArchive)
+		assert.Equal(t, CheckArchiveType("many.dots.with.jar"), ZipArchive)
+		assert.Equal(t, CheckArchiveType("par_file.par"), ZipArchive)
+
+	})
+	t.Run("tar archives", func(t *testing.T) {
+		assert.Equal(t, CheckArchiveType("generic.tar"), TarArchive)
+		assert.Equal(t, CheckArchiveType("compressed.tar.gz"), TarArchive)
+		assert.Equal(t, CheckArchiveType("many.dots.tar.gz"), TarArchive)
+		assert.Equal(t, CheckArchiveType("compressed.tgz"), TarArchive)
+
+	})
+	t.Run("unsupported archives", func(t *testing.T) {
+		assert.Equal(t, CheckArchiveType("unsupported.jpg"), UnsupportedArchive)
+		assert.Equal(t, CheckArchiveType("file.with.many.extensions"), UnsupportedArchive)
+		assert.Equal(t, CheckArchiveType("no-extension"), UnsupportedArchive)
+
 	})
 }
