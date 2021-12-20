@@ -78,7 +78,10 @@ func (d Scanner) ScanImages(ctx context.Context) (int64, error) {
 		d.reporter.SetImageTags(image.RepoTags)
 		imageStats, err := d.scanImage(ctx, image)
 		if err != nil {
-			return 0, errors.Wrapf(err, "encountered an error scanning image with ID %s", image.ID)
+			// write an error and continue scanning other images if we hit an error with this
+			// image
+			_, _ = fmt.Fprintln(d.crawler.ErrorWriter, err.Error())
+			continue
 		}
 		stats.Append(imageStats)
 	}
