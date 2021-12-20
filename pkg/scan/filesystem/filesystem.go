@@ -15,44 +15,25 @@
 package filesystem
 
 import (
-	"archive/zip"
 	"context"
 	"fmt"
 	"io"
 
-	"github.com/palantir/log4j-sniffer/pkg/archive"
-	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"github.com/palantir/log4j-sniffer/pkg/scan"
 )
 
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.DefaultReporter using the
 // provided configuration. Returns the number of issues that were found.
 func Crawl(ctx context.Context, config scan.Config, stdout, stderr io.Writer) (int64, error) {
-	identifier := crawl.Log4jIdentifier{
-		ZipWalker:          archive.WalkZipFiles,
-		TgzZWalker:         archive.WalkTarGzFiles,
-		ArchiveWalkTimeout: config.ArchiveListTimeout,
-		OpenFileZipReader:  zip.OpenReader,
-		ArchiveMaxDepth:    config.ArchiveMaxDepth,
-		ArchiveMaxSize:     config.ArchiveMaxSize,
-	}
-	crawler := crawl.Crawler{
-		ErrorWriter: stderr,
-		IgnoreDirs:  config.Ignores,
-	}
-	reporter := crawl.Reporter{
-		OutputJSON:      config.OutputJSON,
-		OutputWriter:    stdout,
-		DisableCVE45105: config.DisableCVE45105,
-	}
+	scanner := scan.NewScannerFromConfig(config, stdout, stderr)
 
-	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, reporter.Collect)
+	crawlStats, err := scanner.Crawl(ctx, config.Root, scanner.Identify, scanner.Collect)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "Error crawling: %v", err)
 		return 0, err
 	}
 
-	count := reporter.Count()
+	count := scanner.Count()
 	if config.OutputSummary {
 		if err := scan.WriteSummary(stdout, config, crawlStats, count); err != nil {
 			return 0, err

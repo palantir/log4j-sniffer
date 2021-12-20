@@ -17,6 +17,7 @@ package cmd
 import (
 	"regexp"
 
+	"github.com/docker/docker/client"
 	"github.com/palantir/log4j-sniffer/pkg/scan"
 	"github.com/palantir/log4j-sniffer/pkg/scan/docker"
 	"github.com/pkg/errors"
@@ -41,7 +42,12 @@ func dockerCmd() *cobra.Command {
 				ignores = append(ignores, compiled)
 			}
 
-			dockerScanner, err := docker.NewDockerScanner(scan.Config{
+			apiClient, err := client.NewClientWithOpts(client.FromEnv)
+			if err != nil {
+				return errors.Wrap(err, "failed to create docker client")
+			}
+
+			_, err = docker.ScanImages(cmd.Context(), scan.Config{
 				ArchiveListTimeout: perArchiveTimeout,
 				ArchiveMaxDepth:    nestedArchiveMaxDepth,
 				ArchiveMaxSize:     nestedArchiveMaxSize,
@@ -49,12 +55,7 @@ func dockerCmd() *cobra.Command {
 				Ignores:            ignores,
 				OutputJSON:         outputJSON,
 				OutputSummary:      outputSummary,
-			}, cmd.OutOrStdout(), cmd.OutOrStderr(), imageExtractionDir)
-			if err != nil {
-				return err
-			}
-
-			_, err = dockerScanner.ScanImages(cmd.Context())
+			}, cmd.OutOrStdout(), cmd.OutOrStderr(), apiClient, imageExtractionDir)
 			return err
 		},
 	}
