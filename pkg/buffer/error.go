@@ -12,20 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package archive
+package buffer
 
 import (
-	"errors"
-	"testing"
-	"testing/iotest"
-
-	"github.com/stretchr/testify/assert"
+	"fmt"
 )
 
-func TestZipReaderFromReader(t *testing.T) {
-	t.Run("errors on ReadAll error", func(t *testing.T) {
-		expectedErr := errors.New("expected")
-		_, err := ZipReaderFromReader(iotest.ErrReader(expectedErr), 0)
-		assert.Equal(t, expectedErr, err)
-	})
+type WriteTooLargeError int
+
+func (l WriteTooLargeError) Error() string {
+	return fmt.Sprintf("write would exceed buffer maximum: %d", l)
 }

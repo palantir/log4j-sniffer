@@ -36,6 +36,8 @@ type Config struct {
 	// ArchiveMaxDepth is the maximum archive depth to recurse into. A value of 0 will open up an archive on the
 	// filesystem but will not recurse into any nested archives within it.
 	ArchiveMaxDepth uint
+	// ArchiveMaxDepth is the maximum nested archive size that will be unarchived for inspection.
+	ArchiveMaxSize uint
 	// If true, disables detection of CVE-45105
 	DisableCVE45105 bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.
@@ -54,7 +56,14 @@ type SummaryJSON struct {
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
 // provided configuration. Returns the number of issues that were found.
 func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64, error) {
-	identifier := crawl.NewIdentifier(config.ArchiveListTimeout, config.ArchiveMaxDepth, zip.OpenReader, archive.WalkZipFiles, archive.WalkTarGzFiles)
+	identifier := crawl.Log4jIdentifier{
+		ZipWalker:          archive.WalkZipFiles,
+		TgzZWalker:         archive.WalkTarGzFiles,
+		ArchiveWalkTimeout: config.ArchiveListTimeout,
+		OpenFileZipReader:  zip.OpenReader,
+		ArchiveMaxDepth:    config.ArchiveMaxDepth,
+		ArchiveMaxSize:     config.ArchiveMaxSize,
+	}
 	crawler := crawl.Crawler{
 		ErrorWriter: stderr,
 		IgnoreDirs:  config.Ignores,

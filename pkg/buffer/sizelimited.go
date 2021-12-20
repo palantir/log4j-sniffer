@@ -12,20 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package archive
+package buffer
 
 import (
-	"errors"
-	"testing"
-	"testing/iotest"
-
-	"github.com/stretchr/testify/assert"
+	"bytes"
 )
 
-func TestZipReaderFromReader(t *testing.T) {
-	t.Run("errors on ReadAll error", func(t *testing.T) {
-		expectedErr := errors.New("expected")
-		_, err := ZipReaderFromReader(iotest.ErrReader(expectedErr), 0)
-		assert.Equal(t, expectedErr, err)
-	})
+func NewSizeLimitedBuffer(limit int) SizeLimitedBuffer {
+	return SizeLimitedBuffer{limit: limit}
+}
+
+type SizeLimitedBuffer struct {
+	limit   int
+	written int
+	buffer  bytes.Buffer
+}
+
+func (c *SizeLimitedBuffer) Write(p []byte) (int, error) {
+	if len(p)+c.written > c.limit {
+		return 0, WriteTooLargeError(c.limit)
+	}
+	n, err := c.buffer.Write(p)
+	c.written += n
+	return n, err
+}
+
+func (c *SizeLimitedBuffer) Bytes() []byte {
+	return c.buffer.Bytes()
 }

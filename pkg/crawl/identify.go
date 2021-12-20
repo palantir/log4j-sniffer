@@ -106,31 +106,23 @@ type Identifier interface {
 	Identify(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error)
 }
 
-type identifier struct {
-	zipWalker         archive.ZipWalkFn
-	tgzWalker         archive.WalkFn
-	listTimeout       time.Duration
-	openFileZipReader archive.ZipReadCloserProvider
-	archiveMaxDepth   uint
-}
-
-func NewIdentifier(archiveListTimeout time.Duration, archiveMaxDepth uint, openZipFileReader archive.ZipReadCloserProvider, zipWalker archive.ZipWalkFn, tgzWalker archive.WalkFn) Identifier {
-	return &identifier{
-		openFileZipReader: openZipFileReader,
-		zipWalker:         zipWalker,
-		tgzWalker:         tgzWalker,
-		listTimeout:       archiveListTimeout,
-		archiveMaxDepth:   archiveMaxDepth,
-	}
+// Log4jIdentifier identifies files that are vulnerable to Log4J-related CVEs.
+type Log4jIdentifier struct {
+	OpenFileZipReader  archive.ZipReadCloserProvider
+	ZipWalker          archive.ZipWalkFn
+	TgzZWalker         archive.WalkFn
+	ArchiveWalkTimeout time.Duration
+	ArchiveMaxDepth    uint
+	ArchiveMaxSize     uint
 }
 
 // Identify identifies vulnerable files.
 // The function identifies:
 // - vulnerable log4j jar files.
 // - zipped files containing vulnerable log4j files, using the provided ZipFileLister.
-func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error) {
-	if i.listTimeout > 0 {
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, i.listTimeout)
+func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error) {
+	if i.ArchiveWalkTimeout > 0 {
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, i.ArchiveWalkTimeout)
 		defer cancel()
 		ctx = ctxWithTimeout
 	}
@@ -150,7 +142,7 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 		archiveVersion = UnknownVersion
 	}
 	if hasZipFileEnding(lowercaseFilename) {
-		reader, err := i.openFileZipReader(path)
+		reader, err := i.OpenFileZipReader(path)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -171,14 +163,14 @@ func (i *identifier) Identify(ctx context.Context, path string, d fs.DirEntry) (
 	return NothingDetected, nil, nil
 }
 
-func (i *identifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader, parentVersion string) (Finding, Versions, error) {
-	if depth > i.archiveMaxDepth {
+func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader, parentVersion string) (Finding, Versions, error) {
+	if depth > i.ArchiveMaxDepth {
 		return 0, nil, nil
 	}
 
 	archiveResult := NothingDetected
 	versions := Versions{}
-	err := i.zipWalker(ctx, r, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+	err := i.ZipWalker(ctx, r, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 		if hasZipFileEnding(path) {
 			_, filename := filepath.Split(path)
 			archiveVersion, match := fileNameMatchesLog4jVersion(strings.ToLower(filename))
@@ -189,17 +181,20 @@ func (i *identifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.R
 				}
 				return true, nil
 			}
-			reader, err := archive.ZipReaderFromReader(contents)
-			if err != nil {
-				return false, errors.Wrap(err, "creating zip reader from reader")
-			}
-			finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, parentVersion)
-			if err != nil {
-				return false, err
-			}
-			archiveResult = finding | archiveResult
-			for vv := range innerVersions {
-				versions[vv] = struct{}{}
+			// Check depth here before recursing because we don't want to create a zip reader unnecessarily.
+			if depth+1 < i.ArchiveMaxDepth {
+				reader, err := archive.ZipReaderFromReader(contents, int(i.ArchiveMaxSize))
+				if err != nil {
+					return false, errors.Wrap(err, "creating zip reader from reader")
+				}
+				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, parentVersion)
+				if err != nil {
+					return false, err
+				}
+				archiveResult = finding | archiveResult
+				for vv := range innerVersions {
+					versions[vv] = struct{}{}
+				}
 			}
 		}
 		finding, version, err := lookForMatchInFileInZip(path, size, contents, parentVersion)
@@ -242,10 +237,10 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader, parent
 	return NothingDetected, parentVersion, nil
 }
 
-func (i *identifier) lookForMatchInTar(ctx context.Context, path string) (Finding, Versions, error) {
+func (i *Log4jIdentifier) lookForMatchInTar(ctx context.Context, path string) (Finding, Versions, error) {
 	archiveResult := NothingDetected
 	versions := Versions{}
-	if err := i.tgzWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
+	if err := i.TgzZWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
 		version, match := pathMatchesLog4JVersion(filename)
 		if !match || !vulnerableVersion(version) {
 			return true, nil

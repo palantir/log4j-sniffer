@@ -45,7 +45,7 @@ func TestBadVersions(t *testing.T) {
 		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := exec.Command(cli, "crawl", tc.directory)
+			cmd := exec.Command(cli, "crawl", tc.directory, `--nested-archive-max-depth`, `2`)
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
 			got := string(output)

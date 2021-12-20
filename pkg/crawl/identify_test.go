@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"os"
 	"testing"
 	"time"
 
@@ -30,25 +31,8 @@ import (
 )
 
 func TestTgzIdentifierImplementsTimeout(t *testing.T) {
-	identify := crawl.NewIdentifier(time.Millisecond, 0, nil, nil, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
-		time.Sleep(50 * time.Millisecond)
-		select {
-		case <-ctx.Done():
-			return errors.New("context was cancelled")
-		default:
-			require.FailNow(t, "context should have been cancelled")
-		}
-		return nil
-	})
-	_, _, err := identify.Identify(context.Background(), "", stubDirEntry{
-		name: "sdlkfjsldkjfs.tar.gz",
-	})
-	assert.EqualError(t, err, "context was cancelled")
-}
-
-func TestZipIdentifierImplementsTimeout(t *testing.T) {
-	t.Run("implements timeout", func(t *testing.T) {
-		identify := crawl.NewIdentifier(time.Millisecond, 0, emptyZipReadCloserProvider, func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
+	ientifier := crawl.Log4jIdentifier{
+		TgzZWalker: func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
 			time.Sleep(50 * time.Millisecond)
 			select {
 			case <-ctx.Done():
@@ -57,8 +41,34 @@ func TestZipIdentifierImplementsTimeout(t *testing.T) {
 				require.FailNow(t, "context should have been cancelled")
 			}
 			return nil
-		}, nil)
-		_, _, err := identify.Identify(context.Background(), "/path/on/disk", stubDirEntry{
+		},
+		ArchiveWalkTimeout: time.Millisecond,
+	}
+
+	_, _, err := ientifier.Identify(context.Background(), "", stubDirEntry{
+		name: "sdlkfjsldkjfs.tar.gz",
+	})
+	assert.EqualError(t, err, "context was cancelled")
+}
+
+func TestZipIdentifierImplementsTimeout(t *testing.T) {
+	t.Run("implements timeout", func(t *testing.T) {
+		identifier := crawl.Log4jIdentifier{
+			OpenFileZipReader: emptyZipReadCloserProvider,
+			ZipWalker: func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
+				time.Sleep(50 * time.Millisecond)
+				select {
+				case <-ctx.Done():
+					return errors.New("context was cancelled")
+				default:
+					require.FailNow(t, "context should have been cancelled")
+				}
+				return nil
+			},
+			ArchiveWalkTimeout: time.Millisecond,
+		}
+
+		_, _, err := identifier.Identify(context.Background(), "/path/on/disk", stubDirEntry{
 			name: "foo.zip",
 		})
 		assert.EqualError(t, err, "context was cancelled")
@@ -66,42 +76,70 @@ func TestZipIdentifierImplementsTimeout(t *testing.T) {
 
 	t.Run("opens using provider", func(t *testing.T) {
 		expectedErr := errors.New("err")
-		identify := crawl.NewIdentifier(time.Second, 0, func(path string) (*zip.ReadCloser, error) {
-			assert.Equal(t, "foo", path)
-			return nil, expectedErr
-		}, nil, nil)
-		_, _, err := identify.Identify(context.Background(), "foo", stubDirEntry{name: ".zip"})
+		identifier := crawl.Log4jIdentifier{
+			OpenFileZipReader: func(path string) (*zip.ReadCloser, error) {
+				assert.Equal(t, "foo", path)
+				return nil, expectedErr
+			},
+			ArchiveWalkTimeout: time.Second,
+		}
+
+		_, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{name: ".zip"})
 		require.Equal(t, expectedErr, err)
 	})
 
-	t.Run("does not recurse into nested archives when archiveMaxDepth set to 0", func(t *testing.T) {
-		identify := crawl.NewIdentifier(time.Second, 0, func(path string) (*zip.ReadCloser, error) {
-			zipContent := createZipContent(t, "nested.zip",
-				createZipContent(t, "log4j-core-2.14.1.jar", []byte{}).Bytes())
-			reader, err := archive.ZipReaderFromReader(zipContent)
-			require.NoError(t, err)
-			return &zip.ReadCloser{Reader: *reader}, nil
-		}, archive.WalkZipFiles, nil)
+	t.Run("does not recurse into nested archives when ArchiveMaxDepth set to 0", func(t *testing.T) {
+		identifier := crawl.Log4jIdentifier{
+			OpenFileZipReader: func(path string) (*zip.ReadCloser, error) {
+				zipContent := createZipContent(t, "nested.zip",
+					createZipContent(t, "log4j-core-2.14.1.jar", []byte{}).Bytes())
+				return zip.OpenReader(mustWriteTempFile(t, "outer.z", zipContent.Bytes()))
+			},
+			ZipWalker:          archive.WalkZipFiles,
+			ArchiveWalkTimeout: time.Second,
+			ArchiveMaxSize:     1024,
+		}
 
-		finding, version, err := identify.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		finding, version, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
 		require.NoError(t, err)
 		assert.Equal(t, crawl.NothingDetected, finding)
 		assert.Equal(t, crawl.Versions{}, version)
 	})
 
 	t.Run("supports nested archives", func(t *testing.T) {
-		identify := crawl.NewIdentifier(time.Second, 10, func(path string) (*zip.ReadCloser, error) {
-			zipContent := createZipContent(t, "nested.zip",
-				createZipContent(t, "log4j-core-2.14.1.jar", []byte{}).Bytes())
-			reader, err := archive.ZipReaderFromReader(zipContent)
-			require.NoError(t, err)
-			return &zip.ReadCloser{Reader: *reader}, nil
-		}, archive.WalkZipFiles, nil)
+		identifier := crawl.Log4jIdentifier{
+			OpenFileZipReader: func(path string) (*zip.ReadCloser, error) {
+				zipContent := createZipContent(t, "nested.zip",
+					createZipContent(t, "log4j-core-2.14.1.jar", []byte{}).Bytes())
+				return zip.OpenReader(mustWriteTempFile(t, "outer.z", zipContent.Bytes()))
+			},
+			ZipWalker:          archive.WalkZipFiles,
+			ArchiveWalkTimeout: time.Second,
+			ArchiveMaxDepth:    10,
+			ArchiveMaxSize:     1024,
+		}
 
-		finding, version, err := identify.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		finding, version, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
 		require.NoError(t, err)
 		assert.Equal(t, crawl.JarNameInsideArchive, finding)
 		assert.Equal(t, crawl.Versions{"2.14.1": {}}, version)
+	})
+
+	t.Run("errors when archive too large", func(t *testing.T) {
+		identifier := crawl.Log4jIdentifier{
+			OpenFileZipReader: func(path string) (*zip.ReadCloser, error) {
+				zipContent := createZipContent(t, "nested.zip",
+					createZipContent(t, "log4j-core-2.14.1.jar", []byte{}).Bytes())
+				return zip.OpenReader(mustWriteTempFile(t, "outer.z", zipContent.Bytes()))
+			},
+			ZipWalker:          archive.WalkZipFiles,
+			ArchiveWalkTimeout: time.Second,
+			ArchiveMaxDepth:    10,
+			ArchiveMaxSize:     1,
+		}
+
+		_, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		require.EqualError(t, err, "creating zip reader from reader: write would exceed buffer maximum: 1")
 	})
 }
 
@@ -150,12 +188,17 @@ func TestIdentifyFromFileName(t *testing.T) {
 		version: "2.14.0",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			identify := crawl.NewIdentifier(time.Second, 0, emptyZipReadCloserProvider, func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
-				// this is called for jars that are not identified as log4j
-				// these cases are tested elsewhere so we just return nil with no error her
-				return nil
-			}, panicOnWalk)
-			result, version, err := identify.Identify(context.Background(), "/path/on/disk", stubDirEntry{
+			identifier := crawl.Log4jIdentifier{
+				OpenFileZipReader: emptyZipReadCloserProvider,
+				ZipWalker: func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
+					// this is called for jars that are not identified as log4j
+					// these cases are tested elsewhere so we just return nil with no error her
+					return nil
+				},
+				ArchiveWalkTimeout: time.Second,
+			}
+
+			result, version, err := identifier.Identify(context.Background(), "/path/on/disk", stubDirEntry{
 				name: tc.in,
 			})
 			require.NoError(t, err)
@@ -172,10 +215,15 @@ func TestIdentifyFromFileName(t *testing.T) {
 func TestIdentifyFromZipContents(t *testing.T) {
 	t.Run("handles error", func(t *testing.T) {
 		expectedErr := errors.New("err")
-		identify := crawl.NewIdentifier(time.Second, 0, emptyZipReadCloserProvider, func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
-			return expectedErr
-		}, panicOnWalk)
-		_, _, err := identify.Identify(context.Background(), "/path/on/disk", stubDirEntry{
+		identifier := crawl.Log4jIdentifier{
+			OpenFileZipReader: emptyZipReadCloserProvider,
+			ZipWalker: func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
+				return expectedErr
+			},
+			ArchiveWalkTimeout: time.Second,
+		}
+
+		_, _, err := identifier.Identify(context.Background(), "/path/on/disk", stubDirEntry{
 			name: "file.zip",
 		})
 		require.Equal(t, expectedErr, err)
@@ -249,27 +297,32 @@ func TestIdentifyFromZipContents(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// we only write the zip list once otherwise we will continue to recurse forever.
 			var zipContentsWritten bool
-			identify := crawl.NewIdentifier(time.Second, 0, emptyZipReadCloserProvider, func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
-				if zipContentsWritten {
+			identifier := crawl.Log4jIdentifier{
+				OpenFileZipReader: emptyZipReadCloserProvider,
+				ZipWalker: func(ctx context.Context, r *zip.Reader, walkFn archive.FileWalkFn) error {
+					if zipContentsWritten {
+						return nil
+					}
+					zipContentsWritten = true
+					for _, path := range tc.filesInZip {
+						if _, err := walkFn(ctx, path, 0, bytes.NewReader(validEmptyZipContent(t))); err != nil {
+							return err
+						}
+					}
 					return nil
-				}
-				zipContentsWritten = true
-				for _, path := range tc.filesInZip {
-					if _, err := walkFn(ctx, path, 0, bytes.NewReader(validEmptyZipContent(t))); err != nil {
-						return err
+				},
+				TgzZWalker: func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+					assert.Equal(t, "/path/on/disk/", path)
+					for _, s := range tc.filesInTar {
+						if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {
+							return err
+						}
 					}
-				}
-				return nil
-			}, func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
-				assert.Equal(t, "/path/on/disk/", path)
-				for _, s := range tc.filesInTar {
-					if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {
-						return err
-					}
-				}
-				return nil
-			})
-			result, version, err := identify.Identify(context.Background(), "/path/on/disk/", stubDirEntry{
+					return nil
+				},
+				ArchiveWalkTimeout: time.Second,
+			}
+			result, version, err := identifier.Identify(context.Background(), "/path/on/disk/", stubDirEntry{
 				name: tc.filename,
 			})
 			require.NoError(t, err)
@@ -314,6 +367,16 @@ func emptyZipReadCloserProvider(string) (*zip.ReadCloser, error) {
 	return &zip.ReadCloser{}, nil
 }
 
+func mustWriteTempFile(t *testing.T, name string, content []byte) string {
+	t.Helper()
+	temp, err := os.CreateTemp(t.TempDir(), name)
+	require.NoError(t, err)
+	_, err = temp.Write(content)
+	require.NoError(t, err)
+	require.NoError(t, temp.Close())
+	return temp.Name()
+}
+
 func createZipContent(t *testing.T, containedFilename string, containedFileContent []byte) *bytes.Buffer {
 	t.Helper()
 	var buf bytes.Buffer
@@ -346,8 +409,4 @@ func (s stubDirEntry) Type() fs.FileMode {
 
 func (s stubDirEntry) Info() (fs.FileInfo, error) {
 	panic("not required")
-}
-
-func panicOnWalk(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
-	panic("should not have been called")
 }
