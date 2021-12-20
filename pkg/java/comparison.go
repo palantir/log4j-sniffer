@@ -134,7 +134,7 @@ func CompareClasses(firstJarName, firstClassName, secondJarName, secondClassName
 	var unmatchedSecondClassBytecode [][]byte
 	for _, bytecode := range secondBytecode {
 		if bytecode != nil {
-			unmatchedFirstClassBytecode = append(unmatchedSecondClassBytecode, bytecode)
+			unmatchedSecondClassBytecode = append(unmatchedSecondClassBytecode, bytecode)
 		}
 	}
 
