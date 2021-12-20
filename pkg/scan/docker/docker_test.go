@@ -29,7 +29,7 @@ func TestScanner_ScanImages(t *testing.T) {
 		client := &mockDockerClient{
 			imageFile: "../../../examples/docker/log4j.tar",
 			imageSummary: types.ImageSummary{
-				ID:       "image-w-log4j",
+				ID:       "sha256:0efeedfe8b8beed50fb60d77cefd4b3523f1d6562766aee17b0c064c31bb1921",
 				RepoTags: []string{"bad"},
 			},
 		}

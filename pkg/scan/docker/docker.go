@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -45,7 +46,7 @@ func ScanImages(ctx context.Context, config scan.Config, stdout, stderr io.Write
 		if len(image.RepoTags) == 0 {
 			continue
 		}
-		scanner.SetImageID(image.ID)
+		scanner.SetImageID(shortImageID(image.ID))
 		scanner.SetImageTags(image.RepoTags)
 		imageStats, err := scanImage(ctx, scanner, apiClient, image, imageExtractionDir)
 		if err != nil {
@@ -117,4 +118,13 @@ func scanImage(ctx context.Context, scanner scan.Scanner, client client.CommonAP
 	}
 
 	return scanner.Crawl(ctx, ".", scanner.Identify, scanner.Collect)
+}
+
+// returns the first 12 characters of the image ID when split at the : seperator
+func shortImageID(id string) string {
+	parts := strings.Split(id, ":")
+	if len(parts) <= 1 || len(parts[1]) < 12 {
+		return id
+	}
+	return parts[1][0:12]
 }
