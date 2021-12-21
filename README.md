@@ -64,6 +64,51 @@ Files affected by CVE-2021-45046 or CVE-2021-45105 detected: 1 file(s) impacted 
 1 total files scanned, skipped 0 paths due to permission denied errors, encountered 0 errors processing paths
 ```
 
+Getting started
+===============
+
+### Mac
+
+##### Download the latest version
+
+1. Locate log4j-sniffer/releases (https://github.com/palantir/log4j-sniffer/releases).
+2. You will need a different asset depending on the generation of your Mac.
+    1. Select the asset with “macos-amd” in the file name for older Intel Macs.
+    2. Select “macos-arm” for newer m1 Macs
+3. Confirm that the file is downloading to your “Downloads” folder.
+
+##### Install log4j-sniffer on your machine
+
+1. Once the download is complete, click on the file to open.
+1. Drag and drop the “log4j-sniffer” icon into your Downloads through the Finder.
+    1. Open a Finder window by searching for “Finder” using the magnifying glass on the top right of your screen, or selecting the icon in your Dock.
+    2. Drag and drop the “log4j-sniffer” icon into Downloads.
+ ![dragging and dropping](https://github.com/palantir/log4j-sniffer/blob/develop/mac_download.png?raw=true)
+
+##### Use log4j-sniffer
+
+1. Open the Terminal by searching for “Terminal” using the magnifying glass in the top right corner of the screen.
+2. Run `~/Downloads/log4j-sniffer crawl ~/ --ignore-dir="^/dev"` to crawl the entire system
+    1. Run `~/Downloads/log4j-sniffer crawl ~/PATH/TO/YOUR/FOLDER` to crawl specific folders
+    2. If your computer is unable to locate log4j-sniffer, you may have to make it executable before using it. In your terminal, run the following:
+        1. `chmod +x log4j-sniffer `
+        2. `./log4j-sniffer crawl ~/PATH/TO/YOUR/FOLDER`
+
+### Windows
+
+##### Download the latest version
+
+1. Locate log4j-sniffer/releases (https://github.com/palantir/log4j-sniffer/releases).
+2. Select the Windows asset.
+3. Confirm that the file is downloading to your “Downloads” folder.
+
+##### Use log4j-sniffer
+
+1. Type "Command Prompt" into the search bar at the bottom and in the right pane click "Run as administrator".
+2. Navigate to your Downloads folder, e.g. `cd C:\Users\user1\Downloads`
+3. Run `log4j-sniffer-0.8.0-windows-amd64.exe crawl C:\` to crawl the entire system
+    1. Run `log4j-sniffer-0.8.0-windows-amd64.exe crawl C:\PATH\TO\YOUR\FOLDER` to crawl specific folders
+
 Primary Usage
 =============
 The primary command for the tool is `crawl` which takes an argument that is the path to the directory to be crawled.
