@@ -25,6 +25,7 @@ import (
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
+	"go.uber.org/ratelimit"
 )
 
 type Config struct {
@@ -38,6 +39,10 @@ type Config struct {
 	ArchiveMaxDepth uint
 	// ArchiveMaxDepth is the maximum nested archive size that will be unarchived for inspection.
 	ArchiveMaxSize uint
+	// Maximum number of directories to scan per second, or 0 for no limit.
+	DirectoriesCrawledPerSecond int
+	// Maximum number of archives to scan per second, or 0 for no limit.
+	ArchivesCrawledPerSecond int
 	// If true, disables detection of CVE-45105
 	DisableCVE45105 bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.
@@ -59,12 +64,14 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 	identifier := crawl.Log4jIdentifier{
 		ZipWalker:          archive.WalkZipFiles,
 		TarWalker:          archive.WalkTarFiles,
+		Limiter:            limiterFromConfig(config.ArchivesCrawledPerSecond),
 		ArchiveWalkTimeout: config.ArchiveListTimeout,
 		OpenFileZipReader:  zip.OpenReader,
 		ArchiveMaxDepth:    config.ArchiveMaxDepth,
 		ArchiveMaxSize:     config.ArchiveMaxSize,
 	}
 	crawler := crawl.Crawler{
+		Limiter:     limiterFromConfig(config.DirectoriesCrawledPerSecond),
 		ErrorWriter: stderr,
 		IgnoreDirs:  config.Ignores,
 	}
@@ -108,4 +115,14 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		_, _ = fmt.Fprintln(stdout, output)
 	}
 	return count, nil
+}
+
+func limiterFromConfig(limit int) ratelimit.Limiter {
+	var limiter ratelimit.Limiter
+	if limit > 0 {
+		limiter = ratelimit.New(limit)
+	} else {
+		limiter = ratelimit.NewUnlimited()
+	}
+	return limiter
 }

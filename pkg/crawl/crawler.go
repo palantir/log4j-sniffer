@@ -22,10 +22,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"go.uber.org/ratelimit"
 )
 
 // Crawler crawls filesystems, matching and conditionally processing files.
 type Crawler struct {
+	Limiter ratelimit.Limiter
 	// if non-nil, error output is written to this writer
 	ErrorWriter io.Writer
 	IgnoreDirs  []*regexp.Regexp
@@ -77,6 +80,7 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 		}
 		if d.IsDir() {
 			if c.includeDir(path) {
+				c.Limiter.Take()
 				return nil
 			}
 			return fs.SkipDir
