@@ -150,7 +150,6 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 				err = cErr
 			}
 		}()
-		fmt.Println(path)
 		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader)
 		if err != nil {
 			return 0, nil, err
@@ -199,7 +198,6 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				if err != nil {
 					return false, errors.Wrap(err, "creating zip reader from reader")
 				}
-				fmt.Println(path)
 				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader)
 				if err != nil {
 					return false, err

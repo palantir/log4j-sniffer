@@ -84,9 +84,8 @@ func (c Crawler) Crawl(ctx context.Context, root string, directoryCrawlRateLimit
 		default:
 		}
 		if d.IsDir() {
-			fmt.Println(path)
-			limiter.Take()
 			if c.includeDir(path) {
+				limiter.Take()
 				return nil
 			}
 			return fs.SkipDir
