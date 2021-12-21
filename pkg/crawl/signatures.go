@@ -224,6 +224,10 @@ var partialBytecodeSignatures = map[string]partialBytecodeSignature{
 	},
 }
 
+// BytecodeMatchesPartialSignatures compares the given class method bytecode against snippets from known versions.
+// A partial signature is made up of two parts: exact matches and partial matches.
+// For an exact match to be identified the entirety of the bytecode a method must match the signature.
+// Partial matches provide a prefix and suffix, these must both match a given method for the partial match to be a success.
 func BytecodeMatchesPartialSignatures(methodBytecodes [][]byte) (string, bool) {
 	exactVersionMatched := make(map[string]bool)
 	matchedIndexes := make([]bool, len(methodBytecodes))

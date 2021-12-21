@@ -207,6 +207,9 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 	return archiveResult, versions, nil
 }
 
+// checkForObfuscation applies a heuristic to determine if a class appears to have been obfuscated.
+// Obfuscation typically changes Java class names from e.g. org.apache.logging.log4j.core.net.JndiManager
+// to org.a.a.a.a.b.c and it is this sort of result we look for.
 func (i *Log4jIdentifier) checkForObfuscation(reader *zip.Reader) bool {
 	if !i.IdentifyObfuscation {
 		return false
@@ -220,7 +223,7 @@ func (i *Log4jIdentifier) checkForObfuscation(reader *zip.Reader) bool {
 
 func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
-		finding, version, hashMatch := lookForHashMatch(contents, size)
+		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if hashMatch {
 			return ClassPackageAndName | finding, version, true
 		}
@@ -236,7 +239,7 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfusc
 		hashClass = hashClass || strings.HasSuffix(path, ".class")
 	}
 	if hashClass {
-		finding, version, hashMatch := lookForHashMatch(contents, size)
+		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if strings.HasSuffix(path, "JndiManager.class") {
 			finding |= ClassName
 		}

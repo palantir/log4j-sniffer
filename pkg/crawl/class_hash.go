@@ -40,7 +40,12 @@ const maxClassSize = 0xffff
 
 var classByteBuf bytes.Buffer = bytes.Buffer{}
 
-func lookForHashMatch(contents io.Reader, size int64) (Finding, string, bool) {
+// LookForHashMatch compares the Java class file contained within contents
+// against known versions using a variety of approaches:
+// - md5 hashing the entire class
+// - comparing the bytecode for exact matches against known versions
+// - comparing the bytecode for partial matches against known versions
+func LookForHashMatch(contents io.Reader, size int64) (Finding, string, bool) {
 	if size > maxClassSize {
 		return NothingDetected, UnknownVersion, false
 	}

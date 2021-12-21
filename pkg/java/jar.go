@@ -82,6 +82,10 @@ type AverageJavaNameSizes struct {
 	ClassName   float32
 }
 
+// AveragePackageAndClassLength produces an average of the package and class name lengths.
+// In the event that the given Jar file contents are incredibly large, and either the total
+// number of classes or packages, or the sums of their lengths, exceeds a unit32 then the
+// result will be inaccurate.
 func AveragePackageAndClassLength(files []*zip.File) AverageJavaNameSizes {
 	packageNames := make(map[string]struct{})
 	var classesFound, totalClassesNameSize uint32 = 0, 0
