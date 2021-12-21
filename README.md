@@ -88,11 +88,11 @@ Getting started
 ##### Use log4j-sniffer
 
 1. Open the Terminal by searching for “Terminal” using the magnifying glass in the top right corner of the screen.
-2. Run `~/Downloads/log4j-sniffer crawl ~/ --ignore-dir="^/dev"` to crawl the entire system
-    1. Run `~/Downloads/log4j-sniffer crawl ~/PATH/TO/YOUR/FOLDER` to crawl specific folders
+2. Run `~/Downloads/log4j-sniffer crawl / --ignore-dir="^/dev"` to crawl the entire system
+    1. Run `~/Downloads/log4j-sniffer crawl /PATH/TO/YOUR/FOLDER` to crawl specific folders
     2. If your computer is unable to locate log4j-sniffer, you may have to make it executable before using it. In your terminal, run the following:
-        1. `chmod +x log4j-sniffer `
-        2. `./log4j-sniffer crawl ~/PATH/TO/YOUR/FOLDER`
+        1. `chmod +x ~/Downloads/log4j-sniffer `
+        2. `./log4j-sniffer crawl /PATH/TO/YOUR/FOLDER`
 
 ### Windows
 
@@ -105,7 +105,7 @@ Getting started
 ##### Use log4j-sniffer
 
 1. Type "Command Prompt" into the search bar at the bottom and in the right pane click "Run as administrator".
-2. Navigate to your Downloads folder, e.g. `cd C:\Users\user1\Downloads`
+2. Navigate to your Downloads folder, e.g. `cd C:\Users\yourname\Downloads`
 3. Run `log4j-sniffer-0.8.0-windows-amd64.exe crawl C:\` to crawl the entire system
     1. Run `log4j-sniffer-0.8.0-windows-amd64.exe crawl C:\PATH\TO\YOUR\FOLDER` to crawl specific folders
 
