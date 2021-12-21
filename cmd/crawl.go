@@ -44,14 +44,16 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 			}
 
 			_, err := filesystem.Crawl(cmd.Context(), scan.Config{
-				Root:               args[0],
-				ArchiveListTimeout: perArchiveTimeout,
-				ArchiveMaxDepth:    nestedArchiveMaxDepth,
-				ArchiveMaxSize:     nestedArchiveMaxSize,
-				DisableCVE45105:    disableCVE45105,
-				Ignores:            ignores,
-				OutputJSON:         outputJSON,
-				OutputSummary:      outputSummary,
+				Root:                        args[0],
+				ArchiveListTimeout:          perArchiveTimeout,
+				ArchiveMaxDepth:             nestedArchiveMaxDepth,
+				ArchiveMaxSize:              nestedArchiveMaxSize,
+				DirectoriesCrawledPerSecond: directoriesCrawledPerSecond,
+				ArchivesCrawledPerSecond:    archivesCrawledPerSecond,
+				DisableCVE45105:             disableCVE45105,
+				Ignores:                     ignores,
+				OutputJSON:                  outputJSON,
+				OutputSummary:               outputSummary,
 			}, cmd.OutOrStdout(), cmd.OutOrStderr())
 			return err
 		},

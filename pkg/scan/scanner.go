@@ -20,6 +20,7 @@ import (
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
+	"go.uber.org/ratelimit"
 )
 
 type Scanner struct {
@@ -32,6 +33,7 @@ func NewScannerFromConfig(config Config, outputWriter, errorWriter io.Writer) Sc
 	return Scanner{
 		Crawler: crawl.Crawler{
 			ErrorWriter: errorWriter,
+			Limiter:     newRateLimiter(config.DirectoriesCrawledPerSecond),
 			IgnoreDirs:  config.Ignores,
 		},
 		Reporter: &crawl.Reporter{
@@ -43,9 +45,20 @@ func NewScannerFromConfig(config Config, outputWriter, errorWriter io.Writer) Sc
 			ZipWalker:          archive.WalkZipFiles,
 			TarWalker:          archive.WalkTarFiles,
 			ArchiveWalkTimeout: config.ArchiveListTimeout,
+			Limiter:            newRateLimiter(config.ArchivesCrawledPerSecond),
 			OpenFileZipReader:  zip.OpenReader,
 			ArchiveMaxDepth:    config.ArchiveMaxDepth,
 			ArchiveMaxSize:     config.ArchiveMaxSize,
 		},
 	}
+}
+
+func newRateLimiter(limit int) ratelimit.Limiter {
+	var limiter ratelimit.Limiter
+	if limit > 0 {
+		limiter = ratelimit.New(limit)
+	} else {
+		limiter = ratelimit.NewUnlimited()
+	}
+	return limiter
 }

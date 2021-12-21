@@ -14,6 +14,7 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 	github.com/zxh0/jvm.go v0.0.0-20191204141628-129b147ebcc8
+	go.uber.org/ratelimit v0.2.0
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f // indirect
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	google.golang.org/grpc v1.43.0 // indirect

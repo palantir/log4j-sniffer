@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: Add configurable rate limiting for directories and archives.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/44

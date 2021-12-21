@@ -31,6 +31,7 @@ import (
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/pkg/errors"
+	"go.uber.org/ratelimit"
 )
 
 type Finding int
@@ -108,6 +109,7 @@ type Log4jIdentifier struct {
 	OpenFileZipReader  archive.ZipReadCloserProvider
 	ZipWalker          archive.ZipWalkFn
 	TarWalker          archive.WalkFn
+	Limiter            ratelimit.Limiter
 	ArchiveWalkTimeout time.Duration
 	ArchiveMaxDepth    uint
 	ArchiveMaxSize     uint
@@ -125,23 +127,20 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	}
 
 	lowercaseFilename := strings.ToLower(d.Name())
-	versions := make(Versions)
-	result := NothingDetected
-	archiveVersion, match := fileNameMatchesLog4jVersion(lowercaseFilename)
-	if match {
-		if vulnerableVersion(archiveVersion) {
-			result |= JarName
-			versions[archiveVersion] = struct{}{}
-		}
-	} else {
-		archiveVersion = UnknownVersion
-	}
 	archiveType, ok := archive.ParseArchiveFormatFromFile(lowercaseFilename)
 	if !ok {
 		return NothingDetected, nil, nil
 	}
 	switch archiveType {
 	case archive.ZipArchive:
+		versions := make(Versions)
+		result := NothingDetected
+
+		archiveVersion, match := fileNameMatchesLog4jVersion(lowercaseFilename)
+		if match && vulnerableVersion(archiveVersion) {
+			result |= JarName
+			versions[archiveVersion] = struct{}{}
+		}
 		reader, err := i.OpenFileZipReader(path)
 		if err != nil {
 			return 0, nil, err
@@ -151,11 +150,23 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 				err = cErr
 			}
 		}()
-		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader, archiveVersion)
+		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader)
+		if err != nil {
+			return 0, nil, err
+		}
 		for v := range inZipVs {
 			versions[v] = struct{}{}
 		}
-		return result | inZip, versions, err
+		// If file on disk matches log4j but no signs of vulnerable version have been found
+		// during identification phase, then we assume non-vulnerable.
+		if match && len(versions) == 0 {
+			return NothingDetected, nil, nil
+		}
+		result |= inZip
+		if result != NothingDetected && len(versions) == 0 {
+			versions[UnknownVersion] = struct{}{}
+		}
+		return result, versions, err
 	case archive.TarGzArchive:
 		return i.lookForMatchInTar(ctx, archive.TarGzipReader, path)
 	case archive.TarBz2Archive:
@@ -166,9 +177,10 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	return NothingDetected, nil, nil
 }
 
-func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader, parentVersion string) (Finding, Versions, error) {
+func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader) (Finding, Versions, error) {
 	archiveResult := NothingDetected
 	versions := Versions{}
+	i.Limiter.Take()
 	err := i.ZipWalker(ctx, r, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 		archiveType, ok := archive.ParseArchiveFormatFromFile(path)
 		if ok && archiveType == archive.ZipArchive {
@@ -186,7 +198,7 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				if err != nil {
 					return false, errors.Wrap(err, "creating zip reader from reader")
 				}
-				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, parentVersion)
+				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader)
 				if err != nil {
 					return false, err
 				}
@@ -200,16 +212,13 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 		if finding == NothingDetected {
 			return true, nil
 		}
-		version := parentVersion
 		if versionMatch {
-			version = versionInFile
+			if !vulnerableVersion(versionInFile) {
+				return true, nil
+			}
+			versions[versionInFile] = struct{}{}
 		}
-		if !vulnerableVersion(version) {
-			return true, nil
-		}
-
 		archiveResult = finding | archiveResult
-		versions[version] = struct{}{}
 		return false, nil
 	})
 	if err != nil {

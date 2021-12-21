@@ -28,6 +28,7 @@ import (
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/ratelimit"
 )
 
 func TestTgzIdentifierImplementsTimeout(t *testing.T) {
@@ -43,6 +44,7 @@ func TestTgzIdentifierImplementsTimeout(t *testing.T) {
 			return nil
 		},
 		ArchiveWalkTimeout: time.Millisecond,
+		Limiter:            ratelimit.NewUnlimited(),
 	}
 
 	_, _, err := ientifier.Identify(context.Background(), "", stubDirEntry{
@@ -66,6 +68,7 @@ func TestZipIdentifierImplementsTimeout(t *testing.T) {
 				return nil
 			},
 			ArchiveWalkTimeout: time.Millisecond,
+			Limiter:            ratelimit.NewUnlimited(),
 		}
 
 		_, _, err := identifier.Identify(context.Background(), "/path/on/disk", stubDirEntry{
@@ -82,6 +85,7 @@ func TestZipIdentifierImplementsTimeout(t *testing.T) {
 				return nil, expectedErr
 			},
 			ArchiveWalkTimeout: time.Second,
+			Limiter:            ratelimit.NewUnlimited(),
 		}
 
 		_, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{name: ".zip"})
@@ -98,6 +102,7 @@ func TestZipIdentifierImplementsTimeout(t *testing.T) {
 			ZipWalker:          archive.WalkZipFiles,
 			ArchiveWalkTimeout: time.Second,
 			ArchiveMaxSize:     1024,
+			Limiter:            ratelimit.NewUnlimited(),
 		}
 
 		finding, version, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
@@ -117,6 +122,7 @@ func TestZipIdentifierImplementsTimeout(t *testing.T) {
 			ArchiveWalkTimeout: time.Second,
 			ArchiveMaxDepth:    10,
 			ArchiveMaxSize:     1024,
+			Limiter:            ratelimit.NewUnlimited(),
 		}
 
 		finding, version, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
@@ -136,6 +142,7 @@ func TestZipIdentifierImplementsTimeout(t *testing.T) {
 			ArchiveWalkTimeout: time.Second,
 			ArchiveMaxDepth:    10,
 			ArchiveMaxSize:     1,
+			Limiter:            ratelimit.NewUnlimited(),
 		}
 
 		_, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
@@ -196,6 +203,7 @@ func TestIdentifyFromFileName(t *testing.T) {
 					return nil
 				},
 				ArchiveWalkTimeout: time.Second,
+				Limiter:            ratelimit.NewUnlimited(),
 			}
 
 			result, version, err := identifier.Identify(context.Background(), "/path/on/disk", stubDirEntry{
@@ -221,6 +229,7 @@ func TestIdentifyFromZipContents(t *testing.T) {
 				return expectedErr
 			},
 			ArchiveWalkTimeout: time.Second,
+			Limiter:            ratelimit.NewUnlimited(),
 		}
 
 		_, _, err := identifier.Identify(context.Background(), "/path/on/disk", stubDirEntry{
@@ -321,6 +330,7 @@ func TestIdentifyFromZipContents(t *testing.T) {
 					return nil
 				},
 				ArchiveWalkTimeout: time.Second,
+				Limiter:            ratelimit.NewUnlimited(),
 			}
 			result, version, err := identifier.Identify(context.Background(), "/path/on/disk/", stubDirEntry{
 				name: tc.filename,

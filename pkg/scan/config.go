@@ -30,6 +30,10 @@ type Config struct {
 	ArchiveMaxDepth uint
 	// ArchiveMaxDepth is the maximum nested archive size that will be unarchived for inspection.
 	ArchiveMaxSize uint
+	// Maximum number of directories to scan per second, or 0 for no limit.
+	DirectoriesCrawledPerSecond int
+	// Maximum number of archives to scan per second, or 0 for no limit.
+	ArchivesCrawledPerSecond int
 	// If true, disables detection of CVE-45105
 	DisableCVE45105 bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.

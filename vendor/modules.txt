@@ -1,6 +1,8 @@
 # github.com/Microsoft/go-winio v0.5.1
 github.com/Microsoft/go-winio
 github.com/Microsoft/go-winio/pkg/guid
+# github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129
+github.com/andres-erbsen/clock
 # github.com/andybalholm/brotli v1.0.1
 github.com/andybalholm/brotli
 # github.com/containerd/containerd v1.5.8
@@ -168,6 +170,9 @@ github.com/xi2/xz
 ## explicit
 github.com/zxh0/jvm.go/classfile
 github.com/zxh0/jvm.go/vmutils
+# go.uber.org/ratelimit v0.2.0
+## explicit
+go.uber.org/ratelimit
 # golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
 ## explicit
 golang.org/x/net/internal/socks
