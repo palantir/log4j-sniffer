@@ -99,9 +99,13 @@ func bytecodePartialMatch(classContents []byte) (string, bool) {
 }
 
 func bytecodeMatches(methodBytecodes [][]byte, signature PartialBytecodeSignature) bool {
+	matchedIndexes := make([]bool, len(methodBytecodes))
 	for _, exactMatch := range signature.ExactMatches {
 		matchIndex := -1
 		for i, methodBytecode := range methodBytecodes {
+			if matchedIndexes[i] {
+				continue
+			}
 			if bytes.Compare(exactMatch, methodBytecode) == 0 {
 				matchIndex = i
 				break
@@ -110,12 +114,15 @@ func bytecodeMatches(methodBytecodes [][]byte, signature PartialBytecodeSignatur
 		if matchIndex == -1 {
 			return false
 		}
-		methodBytecodes[matchIndex] = nil
+		matchedIndexes[matchIndex] = true
 	}
 
 	for _, partialMatch := range signature.PartialMatches {
 		matchIndex := -1
 		for i, methodBytecode := range methodBytecodes {
+			if matchedIndexes[i] {
+				continue
+			}
 			if len(methodBytecode) < len(partialMatch.Prefix)+len(partialMatch.Suffix) {
 				continue
 			}
@@ -144,7 +151,7 @@ func bytecodeMatches(methodBytecodes [][]byte, signature PartialBytecodeSignatur
 		if matchIndex == -1 {
 			return false
 		}
-		methodBytecodes[matchIndex] = nil
+		matchedIndexes[matchIndex] = true
 	}
 
 	return true

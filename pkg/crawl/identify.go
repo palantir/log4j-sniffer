@@ -241,7 +241,7 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfusc
 			finding |= ClassName
 		}
 		if hashMatch {
-			return finding, version, false
+			return finding, version, true
 		}
 		return finding, "", false
 	}
