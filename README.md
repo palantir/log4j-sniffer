@@ -152,6 +152,57 @@ The findings array reports the following possible values:
 Specifying `--summary=false` makes it such that the program does not output a summary line at the end. In this case,
 the program will only print output if vulnerabilities are found.
 
+Detections quick match table
+============================
+
+The following tables shows when each finding is reported based on our testing:
+
+|                                | Unmodified            | JndiLookup removed    | Inside a fat jar   |
+|                                | log4j-core-2.14.1.jar | log4j-core-2.14.1.jar |                    |
+|--------------------------------|-----------------------|-----------------------|--------------------|
+| jndiLookupClassName            |                       |                       |                    |
+| jndiLookupClassPackageAndName  | :white_check_mark:    |                       | :white_check_mark: |
+| jndiManagerClassName           |                       |                       |                    |
+| jndiManagerClassPackageAndName | :white_check_mark:    | :white_check_mark:    | :white_check_mark: |
+| jarNameMatched                 | :white_check_mark:    | :white_check_mark:    |                    |
+| jarNameInsideArchiveMatched    |                       |                       |                    |
+| classFileMd5Matched            | :white_check_mark:    | :white_check_mark:    | :white_check_mark: |
+| bytecodeInstructionMd5Matched  |                       |                       |                    |
+| jarFileObfuscated              |                       |                       |                    |
+| classBytecodePartialMatch      |                       |                       |                    |
+| *Detected*                     | :white_check_mark:    | :white_check_mark:    | :white_check_mark: |
+
+|                                | Shaded                | Shaded                | Shaded/obfuscated  |
+|                                | Packages renamed only | All renamed           | Bytecode optimised |
+|--------------------------------|-----------------------|-----------------------|--------------------|
+| jndiLookupClassName            | :white_check_mark:    |                       |                    |
+| jndiLookupClassPackageAndName  |                       |                       |                    |
+| jndiManagerClassName           | :white_check_mark:    |                       |                    |
+| jndiManagerClassPackageAndName |                       |                       |                    |
+| jarNameMatched                 |                       |                       |                    |
+| jarNameInsideArchiveMatched    |                       |                       |                    |
+| classFileMd5Matched            |                       |                       |                    |
+| bytecodeInstructionMd5Matched  | :white_check_mark:    | :white_check_mark:    |                    |
+| jarFileObfuscated              |                       |                       | :white_check_mark: |
+| classBytecodePartialMatch      |                       |                       | :white_check_mark: |
+| *Detected*                     | :white_check_mark:    | :white_check_mark:    | :white_check_mark: |
+
+|                                | Inside a .tgz file    | Heavily obfuscated    |                    |
+|                                | log4j-core-2.14.1.jar |                       |                    |
+|--------------------------------|-----------------------|-----------------------|--------------------|
+| jndiLookupClassName            |                       |                       |                    |
+| jndiLookupClassPackageAndName  | :white_check_mark:    |                       |                    |
+| jndiManagerClassName           |                       |                       |                    |
+| jndiManagerClassPackageAndName | :white_check_mark:    |                       |                    |
+| jarNameMatched                 |                       |                       |                    |
+| jarNameInsideArchiveMatched    | :white_check_mark:    |                       |                    |
+| classFileMd5Matched            | :white_check_mark:    |                       |                    |
+| bytecodeInstructionMd5Matched  |                       |                       |                    |
+| jarFileObfuscated              |                       |                       |                    |
+| classBytecodePartialMatch      |                       |                       |                    |
+| *Detected*                     | :white_check_mark:    | :x:                   |                    |
+
+
 Bytecode matching
 =================
 
