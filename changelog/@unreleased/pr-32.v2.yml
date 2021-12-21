@@ -1,0 +1,7 @@
+type: feature
+feature:
+  description: |+
+    Add a compare command to find bytecode common to two classes.
+
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/32
