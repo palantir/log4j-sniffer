@@ -93,7 +93,23 @@ func ZipArchiveWalkers(maxReadLimit int) WalkerProvider {
 
 func zipArchiveWalker(r *zip.Reader) WalkFn {
 	return func(ctx context.Context, walkFn FileWalkFn) error {
-		return WalkZipFiles(ctx, r, walkFn)
+		for _, zipFile := range r.File {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+			zipReader, err := zipFile.Open()
+			if err != nil {
+				return err
+			}
+			if proceed, err := walkFn(ctx, zipFile.Name, int64(zipFile.UncompressedSize64), zipReader); err != nil {
+				return err
+			} else if !proceed {
+				break
+			}
+		}
+		return nil
 	}
 }
 
@@ -124,7 +140,26 @@ func TarArchiveWalkers() WalkerProvider {
 
 func tarArchiveWalker(r *tar.Reader) WalkFn {
 	return func(ctx context.Context, walkFn FileWalkFn) error {
-		return WalkTarFiles(ctx, r, walkFn)
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+			header, err := r.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			if proceed, err := walkFn(ctx, header.Name, header.Size, r); err != nil {
+				return err
+			} else if !proceed {
+				break
+			}
+		}
+		return nil
 	}
 }
 
