@@ -21,7 +21,7 @@ import (
 	"os"
 )
 
-// A WalkFn iterates through an archive, calling FileWalkFn on each member file.
+// A WalkFn iterates through an archive, using TarReaderProvider to read the archive type, calling FileWalkFn on each member file.
 type WalkFn func(ctx context.Context, path string, getTarReader TarReaderProvider, walkFn FileWalkFn) error
 
 // A ZipWalkFn iterates through an zip, calling FileWalkFn on each member file.
