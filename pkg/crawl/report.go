@@ -33,6 +33,10 @@ type Reporter struct {
 	DisableCVE45105 bool
 	// Number of issues that have been found
 	count int64
+	// The tags of the image currently being reported
+	imageTags []string
+	// The ID of the image currently being reported
+	imageID string
 }
 
 type JavaCVEInstance struct {
@@ -45,6 +49,8 @@ type JavaCVEInstance struct {
 	JarNameMatched                bool     `json:"jarNameMatched"`
 	JarNameInsideArchiveMatched   bool     `json:"jarNameInsideArchiveMatched"`
 	Log4JVersions                 []string `json:"log4jVersions"`
+	ImageID                       string   `json:"imageID,omitempty"`
+	ImageTags                     []string `json:"imageTags,omitempty"`
 }
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
@@ -71,6 +77,8 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		ClassFileMD5Matched:           result&ClassFileMd5 > 0,
 		ByteCodeInstructionMD5Matched: result&ClassBytecodeInstructionMd5 > 0,
 		Log4JVersions:                 versions,
+		ImageTags:                     r.imageTags,
+		ImageID:                       r.imageID,
 	}
 
 	var output string
@@ -104,6 +112,10 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 }
 
 func (r *Reporter) buildCVEMessage(versions []string) string {
+	if r.imageID != "" {
+		return r.buildCVEDockerMessage(versions)
+	}
+
 	if r.DisableCVE45105 {
 		return "CVE-2021-45046 detected"
 	}
@@ -111,6 +123,16 @@ func (r *Reporter) buildCVEMessage(versions []string) string {
 		return "CVE-2021-45105 detected"
 	}
 	return "CVE-2021-45046 and CVE-2021-45105 detected"
+}
+
+func (r *Reporter) buildCVEDockerMessage(versions []string) string {
+	if r.DisableCVE45105 {
+		return fmt.Sprintf("CVE-2021-45046 detected in image %s %s", r.imageID, r.imageTags)
+	}
+	if cve45105VersionsOnly(versions) {
+		return fmt.Sprintf("CVE-2021-45105 detected in image %s %s", r.imageID, r.imageTags)
+	}
+	return fmt.Sprintf("CVE-2021-45046 and CVE-2021-45105 detected in image %s %s", r.imageID, r.imageTags)
 }
 
 func cve45105VersionsOnly(versions []string) bool {
@@ -136,4 +158,10 @@ func sortVersions(versions Versions) []string {
 // Count returns the number of times that Collect has been called
 func (r Reporter) Count() int64 {
 	return r.count
+}
+
+func (r *Reporter) WithImage(id string, tags []string) *Reporter {
+	r.imageID = id
+	r.imageTags = tags
+	return r
 }

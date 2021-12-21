@@ -16,26 +16,14 @@ package cmd
 
 import (
 	"regexp"
-	"time"
 
-	"github.com/palantir/log4j-sniffer/internal/crawler"
+	"github.com/palantir/log4j-sniffer/pkg/scan"
+	"github.com/palantir/log4j-sniffer/pkg/scan/filesystem"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 func crawlCmd() *cobra.Command {
-	var (
-		ignoreDirs                  []string
-		perArchiveTimeout           time.Duration
-		nestedArchiveMaxDepth       uint
-		nestedArchiveMaxSize        uint
-		directoriesCrawledPerSecond int
-		archivesCrawledPerSecond    int
-		disableCVE45105             bool
-		outputJSON                  bool
-		outputSummary               bool
-	)
-
 	cmd := cobra.Command{
 		Use:   "crawl <root>",
 		Args:  cobra.ExactArgs(1),
@@ -55,7 +43,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				ignores = append(ignores, compiled)
 			}
 
-			_, err := crawler.Crawl(cmd.Context(), crawler.Config{
+			_, err := filesystem.Crawl(cmd.Context(), scan.Config{
 				Root:                        args[0],
 				ArchiveListTimeout:          perArchiveTimeout,
 				ArchiveMaxDepth:             nestedArchiveMaxDepth,
@@ -70,18 +58,5 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 			return err
 		},
 	}
-	cmd.Flags().StringSliceVar(&ignoreDirs, "ignore-dir", nil, `Specify directory pattern to ignore. Use multiple times to supply multiple patterns.
-Patterns should be relative to the provided root.
-e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"`)
-	cmd.Flags().DurationVar(&perArchiveTimeout, "per-archive-timeout", 15*time.Minute, `If this duration is exceeded when inspecting an archive, an error will be logged and the crawler will move onto the next file.`)
-	cmd.Flags().UintVar(&nestedArchiveMaxSize, "nested-archive-max-size", 5*1024*1024, `The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.
-This limit is made a per-depth level.
-The overall limit to nested archive size unarchived should be controlled by both the nested-archive-max-size and nested-archive-max-depth.`)
-	cmd.Flags().UintVar(&nestedArchiveMaxDepth, "nested-archive-max-depth", 0, `The maximum depth to recurse into nested archives. A max depth of 0 will open up an archive on the filesystem but not any nested archives.`)
-	cmd.Flags().IntVar(&directoriesCrawledPerSecond, "directories-per-second-rate-limit", 0, `The maximum number of directories to crawl per second. 0 for unlimited.`)
-	cmd.Flags().IntVar(&archivesCrawledPerSecond, "archives-per-second-rate-limit", 0, `The maximum number of archives to scan per second. 0 for unlimited.`)
-	cmd.Flags().BoolVar(&disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
-	cmd.Flags().BoolVar(&outputJSON, "json", false, "If true, output will be in JSON format")
-	cmd.Flags().BoolVar(&outputSummary, "summary", true, "If true, outputs a summary of all operations once program completes")
 	return &cmd
 }

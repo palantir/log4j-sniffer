@@ -114,3 +114,9 @@ func (c Crawler) includeDir(path string) bool {
 	}
 	return true
 }
+
+func (s *Stats) Append(stats Stats) {
+	s.FilesScanned = s.FilesScanned + stats.FilesScanned
+	s.PathErrorCount = s.PathErrorCount + stats.PathErrorCount
+	s.PermissionDeniedCount = s.PermissionDeniedCount + stats.PermissionDeniedCount
+}
