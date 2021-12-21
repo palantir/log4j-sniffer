@@ -61,22 +61,17 @@ type SummaryJSON struct {
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
 // provided configuration. Returns the number of issues that were found.
 func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64, error) {
-	var limiter ratelimit.Limiter
-	if config.ArchivesCrawledPerSecond > 0 {
-		limiter = ratelimit.New(config.ArchivesCrawledPerSecond)
-	} else {
-		limiter = ratelimit.NewUnlimited()
-	}
 	identifier := crawl.Log4jIdentifier{
 		ZipWalker:          archive.WalkZipFiles,
 		TarWalker:          archive.WalkTarFiles,
-		Limiter:            limiter,
+		Limiter:            limiterFromConfig(config.ArchivesCrawledPerSecond),
 		ArchiveWalkTimeout: config.ArchiveListTimeout,
 		OpenFileZipReader:  zip.OpenReader,
 		ArchiveMaxDepth:    config.ArchiveMaxDepth,
 		ArchiveMaxSize:     config.ArchiveMaxSize,
 	}
 	crawler := crawl.Crawler{
+		Limiter:     limiterFromConfig(config.DirectoriesCrawledPerSecond),
 		ErrorWriter: stderr,
 		IgnoreDirs:  config.Ignores,
 	}
@@ -86,7 +81,7 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		DisableCVE45105: config.DisableCVE45105,
 	}
 
-	crawlStats, err := crawler.Crawl(ctx, config.Root, config.DirectoriesCrawledPerSecond, identifier.Identify, reporter.Collect)
+	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, reporter.Collect)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "Error crawling: %v", err)
 		return 0, err
@@ -120,4 +115,14 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		_, _ = fmt.Fprintln(stdout, output)
 	}
 	return count, nil
+}
+
+func limiterFromConfig(limit int) ratelimit.Limiter {
+	var limiter ratelimit.Limiter
+	if limit > 0 {
+		limiter = ratelimit.New(limit)
+	} else {
+		limiter = ratelimit.NewUnlimited()
+	}
+	return limiter
 }

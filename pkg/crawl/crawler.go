@@ -28,6 +28,7 @@ import (
 
 // Crawler crawls filesystems, matching and conditionally processing files.
 type Crawler struct {
+	Limiter ratelimit.Limiter
 	// if non-nil, error output is written to this writer
 	ErrorWriter io.Writer
 	IgnoreDirs  []*regexp.Regexp
@@ -53,14 +54,8 @@ type ProcessFunc func(ctx context.Context, path string, d fs.DirEntry, result Fi
 // the path should be processed by the provided process function. On encountering a directory, the path will be compared
 // against all IgnoreDirs configured in the Crawler. If any pattern matches, the directory (and all files nested inside
 // the directory) will be ignored.
-func (c Crawler) Crawl(ctx context.Context, root string, directoryCrawlRateLimit int, match MatchFunc, process ProcessFunc) (Stats, error) {
+func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, process ProcessFunc) (Stats, error) {
 	stats := Stats{}
-	var limiter ratelimit.Limiter
-	if directoryCrawlRateLimit > 0 {
-		limiter = ratelimit.New(directoryCrawlRateLimit)
-	} else {
-		limiter = ratelimit.NewUnlimited()
-	}
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			switch {
@@ -85,7 +80,7 @@ func (c Crawler) Crawl(ctx context.Context, root string, directoryCrawlRateLimit
 		}
 		if d.IsDir() {
 			if c.includeDir(path) {
-				limiter.Take()
+				c.Limiter.Take()
 				return nil
 			}
 			return fs.SkipDir
