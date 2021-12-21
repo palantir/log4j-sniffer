@@ -22,6 +22,8 @@ import (
 	"io/fs"
 	"sort"
 	"strings"
+
+	"github.com/fatih/color"
 )
 
 type Reporter struct {
@@ -105,7 +107,6 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		findingNames = append(findingNames, "classBytecodePartialMatch")
 	}
 
-	var output string
 	if r.OutputJSON {
 		cveInfo := JavaCVEInstance{
 			Message:       cveMessage,
@@ -115,11 +116,10 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		}
 		// should not fail
 		jsonBytes, _ := json.Marshal(cveInfo)
-		output = string(jsonBytes)
+		_, _ = fmt.Fprintln(r.OutputWriter, string(jsonBytes))
 	} else {
-		output = fmt.Sprintf(cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
+		_, _ = fmt.Fprintln(r.OutputWriter, color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(readableReasons, ", ")))
 	}
-	_, _ = fmt.Fprintln(r.OutputWriter, output)
 }
 
 func (r *Reporter) buildCVEMessage(versions []string) string {

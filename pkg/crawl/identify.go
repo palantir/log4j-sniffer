@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/pkg/errors"
@@ -100,6 +101,7 @@ type Identifier interface {
 // Log4jIdentifier identifies files that are vulnerable to Log4J-related CVEs.
 type Log4jIdentifier struct {
 	ErrorWriter                        io.Writer
+	DetailedOutputWriter               io.Writer
 	OpenFileZipReader                  archive.ZipReadCloserProvider
 	ZipWalker                          archive.ZipWalkFn
 	TarWalker                          archive.WalkFn
@@ -140,9 +142,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		}
 		reader, err := i.OpenFileZipReader(path)
 		if err != nil {
-			if i.ErrorWriter != nil {
-				_, _ = fmt.Fprintf(i.ErrorWriter, "Error opening zip: %v\n", err)
-			}
+			i.printErrorFinding("Error opening zip: %v", err)
 			return 0, nil, err
 		}
 		defer func() {
@@ -153,9 +153,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		obfuscated := i.checkForObfuscation(&reader.Reader)
 		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader, obfuscated)
 		if err != nil {
-			if i.ErrorWriter != nil {
-				_, _ = fmt.Fprintf(i.ErrorWriter, "Error scanning zip file: %v\n", err)
-			}
+			i.printErrorFinding("Error scanning zip file: %v", err)
 			return 0, nil, err
 		}
 		for v := range inZipVs {
@@ -169,6 +167,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		if inZip != NothingDetected && !obfuscated {
 			result |= inZip
 		} else if inZip != NothingDetected {
+			i.printInfoFinding("Found finding in what appeared to be an obfuscated jar at %s", path)
 			result |= JarFileObfuscated | inZip
 		}
 		if result != NothingDetected && len(versions) == 0 {
@@ -196,6 +195,7 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 			archiveVersion, match := fileNameMatchesLog4jVersion(strings.ToLower(filename))
 			if match {
 				if vulnerableVersion(archiveVersion) {
+					i.printInfoFinding("Found archive with name matching vulnerable log4j-core format at %s", path)
 					archiveResult |= JarNameInsideArchive
 					versions[archiveVersion] = struct{}{}
 				}
@@ -209,14 +209,13 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				innerObfuscated := i.checkForObfuscation(reader)
 				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, innerObfuscated)
 				if err != nil {
-					if i.ErrorWriter != nil {
-						_, _ = fmt.Fprintf(i.ErrorWriter, "Error scanning zip file: %v\n", err)
-					}
+					i.printErrorFinding("Error scanning zip file: %v", err)
 					return false, err
 				}
 				if finding != NothingDetected && !innerObfuscated {
 					archiveResult = finding | archiveResult
 				} else if finding != NothingDetected {
+					i.printInfoFinding("Found finding in what appeared to be an obfuscated jar at %s", path)
 					archiveResult = JarFileObfuscated | finding | archiveResult
 				}
 				for vv := range innerVersions {
@@ -224,7 +223,7 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				}
 			}
 		}
-		finding, versionInFile, versionMatch := lookForMatchInFileInZip(path, size, contents, obfuscated)
+		finding, versionInFile, versionMatch := i.lookForMatchInFileInZip(path, size, contents, obfuscated)
 		if finding == NothingDetected {
 			return true, nil
 		}
@@ -263,19 +262,23 @@ func (i *Log4jIdentifier) checkForObfuscation(reader *zip.Reader) bool {
 	return false
 }
 
-func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
+func (i *Log4jIdentifier) lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if hashMatch {
+			i.printDetailedHashFinding(path, finding)
 			return JndiManagerClassPackageAndName | finding, version, true
 		}
+		i.printInfoFinding("Found JndiManager class that did not match any known versions at %n", path)
 		return JndiManagerClassPackageAndName, "", false
 	}
 	if path == "org/apache/logging/log4j/core/lookup/JndiLookup.class" {
+		i.printInfoFinding("Found JndiLookup class in the log4j package at %s", path)
 		return JndiLookupClassPackageAndName, "", false
 	}
 
 	if version, match := pathMatchesLog4JVersion(path); match {
+		i.printInfoFinding("Found nesting archive matching the log4j-core jar name at %s", path)
 		return JarNameInsideArchive, version, true
 	}
 
@@ -286,14 +289,17 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfusc
 	if hashClass {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if strings.HasSuffix(path, "JndiManager.class") {
+			i.printInfoFinding("Found JndiManager class not in the log4j package at %s", path)
 			finding |= JndiManagerClassName
 		}
 		if hashMatch {
+			i.printDetailedHashFinding(path, finding)
 			return finding, version, true
 		}
 		return finding, "", false
 	}
 	if strings.HasSuffix(path, "JndiLookup.class") {
+		i.printInfoFinding("Found JndiLookup class not in the log4j package at %s", path)
 		return JndiLookupClassName, "", false
 	}
 	return NothingDetected, "", false
@@ -307,6 +313,7 @@ func (i *Log4jIdentifier) lookForMatchInTar(ctx context.Context, getTarReader ar
 		if !match || !vulnerableVersion(version) {
 			return true, nil
 		}
+		i.printInfoFinding("Found archive with name matching vulnerable log4j-core format at %s", path)
 		archiveResult = JarNameInsideArchive | archiveResult
 		if version != "" {
 			versions[version] = struct{}{}
@@ -316,6 +323,28 @@ func (i *Log4jIdentifier) lookForMatchInTar(ctx context.Context, getTarReader ar
 		return NothingDetected, versions, err
 	}
 	return archiveResult, versions, nil
+}
+
+func (i *Log4jIdentifier) printDetailedHashFinding(path string, finding Finding) {
+	if finding&ClassFileMd5 > 0 {
+		i.printInfoFinding("Found JndiManager class that was an exact md5 match for a known version at %s", path)
+	} else if finding&ClassBytecodeInstructionMd5 > 0 {
+		i.printInfoFinding("Found JndiManager class that had identical bytecode instruction as a known version at %s", path)
+	} else if finding&ClassBytecodePartialMatch > 0 {
+		i.printInfoFinding("Found JndiManager class that partially matched the bytecode of a known version at %s", path)
+	}
+}
+
+func (i *Log4jIdentifier) printInfoFinding(message, location string) {
+	if i.DetailedOutputWriter != nil {
+		_, _ = fmt.Fprintln(i.DetailedOutputWriter, color.CyanString("[INFO] "+message, location))
+	}
+}
+
+func (i *Log4jIdentifier) printErrorFinding(message string, err error) {
+	if i.ErrorWriter != nil {
+		_, _ = fmt.Fprintln(i.ErrorWriter, color.RedString("[ERROR] "+message, err))
+	}
 }
 
 func pathMatchesLog4JVersion(path string) (string, bool) {
