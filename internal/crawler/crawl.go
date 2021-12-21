@@ -47,6 +47,8 @@ type Config struct {
 	ObfuscatedClassNameAverageLength uint32
 	// The maximum average package name length for a jar to be considered obfuscated.
 	ObfuscatedPackageNameAverageLength uint32
+	// If true, doesn't flag on Jars which only contain JndiLookup classes and do not meet any other criteria for Log4j presence.
+	DisableFlaggingJndiLookup bool
 	// If true, disables detection of CVE-45105
 	DisableCVE45105 bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.

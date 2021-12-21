@@ -29,6 +29,8 @@ type Reporter struct {
 	OutputWriter io.Writer
 	// True if reported output should be JSON, false otherwise
 	OutputJSON bool
+	// Disables results only matching JndiLookup classes
+	DisableFlaggingJndiLookup bool
 	// Disables detection of CVE-45105
 	DisableCVE45105 bool
 	// Number of issues that have been found
@@ -54,6 +56,9 @@ type JavaCVEInstance struct {
 func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, result Finding, versionSet Versions) {
 	versions := sortVersions(versionSet)
 	if r.DisableCVE45105 && cve45105VersionsOnly(versions) {
+		return
+	}
+	if r.DisableFlaggingJndiLookup && jndiLookupResultsOnly(result) {
 		return
 	}
 	r.count++
@@ -136,6 +141,10 @@ func cve45105VersionsOnly(versions []string) bool {
 		return true
 	}
 	return false
+}
+
+func jndiLookupResultsOnly(result Finding) bool {
+	return result == JndiLookupClassName || result == JndiLookupClassPackageAndName
 }
 
 func sortVersions(versions Versions) []string {

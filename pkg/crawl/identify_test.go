@@ -32,7 +32,7 @@ import (
 )
 
 func TestTgzIdentifierImplementsTimeout(t *testing.T) {
-	ientifier := crawl.Log4jIdentifier{
+	identifier := crawl.Log4jIdentifier{
 		TarWalker: func(ctx context.Context, path string, getTarReader archive.TarReaderProvider, walkFn archive.FileWalkFn) error {
 			time.Sleep(50 * time.Millisecond)
 			select {
@@ -47,7 +47,7 @@ func TestTgzIdentifierImplementsTimeout(t *testing.T) {
 		Limiter:            ratelimit.NewUnlimited(),
 	}
 
-	_, _, err := ientifier.Identify(context.Background(), "", stubDirEntry{
+	_, _, err := identifier.Identify(context.Background(), "", stubDirEntry{
 		name: "sdlkfjsldkjfs.tar.gz",
 	})
 	assert.EqualError(t, err, "context was cancelled")
