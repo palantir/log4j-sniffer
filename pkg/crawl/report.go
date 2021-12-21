@@ -106,7 +106,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		if cveInfo.ByteCodeInstructionMD5Matched {
 			reasons = append(reasons, "byte code instruction MD5 matched")
 		}
-		output = fmt.Sprintf(cveMessage+" in %s log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(reasons, ", "))
+		output = fmt.Sprintf(cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(reasons, ", "))
 	}
 	_, _ = fmt.Fprintln(r.OutputWriter, output)
 }
