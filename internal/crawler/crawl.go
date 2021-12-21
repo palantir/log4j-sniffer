@@ -45,7 +45,7 @@ type Config struct {
 	ArchivesCrawledPerSecond int
 	// The maximum average class name length for a jar to be considered obfuscated.
 	ObfuscatedClassNameAverageLength uint32
-	// The maxmimum average package name length for a jar to be considered obfuscated.
+	// The maximum average package name length for a jar to be considered obfuscated.
 	ObfuscatedPackageNameAverageLength uint32
 	// If true, disables detection of CVE-45105
 	DisableCVE45105 bool

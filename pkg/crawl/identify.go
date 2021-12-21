@@ -210,6 +210,12 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 // checkForObfuscation applies a heuristic to determine if a class appears to have been obfuscated.
 // Obfuscation typically changes Java class names from e.g. org.apache.logging.log4j.core.net.JndiManager
 // to org.a.a.a.a.b.c and it is this sort of result we look for.
+//
+// The heuristic currently used is that both the average unique package name length and the average class name length
+// must be below the configured maximums, which default to 3.
+//
+// Thus a jar made up of all a.a.a.b.c, a.a.a.d.e etc will match, but a jar full of org.apache.Foo and com.palantir.Bar
+// will not.
 func (i *Log4jIdentifier) checkForObfuscation(reader *zip.Reader) bool {
 	if !i.IdentifyObfuscation {
 		return false
