@@ -46,8 +46,6 @@ func ScanImages(ctx context.Context, config scan.Config, stdout, stderr io.Write
 		if len(image.RepoTags) == 0 {
 			continue
 		}
-		scanner.SetImageID(shortImageID(image.ID))
-		scanner.SetImageTags(image.RepoTags)
 		imageStats, err := scanImage(ctx, scanner, apiClient, image, imageExtractionDir)
 		if err != nil {
 			// write an error and continue scanning other images if we hit an error with this
@@ -117,7 +115,7 @@ func scanImage(ctx context.Context, scanner scan.Scanner, client client.CommonAP
 		return crawl.Stats{}, err
 	}
 
-	return scanner.Crawl(ctx, ".", scanner.Identify, scanner.Collect)
+	return scanner.Crawl(ctx, ".", scanner.Identify, scanner.WithImage(shortImageID(image.ID), image.RepoTags).Collect)
 }
 
 // returns the first 12 characters of the image ID when split at the : seperator

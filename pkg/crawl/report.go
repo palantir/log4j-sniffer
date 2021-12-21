@@ -160,10 +160,8 @@ func (r Reporter) Count() int64 {
 	return r.count
 }
 
-func (r *Reporter) SetImageTags(tags []string) {
-	r.imageTags = tags
-}
-
-func (r *Reporter) SetImageID(id string) {
+func (r *Reporter) WithImage(id string, tags []string) *Reporter {
 	r.imageID = id
+	r.imageTags = tags
+	return r
 }
