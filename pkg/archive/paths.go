@@ -15,78 +15,12 @@
 package archive
 
 import (
-	"archive/zip"
 	"context"
 	"io"
-	"os"
 )
 
-// A WalkFn iterates through an archive, using TarReaderProvider to read the archive type, calling FileWalkFn on each member file.
-type WalkFn func(ctx context.Context, path string, getTarReader TarReaderProvider, walkFn FileWalkFn) error
-
-// A ZipWalkFn iterates through an zip, calling FileWalkFn on each member file.
-type ZipWalkFn func(ctx context.Context, r *zip.Reader, walkFn FileWalkFn) error
-
-// ZipReadCloserProvider should open a zip.ReadCloser when provided with the given path.
-type ZipReadCloserProvider func(path string) (*zip.ReadCloser, error)
+// A WalkFn iterates through an archive, calling FileWalkFn on each member file.
+type WalkFn func(ctx context.Context, walkFn FileWalkFn) error
 
 // FileWalkFn is called by a WalkFn on each file contained in an archive.
 type FileWalkFn func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error)
-
-func WalkZipFiles(ctx context.Context, r *zip.Reader, walkFn FileWalkFn) (err error) {
-	for _, zipFile := range r.File {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		zipReader, err := zipFile.Open()
-		if err != nil {
-			return err
-		}
-		if proceed, err := walkFn(ctx, zipFile.Name, int64(zipFile.UncompressedSize64), zipReader); err != nil {
-			return err
-		} else if !proceed {
-			break
-		}
-	}
-	return nil
-}
-
-// WalkTarFiles accepts an archive path, a TarReaderProvider function for reading the archive, and a walking function to
-// use when traversing files in the archive.
-func WalkTarFiles(ctx context.Context, path string, tarReader TarReaderProvider, walkFn FileWalkFn) (err error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if cErr := file.Close(); err == nil && cErr != nil {
-			err = cErr
-		}
-	}()
-	reader, err := tarReader(file)
-	if err != nil {
-		return err
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		header, err := reader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-		if proceed, err := walkFn(ctx, header.Name, header.Size, reader); err != nil {
-			return err
-		} else if !proceed {
-			break
-		}
-	}
-	return nil
-}

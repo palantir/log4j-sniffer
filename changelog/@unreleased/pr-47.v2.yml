@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: Support nested archive recursion across all supported archive types.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/47
