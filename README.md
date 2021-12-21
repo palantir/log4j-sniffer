@@ -157,53 +157,53 @@ Detections quick match table
 
 The following tables shows when each finding is reported based on our testing:
 
-                                | Unmodified log4j-core-2.14.1.jar | JndiLookup removed log4j-core-2.14.1.jar | Inside a fat jar (no renaming) 
---------------------------------|----------------------------------|------------------------------------------|--------------------------------
- jndiLookupClassName            |                                  |                                          |                                
- jndiLookupClassPackageAndName  | :white_check_mark:               |                                          | :white_check_mark:             
- jndiManagerClassName           |                                  |                                          |                                
- jndiManagerClassPackageAndName | :white_check_mark:               | :white_check_mark:                       | :white_check_mark:             
- jarNameMatched                 | :white_check_mark:               | :white_check_mark:                       |                                
- jarNameInsideArchiveMatched    |                                  |                                          |                                
- classFileMd5Matched            | :white_check_mark:               | :white_check_mark:                       | :white_check_mark:             
- bytecodeInstructionMd5Matched  |                                  |                                          |                                
- jarFileObfuscated              |                                  |                                          |                                
- classBytecodePartialMatch      |                                  |                                          |                                
- *Detected*                     | :white_check_mark:               | :white_check_mark:                       | :white_check_mark:             
+                                | Unmodified log4j-core-2.14.1.jar | JndiLookup removed log4j-core-2.14.1.jar | Inside a fat jar (no renaming) |
+--------------------------------|----------------------------------|------------------------------------------|--------------------------------| 
+ jndiLookupClassName            |                                  |                                          |                                |
+ jndiLookupClassPackageAndName  | :white_check_mark:               |                                          | :white_check_mark:             |
+ jndiManagerClassName           |                                  |                                          |                                |
+ jndiManagerClassPackageAndName | :white_check_mark:               | :white_check_mark:                       | :white_check_mark:             |
+ jarNameMatched                 | :white_check_mark:               | :white_check_mark:                       |                                |
+ jarNameInsideArchiveMatched    |                                  |                                          |                                |
+ classFileMd5Matched            | :white_check_mark:               | :white_check_mark:                       | :white_check_mark:             |
+ bytecodeInstructionMd5Matched  |                                  |                                          |                                |
+ jarFileObfuscated              |                                  |                                          |                                |
+ classBytecodePartialMatch      |                                  |                                          |                                |
+ *Detected*                     | :white_check_mark:               | :white_check_mark:                       | :white_check_mark:             |
 
-                                | Shaded (packages renamed only) | Shaded (all renamed) | Shaded/obfuscated (bytecode optimised) 
---------------------------------|--------------------------------|----------------------|----------------------------------------
- jndiLookupClassName            | :white_check_mark:             |                      |                                        
- jndiLookupClassPackageAndName  |                                |                      |                                        
- jndiManagerClassName           | :white_check_mark:             |                      |                                        
- jndiManagerClassPackageAndName |                                |                      |                                        
- jarNameMatched                 |                                |                      |                                        
- jarNameInsideArchiveMatched    |                                |                      |                                        
- classFileMd5Matched            |                                |                      |                                        
- bytecodeInstructionMd5Matched  | :white_check_mark:             | :white_check_mark:   |                                        
- jarFileObfuscated              |                                |                      | :white_check_mark:                     
- classBytecodePartialMatch      |                                |                      | :white_check_mark:                     
- *Detected*                     | :white_check_mark:             | :white_check_mark:   | :white_check_mark:                     
- classFileMd5Matched            | :white_check_mark:             | :white_check_mark:   | :white_check_mark:                     
- bytecodeInstructionMd5Matched  |                                |                      |                                        
- jarFileObfuscated              |                                |                      |                                        
- classBytecodePartialMatch      |                                |                      |                                        
- *Detected*                     | :white_check_mark:             | :white_check_mark:   | :white_check_mark:                     
+                                | Shaded (packages renamed only) | Shaded (all renamed) | Shaded/obfuscated (bytecode optimised) |
+--------------------------------|--------------------------------|----------------------|----------------------------------------|
+ jndiLookupClassName            | :white_check_mark:             |                      |                                        |
+ jndiLookupClassPackageAndName  |                                |                      |                                        |
+ jndiManagerClassName           | :white_check_mark:             |                      |                                        |
+ jndiManagerClassPackageAndName |                                |                      |                                        |
+ jarNameMatched                 |                                |                      |                                        |
+ jarNameInsideArchiveMatched    |                                |                      |                                        |
+ classFileMd5Matched            |                                |                      |                                        |
+ bytecodeInstructionMd5Matched  | :white_check_mark:             | :white_check_mark:   |                                        |
+ jarFileObfuscated              |                                |                      | :white_check_mark:                     |
+ classBytecodePartialMatch      |                                |                      | :white_check_mark:                     |
+ *Detected*                     | :white_check_mark:             | :white_check_mark:   | :white_check_mark:                     |
+ classFileMd5Matched            | :white_check_mark:             | :white_check_mark:   | :white_check_mark:                     |
+ bytecodeInstructionMd5Matched  |                                |                      |                                        |
+ jarFileObfuscated              |                                |                      |                                        |
+ classBytecodePartialMatch      |                                |                      |                                        |
+ *Detected*                     | :white_check_mark:             | :white_check_mark:   | :white_check_mark:                     |
 
 
-                                | log4j-core-2.14.1.jar inside a .tgz file  | Heavily obfuscated (additional bytecode instructions inserted) 
---------------------------------|-------------------------------------------|----------------------------------------------------------------
- jndiLookupClassName            |                                           |                                                                
- jndiLookupClassPackageAndName  | :white_check_mark:                        |                                                                
- jndiManagerClassName           |                                           |                                                                
- jndiManagerClassPackageAndName | :white_check_mark:                        |                                                                
- jarNameMatched                 |                                           |                                                                
- jarNameInsideArchiveMatched    | :white_check_mark:                        |                                                                
- classFileMd5Matched            | :white_check_mark:                        |                                                                
- bytecodeInstructionMd5Matched  |                                           |                                                                
- jarFileObfuscated              |                                           |                                                                
- classBytecodePartialMatch      |                                           |                                                                
- *Detected*                     | :white_check_mark:                        | :x:                                                            
+                                | log4j-core-2.14.1.jar inside a .tgz file  | Heavily obfuscated (additional bytecode instructions inserted) |
+--------------------------------|-------------------------------------------|----------------------------------------------------------------|
+ jndiLookupClassName            |                                           |                                                                |
+ jndiLookupClassPackageAndName  | :white_check_mark:                        |                                                                |
+ jndiManagerClassName           |                                           |                                                                |
+ jndiManagerClassPackageAndName | :white_check_mark:                        |                                                                |
+ jarNameMatched                 |                                           |                                                                |
+ jarNameInsideArchiveMatched    | :white_check_mark:                        |                                                                |
+ classFileMd5Matched            | :white_check_mark:                        |                                                                |
+ bytecodeInstructionMd5Matched  |                                           |                                                                |
+ jarFileObfuscated              |                                           |                                                                |
+ classBytecodePartialMatch      |                                           |                                                                |
+ *Detected*                     | :white_check_mark:                        | :x:                                                            |
 
 
 Some of these detections may require non-default settings depending on the file scanned. Some detections may not identify all cases, common shading and obfuscation has been tested but it is not possible to cover every possible change that could be made by such a tool.
