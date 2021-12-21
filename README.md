@@ -169,7 +169,7 @@ The following tables shows when each finding is reported based on our testing:
 | bytecodeInstructionMd5Matched  |                                  |                                          |                                |
 | jarFileObfuscated              |                                  |                                          |                                |
 | classBytecodePartialMatch      |                                  |                                          |                                |
-| *Detected*                     | :white_check_mark:               | :white_check_mark:                       | :white_check_mark:             |
+| **Detected**                   | :white_check_mark:               | :white_check_mark:                       | :white_check_mark:             |
 
 |                                | Shaded (packages renamed only) | Shaded (all renamed) | Shaded/obfuscated (bytecode optimised) |
 |--------------------------------|--------------------------------|----------------------|----------------------------------------|
@@ -183,7 +183,7 @@ The following tables shows when each finding is reported based on our testing:
 | bytecodeInstructionMd5Matched  | :white_check_mark:             | :white_check_mark:   |                                        |
 | jarFileObfuscated              |                                |                      | :white_check_mark:                     |
 | classBytecodePartialMatch      |                                |                      | :white_check_mark:                     |
-| *Detected*                     | :white_check_mark:             | :white_check_mark:   | :white_check_mark:                     |
+| **Detected**                   | :white_check_mark:             | :white_check_mark:   | :white_check_mark:                     |
 
 
 |                                | log4j-core-2.14.1.jar inside a .tgz file  | Heavily obfuscated (additional bytecode instructions inserted) |
@@ -198,7 +198,7 @@ The following tables shows when each finding is reported based on our testing:
 | bytecodeInstructionMd5Matched  |                                           |                                                                |
 | jarFileObfuscated              |                                           |                                                                |
 | classBytecodePartialMatch      |                                           |                                                                |
-| *Detected*                     | :white_check_mark:                        | :x:                                                            |
+| **Detected**                   | :white_check_mark:                        | :x:                                                            |
 
 
 Some of these detections may require non-default settings depending on the file scanned. Some detections may not identify all cases, common shading and obfuscation has been tested but it is not possible to cover every possible change that could be made by such a tool.
