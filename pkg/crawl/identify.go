@@ -17,6 +17,7 @@ package crawl
 import (
 	"archive/zip"
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"path/filepath"
@@ -35,20 +36,29 @@ type Finding int
 type Versions map[string]struct{}
 
 const (
-	NothingDetected             Finding = 0
-	ClassName                   Finding = 1 << iota
-	JarName                     Finding = 1 << iota
-	JarNameInsideArchive        Finding = 1 << iota
-	ClassPackageAndName         Finding = 1 << iota
-	ClassBytecodePartialMatch   Finding = 1 << iota
-	ClassBytecodeInstructionMd5 Finding = 1 << iota
-	ClassFileMd5                Finding = 1 << iota
+	NothingDetected                Finding = 0
+	JndiLookupClassName            Finding = 1 << iota
+	JndiLookupClassPackageAndName  Finding = 1 << iota
+	JndiManagerClassName           Finding = 1 << iota
+	JarName                        Finding = 1 << iota
+	JarNameInsideArchive           Finding = 1 << iota
+	JndiManagerClassPackageAndName Finding = 1 << iota
+	JarFileObfuscated              Finding = 1 << iota
+	ClassBytecodePartialMatch      Finding = 1 << iota
+	ClassBytecodeInstructionMd5    Finding = 1 << iota
+	ClassFileMd5                   Finding = 1 << iota
 )
 
 func (f Finding) String() string {
 	var out []string
-	if f&ClassName > 0 {
-		out = append(out, "ClassName")
+	if f&JndiLookupClassName > 0 {
+		out = append(out, "JndiLookupClassName")
+	}
+	if f&JndiLookupClassPackageAndName > 0 {
+		out = append(out, "JndiLookupClassPackageAndName")
+	}
+	if f&JndiManagerClassName > 0 {
+		out = append(out, "JndiManagerClassName")
 	}
 	if f&JarName > 0 {
 		out = append(out, "JarName")
@@ -56,8 +66,20 @@ func (f Finding) String() string {
 	if f&JarNameInsideArchive > 0 {
 		out = append(out, "JarNameInsideArchive")
 	}
-	if f&ClassPackageAndName > 0 {
-		out = append(out, "ClassPackageAndName")
+	if f&JndiManagerClassPackageAndName > 0 {
+		out = append(out, "JndiManagerClassPackageAndName")
+	}
+	if f&JarFileObfuscated > 0 {
+		out = append(out, "JarFileObfuscated")
+	}
+	if f&ClassBytecodePartialMatch > 0 {
+		out = append(out, "ClassBytecodePartialMatch")
+	}
+	if f&ClassBytecodeInstructionMd5 > 0 {
+		out = append(out, "ClassBytecodeInstructionMd5")
+	}
+	if f&ClassFileMd5 > 0 {
+		out = append(out, "ClassFileMd5")
 	}
 	return strings.Join(out, ",")
 }
@@ -77,6 +99,7 @@ type Identifier interface {
 
 // Log4jIdentifier identifies files that are vulnerable to Log4J-related CVEs.
 type Log4jIdentifier struct {
+	ErrorWriter                        io.Writer
 	OpenFileZipReader                  archive.ZipReadCloserProvider
 	ZipWalker                          archive.ZipWalkFn
 	TarWalker                          archive.WalkFn
@@ -117,6 +140,9 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		}
 		reader, err := i.OpenFileZipReader(path)
 		if err != nil {
+			if i.ErrorWriter != nil {
+				_, _ = fmt.Fprintf(i.ErrorWriter, "Error opening zip: %v\n", err)
+			}
 			return 0, nil, err
 		}
 		defer func() {
@@ -125,11 +151,11 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 			}
 		}()
 		obfuscated := i.checkForObfuscation(&reader.Reader)
-		if err != nil {
-			return 0, nil, err
-		}
 		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader, obfuscated)
 		if err != nil {
+			if i.ErrorWriter != nil {
+				_, _ = fmt.Fprintf(i.ErrorWriter, "Error scanning zip file: %v\n", err)
+			}
 			return 0, nil, err
 		}
 		for v := range inZipVs {
@@ -140,7 +166,11 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		if match && len(versions) == 0 {
 			return NothingDetected, nil, nil
 		}
-		result |= inZip
+		if inZip != NothingDetected && !obfuscated {
+			result |= inZip
+		} else if inZip != NothingDetected {
+			result |= JarFileObfuscated | inZip
+		}
 		if result != NothingDetected && len(versions) == 0 {
 			versions[UnknownVersion] = struct{}{}
 		}
@@ -170,7 +200,6 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 					versions[archiveVersion] = struct{}{}
 				}
 			}
-
 			// Check depth here before recursing because we don't want to create a zip reader unnecessarily.
 			if depth+1 < i.ArchiveMaxDepth {
 				reader, err := archive.ZipReaderFromReader(contents, int(i.ArchiveMaxSize))
@@ -180,9 +209,16 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				innerObfuscated := i.checkForObfuscation(reader)
 				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, innerObfuscated)
 				if err != nil {
+					if i.ErrorWriter != nil {
+						_, _ = fmt.Fprintf(i.ErrorWriter, "Error scanning zip file: %v\n", err)
+					}
 					return false, err
 				}
-				archiveResult = finding | archiveResult
+				if finding != NothingDetected && !innerObfuscated {
+					archiveResult = finding | archiveResult
+				} else if finding != NothingDetected {
+					archiveResult = JarFileObfuscated | finding | archiveResult
+				}
 				for vv := range innerVersions {
 					versions[vv] = struct{}{}
 				}
@@ -199,7 +235,7 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 			versions[versionInFile] = struct{}{}
 		}
 		archiveResult = finding | archiveResult
-		return false, nil
+		return true, nil
 	})
 	if err != nil {
 		return NothingDetected, Versions{}, err
@@ -231,9 +267,12 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfusc
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if hashMatch {
-			return ClassPackageAndName | finding, version, true
+			return JndiManagerClassPackageAndName | finding, version, true
 		}
-		return ClassPackageAndName, "", false
+		return JndiManagerClassPackageAndName, "", false
+	}
+	if path == "org/apache/logging/log4j/core/lookup/JndiLookup.class" {
+		return JndiLookupClassPackageAndName, "", false
 	}
 
 	if version, match := pathMatchesLog4JVersion(path); match {
@@ -247,12 +286,15 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfusc
 	if hashClass {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if strings.HasSuffix(path, "JndiManager.class") {
-			finding |= ClassName
+			finding |= JndiManagerClassName
 		}
 		if hashMatch {
 			return finding, version, true
 		}
 		return finding, "", false
+	}
+	if strings.HasSuffix(path, "JndiLookup.class") {
+		return JndiLookupClassName, "", false
 	}
 	return NothingDetected, "", false
 }

@@ -35,14 +35,14 @@ func TestBadVersions(t *testing.T) {
 		count     int
 		finding   crawl.Finding
 	}{
-		{name: "single bad version", directory: "../examples/single_bad_version", count: 1, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "multiple bad versions", directory: "../examples/multiple_bad_versions", count: 13, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "inside a dist", directory: "../examples/inside_a_dist", count: 4, finding: crawl.JarNameInsideArchive | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "inside a par", directory: "../examples/inside_a_par", count: 1, finding: crawl.JarNameInsideArchive | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.ClassName | crawl.ClassBytecodeInstructionMd5},
-		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "obfuscation", directory: "../examples/obfuscated", count: 1, finding: crawl.ClassBytecodePartialMatch},
+		{name: "single bad version", directory: "../examples/single_bad_version", count: 1, finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "multiple bad versions", directory: "../examples/multiple_bad_versions", count: 13, finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "inside a dist", directory: "../examples/inside_a_dist", count: 4, finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "inside a par", directory: "../examples/inside_a_par", count: 1, finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.JndiLookupClassPackageAndName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.JndiLookupClassName | crawl.JndiManagerClassName | crawl.ClassBytecodeInstructionMd5},
+		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "obfuscation", directory: "../examples/obfuscated", count: 1, finding: crawl.JarFileObfuscated | crawl.ClassBytecodePartialMatch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(cli, "crawl", tc.directory, `--nested-archive-max-depth`, `2`)
@@ -53,11 +53,15 @@ func TestBadVersions(t *testing.T) {
 			assert.Contains(t, got, fmt.Sprintf("Files affected by CVE-2021-45046 or CVE-2021-45105 detected: %d file(s) impacted by CVE-2021-45046 or CVE-2021-45105", tc.count))
 			assert.NotContains(t, got, "No files affected by CVE-2021-45046 or CVE-2021-45105 detected")
 
+			testMatched(t, got, tc.finding, crawl.JndiLookupClassName, "JndiLookup class name matched")
+			testMatched(t, got, tc.finding, crawl.JndiLookupClassPackageAndName, "JndiLookup class and package name matched")
 			testMatched(t, got, tc.finding, crawl.JarName, "jar name matched")
 			testMatched(t, got, tc.finding, crawl.JarNameInsideArchive, "jar name inside archive matched")
-			testMatched(t, got, tc.finding, crawl.ClassPackageAndName, "class and package name matched")
+			testMatched(t, got, tc.finding, crawl.JndiManagerClassName, "JndiManager class name matched")
+			testMatched(t, got, tc.finding, crawl.JndiManagerClassPackageAndName, "JndiManager class and package name matched")
 			testMatched(t, got, tc.finding, crawl.ClassFileMd5, "class file MD5 matched")
 			testMatched(t, got, tc.finding, crawl.ClassBytecodeInstructionMd5, "byte code instruction MD5 matched")
+			testMatched(t, got, tc.finding, crawl.JarFileObfuscated, "jar file appeared obfuscated")
 			testMatched(t, got, tc.finding, crawl.ClassBytecodePartialMatch, "byte code partially matched known version")
 		})
 	}

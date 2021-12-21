@@ -72,7 +72,7 @@ func TestCrawlBadVersions(t *testing.T) {
 			count:     1,
 			findings: []pathFinding{{
 				path:    "../../examples/single_bad_version/log4j-core-2.14.1.jar",
-				finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5,
+				finding: crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			}},
 		}, {
 			name:      "multiple bad versions",
@@ -110,7 +110,7 @@ func TestCrawlBadVersions(t *testing.T) {
 				finding: crawl.JarNameInsideArchive,
 			}, {
 				path:    "../../examples/inside_a_dist/wrapped_log4j.zip",
-				finding: crawl.JarNameInsideArchive | crawl.ClassPackageAndName | crawl.ClassFileMd5,
+				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			}},
 		},
 		{
@@ -119,7 +119,7 @@ func TestCrawlBadVersions(t *testing.T) {
 			count:     1,
 			findings: []pathFinding{{
 				path:    "../../examples/inside_a_par/wrapped_in_a_par.par",
-				finding: crawl.JarNameInsideArchive | crawl.ClassPackageAndName | crawl.ClassFileMd5,
+				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			}},
 		},
 		{
@@ -127,7 +127,7 @@ func TestCrawlBadVersions(t *testing.T) {
 			directory: "../../examples/fat_jar",
 			count:     1, findings: []pathFinding{{
 				path:    "../../examples/fat_jar/fat_jar.jar",
-				finding: crawl.ClassPackageAndName | crawl.ClassFileMd5,
+				finding: crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			}},
 		},
 		{
@@ -136,7 +136,7 @@ func TestCrawlBadVersions(t *testing.T) {
 			count:     1,
 			findings: []pathFinding{{
 				path:    "../../examples/light_shading/shadow-all.jar",
-				finding: crawl.ClassName,
+				finding: crawl.JndiManagerClassName,
 			}},
 		},
 	} {
@@ -157,13 +157,22 @@ func TestCrawlBadVersions(t *testing.T) {
 				err = json.Unmarshal([]byte(line), &cveInstance)
 				require.NoError(t, err)
 				assert.Equal(t, currCase.findings[i].path, cveInstance.FilePath)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.JarName > 0, cveInstance.JarNameMatched, "unexpected finding for path: %s", currCase.findings[i].path)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.JarNameInsideArchive > 0, cveInstance.JarNameInsideArchiveMatched, "unexpected finding for path: %s", currCase.findings[i].path)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.ClassPackageAndName > 0, cveInstance.ClassPackageAndNameMatch, "unexpected finding for path: %s", currCase.findings[i].path)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.ClassFileMd5 > 0, cveInstance.ClassFileMD5Matched, "unexpected finding for path: %s", currCase.findings[i].path)
+				assert.Equalf(t, currCase.findings[i].finding&crawl.JarName > 0, findingsContains("jarName", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
+				assert.Equalf(t, currCase.findings[i].finding&crawl.JarNameInsideArchive > 0, findingsContains("jarNameInsideArchive", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
+				assert.Equalf(t, currCase.findings[i].finding&crawl.JndiManagerClassPackageAndName > 0, findingsContains("jndiManagerClassPackageAndName", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
+				assert.Equalf(t, currCase.findings[i].finding&crawl.ClassFileMd5 > 0, findingsContains("classFileMd5", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
 			}
 		})
 	}
+}
+
+func findingsContains(s string, findings []string) bool {
+	for _, finding := range findings {
+		if finding == s {
+			return true
+		}
+	}
+	return false
 }
 
 type pathFinding struct {
@@ -176,7 +185,7 @@ func multipleBadPathsExampleFindings(versions ...string) []pathFinding {
 	for _, version := range versions {
 		out = append(out, pathFinding{
 			path:    "../../examples/multiple_bad_versions/log4j-core-" + version + ".jar",
-			finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5,
+			finding: crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 		})
 	}
 	return out

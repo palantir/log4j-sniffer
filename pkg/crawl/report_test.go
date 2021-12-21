@@ -51,3 +51,13 @@ func TestBadVersionString(t *testing.T) {
 		assert.EqualValues(t, 1, r.Count())
 	})
 }
+
+func TestJndiLookupOnly(t *testing.T) {
+	t.Run("keep track of number of calls", func(t *testing.T) {
+		r := crawl.Reporter{
+			DisableFlaggingJndiLookup: true,
+		}
+		r.Collect(context.Background(), "", stubDirEntry{}, crawl.JndiLookupClassPackageAndName, nil)
+		assert.EqualValues(t, 0, r.Count())
+	})
+}
