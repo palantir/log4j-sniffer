@@ -1,3 +1,5 @@
+# github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129
+github.com/andres-erbsen/clock
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
 # github.com/inconshreveable/mousetrap v1.0.0
@@ -32,6 +34,9 @@ github.com/stretchr/testify/require
 ## explicit
 github.com/zxh0/jvm.go/classfile
 github.com/zxh0/jvm.go/vmutils
+# go.uber.org/ratelimit v0.2.0
+## explicit
+go.uber.org/ratelimit
 # gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
 ## explicit
 # gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b

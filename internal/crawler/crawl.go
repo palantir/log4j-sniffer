@@ -25,6 +25,7 @@ import (
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
+	"go.uber.org/ratelimit"
 )
 
 type Config struct {
@@ -38,6 +39,10 @@ type Config struct {
 	ArchiveMaxDepth uint
 	// ArchiveMaxDepth is the maximum nested archive size that will be unarchived for inspection.
 	ArchiveMaxSize uint
+	// Maximum number of directories to scan per second, or 0 for no limit.
+	DirectoriesCrawledPerSecond int
+	// Maximum number of archives to scan per second, or 0 for no limit.
+	ArchivesCrawledPerSecond int
 	// If true, disables detection of CVE-45105
 	DisableCVE45105 bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.
@@ -56,9 +61,16 @@ type SummaryJSON struct {
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
 // provided configuration. Returns the number of issues that were found.
 func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64, error) {
+	var limiter ratelimit.Limiter
+	if config.ArchivesCrawledPerSecond > 0 {
+		limiter = ratelimit.New(config.ArchivesCrawledPerSecond)
+	} else {
+		limiter = ratelimit.NewUnlimited()
+	}
 	identifier := crawl.Log4jIdentifier{
 		ZipWalker:          archive.WalkZipFiles,
 		TarWalker:          archive.WalkTarFiles,
+		Limiter:            limiter,
 		ArchiveWalkTimeout: config.ArchiveListTimeout,
 		OpenFileZipReader:  zip.OpenReader,
 		ArchiveMaxDepth:    config.ArchiveMaxDepth,
@@ -74,7 +86,7 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		DisableCVE45105: config.DisableCVE45105,
 	}
 
-	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, reporter.Collect)
+	crawlStats, err := crawler.Crawl(ctx, config.Root, config.DirectoriesCrawledPerSecond, identifier.Identify, reporter.Collect)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "Error crawling: %v", err)
 		return 0, err

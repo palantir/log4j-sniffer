@@ -31,6 +31,7 @@ import (
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/pkg/errors"
+	"go.uber.org/ratelimit"
 )
 
 type Finding int
@@ -108,6 +109,7 @@ type Log4jIdentifier struct {
 	OpenFileZipReader  archive.ZipReadCloserProvider
 	ZipWalker          archive.ZipWalkFn
 	TarWalker          archive.WalkFn
+	Limiter            ratelimit.Limiter
 	ArchiveWalkTimeout time.Duration
 	ArchiveMaxDepth    uint
 	ArchiveMaxSize     uint
@@ -148,6 +150,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 				err = cErr
 			}
 		}()
+		fmt.Println(path)
 		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader)
 		if err != nil {
 			return 0, nil, err
@@ -178,6 +181,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader) (Finding, Versions, error) {
 	archiveResult := NothingDetected
 	versions := Versions{}
+	i.Limiter.Take()
 	err := i.ZipWalker(ctx, r, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 		archiveType, ok := archive.ParseArchiveFormatFromFile(path)
 		if ok && archiveType == archive.ZipArchive {
@@ -195,6 +199,7 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				if err != nil {
 					return false, errors.Wrap(err, "creating zip reader from reader")
 				}
+				fmt.Println(path)
 				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader)
 				if err != nil {
 					return false, err

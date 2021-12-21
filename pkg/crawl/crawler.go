@@ -22,6 +22,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"go.uber.org/ratelimit"
 )
 
 // Crawler crawls filesystems, matching and conditionally processing files.
@@ -51,8 +53,14 @@ type ProcessFunc func(ctx context.Context, path string, d fs.DirEntry, result Fi
 // the path should be processed by the provided process function. On encountering a directory, the path will be compared
 // against all IgnoreDirs configured in the Crawler. If any pattern matches, the directory (and all files nested inside
 // the directory) will be ignored.
-func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, process ProcessFunc) (Stats, error) {
+func (c Crawler) Crawl(ctx context.Context, root string, directoryCrawlRateLimit int, match MatchFunc, process ProcessFunc) (Stats, error) {
 	stats := Stats{}
+	var limiter ratelimit.Limiter
+	if directoryCrawlRateLimit > 0 {
+		limiter = ratelimit.New(directoryCrawlRateLimit)
+	} else {
+		limiter = ratelimit.NewUnlimited()
+	}
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			switch {
@@ -76,6 +84,8 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 		default:
 		}
 		if d.IsDir() {
+			fmt.Println(path)
+			limiter.Take()
 			if c.includeDir(path) {
 				return nil
 			}
