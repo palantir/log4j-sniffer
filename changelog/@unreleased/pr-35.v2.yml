@@ -1,0 +1,5 @@
+type: feature
+feature:
+  description: Adds docker image scan command to scan locally stored images
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/35
