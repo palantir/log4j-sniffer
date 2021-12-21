@@ -62,16 +62,6 @@ type exactMatch struct {
 	Match    []byte
 }
 
-var exactMatchesPerVersion = map[string]int{
-	"2.17.0":       5,
-	"2.16.0":       7,
-	"2.15.0":       4,
-	"2.9.0-2.14.1": 5,
-	"2.12.2":       4,
-	"2.8.2":        5,
-	"2.1-2.8.1":    3,
-}
-
 var exactMatches = []exactMatch{
 	{
 		Versions: []string{"2.16.0", "2.15.0"},
