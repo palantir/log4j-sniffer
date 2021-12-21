@@ -186,6 +186,12 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	if log4jMatch && len(versions) == 0 {
 		return NothingDetected, nil, nil
 	}
+	if inZip != NothingDetected && !obfuscated {
+		result |= inZip
+	} else if inZip != NothingDetected {
+		i.printInfoFinding("Found finding in what appeared to be an obfuscated jar at %s", path)
+		result |= JarFileObfuscated | inZip
+	}
 	result |= inZip
 	if result != NothingDetected && len(versions) == 0 {
 		versions[UnknownVersion] = struct{}{}
