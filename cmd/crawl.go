@@ -36,6 +36,7 @@ func crawlCmd() *cobra.Command {
 		obfuscatedClassNameAverageLength   uint32
 		obfuscatedPackageNameAverageLength uint32
 		enablePartialMatchingOnAllClasses  bool
+		disableDetailedFindings            bool
 		disableCVE45105                    bool
 		disableFlaggingJndiLookup          bool
 		outputJSON                         bool
@@ -77,6 +78,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				ArchivesCrawledPerSecond:           archivesCrawledPerSecond,
 				ObfuscatedClassNameAverageLength:   obfuscatedClassNameAverageLength,
 				ObfuscatedPackageNameAverageLength: obfuscatedPackageNameAverageLength,
+				PrintDetailedOutput:                !disableDetailedFindings && !outputJSON,
 				DisableFlaggingJndiLookup:          disableFlaggingJndiLookup,
 				DisableCVE45105:                    disableCVE45105,
 				Ignores:                            ignores,
@@ -100,6 +102,7 @@ The overall limit to nested archive size unarchived should be controlled by both
 	cmd.Flags().BoolVar(&enablePartialMatchingOnAllClasses, "enable-partial-matching-on-all-classes", false, `Enable partial bytecode matching to all class files found.`)
 	cmd.Flags().Uint32Var(&obfuscatedClassNameAverageLength, "maximum-average-obfuscated-class-name-length", 3, `The maximum average class name length for classes within a Jar to be considered obfuscated.`)
 	cmd.Flags().Uint32Var(&obfuscatedPackageNameAverageLength, "maximum-average-obfuscated-package-name-length", 3, `The maximum average package name length for packages within a Jar to be considered obfuscated.`)
+	cmd.Flags().BoolVar(&disableDetailedFindings, "disable-detailed-findings", false, "Do not print out detailed finding information when not outputting in JSON.")
 	cmd.Flags().BoolVar(&disableFlaggingJndiLookup, "disable-flagging-jndi-lookup", false, "Do not report results that only match on the presence of a JndiLookup class. Even when disabled results which match other criteria will still report the presence of JndiLookup if relevant.")
 	cmd.Flags().BoolVar(&disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
 	cmd.Flags().BoolVar(&outputJSON, "json", false, "If true, output will be in JSON format")
