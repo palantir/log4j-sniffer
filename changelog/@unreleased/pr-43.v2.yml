@@ -1,0 +1,10 @@
+type: feature
+feature:
+  description: |-
+    Add support for uncompressed and bzip2 tar archives
+
+    This PR adds support for uncompressed and bzip2 tar archives. Also adds the extension checking function for the different archive formats.
+
+    Continuing #34, this time off of a branch instead of a fork.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/43
