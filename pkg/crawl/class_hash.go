@@ -80,6 +80,6 @@ func bytecodePartialMatch(classContents []byte) (string, bool) {
 	if err != nil {
 		return UnknownVersion, false
 	}
-
+	
 	return BytecodeMatchesPartialSignatures(methodBytecodes)
 }
