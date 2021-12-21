@@ -26,7 +26,6 @@ import (
 // provided configuration. Returns the number of issues that were found.
 func Crawl(ctx context.Context, config scan.Config, stdout, stderr io.Writer) (int64, error) {
 	scanner := scan.NewScannerFromConfig(config, stdout, stderr)
-
 	crawlStats, err := scanner.Crawl(ctx, config.Root, scanner.Identify, scanner.Collect)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "Error crawling: %v", err)

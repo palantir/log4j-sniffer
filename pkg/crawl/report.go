@@ -66,7 +66,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		return
 	}
 
-	cveMessage := r.buildCVEMessage(versions, path)
+	cveMessage := r.buildCVEMessage(versions)
 	cveInfo := JavaCVEInstance{
 		Message:                       cveMessage,
 		FilePath:                      path,
@@ -106,33 +106,33 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		if cveInfo.ByteCodeInstructionMD5Matched {
 			reasons = append(reasons, "byte code instruction MD5 matched")
 		}
-		output = fmt.Sprintf(cveMessage+" log4j versions: %s. Reasons: %s", strings.Join(versions, ", "), strings.Join(reasons, ", "))
+		output = fmt.Sprintf(cveMessage+" in %s log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(reasons, ", "))
 	}
 	_, _ = fmt.Fprintln(r.OutputWriter, output)
 }
 
-func (r *Reporter) buildCVEMessage(versions []string, path string) string {
+func (r *Reporter) buildCVEMessage(versions []string) string {
 	if r.imageID != "" {
-		return r.buildCVEDockerMessage(versions, path)
+		return r.buildCVEDockerMessage(versions)
 	}
 
 	if r.DisableCVE45105 {
-		return fmt.Sprintf("CVE-2021-45046 detected in file %s.", path)
+		return "CVE-2021-45046 detected"
 	}
 	if cve45105VersionsOnly(versions) {
-		return fmt.Sprintf("CVE-2021-45105 detected in file %s.", path)
+		return "CVE-2021-45105 detected"
 	}
-	return fmt.Sprintf("CVE-2021-45046 and CVE-2021-45105 detected in file %s.", path)
+	return "CVE-2021-45046 and CVE-2021-45105 detected"
 }
 
-func (r *Reporter) buildCVEDockerMessage(versions []string, path string) string {
+func (r *Reporter) buildCVEDockerMessage(versions []string) string {
 	if r.DisableCVE45105 {
-		return fmt.Sprintf("CVE-2021-45046 detected in image %s %s at %s.", r.imageID, r.imageTags, path)
+		return fmt.Sprintf("CVE-2021-45046 detected in image %s %s", r.imageID, r.imageTags)
 	}
 	if cve45105VersionsOnly(versions) {
-		return fmt.Sprintf("CVE-2021-45105 detected in image %s %s at %s.", r.imageID, r.imageTags, path)
+		return fmt.Sprintf("CVE-2021-45105 detected in image %s %s", r.imageID, r.imageTags)
 	}
-	return fmt.Sprintf("CVE-2021-45046 and CVE-2021-45105 detected in image %s %s at %s.", r.imageID, r.imageTags, path)
+	return fmt.Sprintf("CVE-2021-45046 and CVE-2021-45105 detected in image %s %s", r.imageID, r.imageTags)
 }
 
 func cve45105VersionsOnly(versions []string) bool {
