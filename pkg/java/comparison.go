@@ -34,6 +34,19 @@ type MethodByteCodeComparison struct {
 	PartialMatches               []PartialMatch
 }
 
+// CompareClasses finds common parts between two versions of the same class,
+// e.g. after obfuscation or some other process.
+//
+// First all non-opcodes are dropped to leave only constant bytecode values
+// such that renaming of items in the constant table is ignored.
+//
+// The bytecode for each method is then compared.
+//
+// Any exact matches between the two classes are found and removed from further consideration.
+// The rest is then sorted and a greedy algorithm used to find the longest match for each
+// method from the first class. If there is any method in the second classes bytecode which
+// has a common prefix and suffix then a match is found and the methods from both the first
+// and second class removed from any further matching.
 func CompareClasses(firstJarName, firstClassName, secondJarName, secondClassName string) (MethodByteCodeComparison, error) {
 	firstBytecode, err := ReadMethodByteCode(firstJarName, firstClassName)
 	if err != nil {

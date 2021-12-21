@@ -278,10 +278,10 @@ func OpcodeLookupTables() *Opcodes {
 	}
 }
 
+// OpcodeOperands looks in the opcode tables to see how many operands
+// this opcode takes, and advance to the end which must
+// be another opcode or the end of the bytecode
 func (opcodes *Opcodes) OpcodeOperands(opcode byte) (int, error) {
-	// Look in the opcode tables to see how many operands
-	// this opcode takes, and advance to the end which must
-	// be another opcode or the end of the bytecode
 	if opcodes.NoOperandOpcodeLookupTable[opcode] {
 		return 0, nil
 	} else if opcodes.SingleOperandOpcodeLookupTable[opcode] {
