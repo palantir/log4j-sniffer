@@ -180,9 +180,9 @@ The following tables shows when each finding is reported based on our testing:
 | jarNameMatched                 |                                |                      |                                        |
 | jarNameInsideArchiveMatched    |                                |                      |                                        |
 | classFileMd5Matched            |                                |                      |                                        |
-| bytecodeInstructionMd5Matched  | :white_check_mark:             | :white_check_mark:   |                                        |
+| bytecodeInstructionMd5Matched  | :white_check_mark:             |                      |                                        |
 | jarFileObfuscated              |                                |                      | :white_check_mark:                     |
-| classBytecodePartialMatch      |                                |                      | :white_check_mark:                     |
+| classBytecodePartialMatch      |                                | :white_check_mark:   | :white_check_mark:                     |
 | **Detected**                   | :white_check_mark:             | :white_check_mark:   | :white_check_mark:                     |
 
 
