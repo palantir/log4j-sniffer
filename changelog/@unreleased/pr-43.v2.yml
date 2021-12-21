@@ -1,0 +1,6 @@
+type: feature
+feature:
+  description: |-
+    Adds support for uncompressed and bzip2 tar archives. Adds the extension checking function for the different archive formats.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/43

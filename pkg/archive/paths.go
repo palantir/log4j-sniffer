@@ -15,16 +15,14 @@
 package archive
 
 import (
-	"archive/tar"
 	"archive/zip"
-	"compress/gzip"
 	"context"
 	"io"
 	"os"
 )
 
-// A WalkFn iterates through an archive, calling FileWalkFn on each member file.
-type WalkFn func(ctx context.Context, path string, walkFn FileWalkFn) error
+// A WalkFn iterates through an archive, using TarReaderProvider to read the archive type, calling FileWalkFn on each member file.
+type WalkFn func(ctx context.Context, path string, getTarReader TarReaderProvider, walkFn FileWalkFn) error
 
 // A ZipWalkFn iterates through an zip, calling FileWalkFn on each member file.
 type ZipWalkFn func(ctx context.Context, r *zip.Reader, walkFn FileWalkFn) error
@@ -55,7 +53,9 @@ func WalkZipFiles(ctx context.Context, r *zip.Reader, walkFn FileWalkFn) (err er
 	return nil
 }
 
-func WalkTarGzFiles(ctx context.Context, path string, walkFn FileWalkFn) (err error) {
+// WalkTarFiles accepts an archive path, a TarReaderProvider function for reading the archive, and a walking function to
+// use when traversing files in the archive.
+func WalkTarFiles(ctx context.Context, path string, tarReader TarReaderProvider, walkFn FileWalkFn) (err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -65,27 +65,24 @@ func WalkTarGzFiles(ctx context.Context, path string, walkFn FileWalkFn) (err er
 			err = cErr
 		}
 	}()
-
-	gzipReader, err := gzip.NewReader(file)
-
+	reader, err := tarReader(file)
 	if err != nil {
 		return err
 	}
-	tarReader := tar.NewReader(gzipReader)
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
-		header, err := tarReader.Next()
+		header, err := reader.Next()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return err
 		}
-		if proceed, err := walkFn(ctx, header.Name, header.Size, tarReader); err != nil {
+		if proceed, err := walkFn(ctx, header.Name, header.Size, reader); err != nil {
 			return err
 		} else if !proceed {
 			break

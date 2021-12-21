@@ -21,13 +21,15 @@ cp -f $bad_version single_bad_version/
 
 echo "Done"
 
-echo "Creating inside_a_dist with a bad log4j jar inside archives"
+echo "Creating inside_a_dist with a bad log4j jar inside uncompressed and compressed archives"
 
 mkdir -p inside_a_dist
 rm -f inside_a_dist/*
 
 cd multiple_bad_versions
+tar -cvf ../inside_a_dist/wrapped_log4j.tar $bad_version_name
 tar -czvf ../inside_a_dist/wrapped_log4j.tar.gz $bad_version_name
+tar -cjvf ../inside_a_dist/wrapped_log4j.tar.bz2 $bad_version_name
 zip ../inside_a_dist/wrapped_log4j.zip $bad_version_name
 cd ../
 
