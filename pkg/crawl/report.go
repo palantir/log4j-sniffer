@@ -38,19 +38,10 @@ type Reporter struct {
 }
 
 type JavaCVEInstance struct {
-	Message                              string   `json:"message"`
-	FilePath                             string   `json:"filePath"`
-	JndiLookupClassNameMatched           bool     `json:"jndiLookupClassNameMatched"`
-	JndiLookupClassPackageAndNameMatched bool     `json:"jndiLookupClassPackageAndNameMatched"`
-	JndiManagerClassNameMatched          bool     `json:"jndiManagerClassNameMatched"`
-	JndiClassPackageAndNameMatch         bool     `json:"jndiManagerClassPackageAndNameMatch"`
-	ClassFileMD5Matched                  bool     `json:"classFileMd5Matched"`
-	ByteCodeInstructionMD5Matched        bool     `json:"bytecodeInstructionMd5Matched"`
-	ObfuscatedClass                      bool     `json:"obfuscatedClass"`
-	ByteCodePartialMatch                 bool     `json:"bytecodePartialMatch"`
-	JarNameMatched                       bool     `json:"jarNameMatched"`
-	JarNameInsideArchiveMatched          bool     `json:"jarNameInsideArchiveMatched"`
-	Log4JVersions                        []string `json:"log4jVersions"`
+	Message       string   `json:"message"`
+	FilePath      string   `json:"filePath"`
+	Findings      []string `json:"findings"`
+	Log4JVersions []string `json:"log4jVersions"`
 }
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
@@ -70,60 +61,63 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 	}
 
 	cveMessage := r.buildCVEMessage(versions)
-	cveInfo := JavaCVEInstance{
-		Message:                              cveMessage,
-		FilePath:                             path,
-		JndiLookupClassNameMatched:           result&JndiLookupClassName > 0,
-		JndiLookupClassPackageAndNameMatched: result&JndiLookupClassPackageAndName > 0,
-		JndiManagerClassNameMatched:          result&JndiManagerClassName > 0,
-		JarNameMatched:                       result&JarName > 0,
-		JarNameInsideArchiveMatched:          result&JarNameInsideArchive > 0,
-		JndiClassPackageAndNameMatch:         result&JndiManagerClassPackageAndName > 0,
-		ClassFileMD5Matched:                  result&ClassFileMd5 > 0,
-		ByteCodeInstructionMD5Matched:        result&ClassBytecodeInstructionMd5 > 0,
-		ObfuscatedClass:                      result&JarFileObfuscated > 0,
-		ByteCodePartialMatch:                 result&ClassBytecodePartialMatch > 0,
-		Log4JVersions:                        versions,
+
+	var readableReasons []string
+	var findingNames []string
+	if result&JndiLookupClassName > 0 {
+		readableReasons = append(readableReasons, "JndiLookup class name matched")
+		findingNames = append(findingNames, "jndiLookupClassName")
+	}
+	if result&JndiLookupClassPackageAndName > 0 {
+		readableReasons = append(readableReasons, "JndiLookup class and package name matched")
+		findingNames = append(findingNames, "jndiLookupClassPackageAndName")
+	}
+	if result&JndiManagerClassName > 0 {
+		readableReasons = append(readableReasons, "JndiManager class name matched")
+		findingNames = append(findingNames, "jndiManagerClassName")
+	}
+	if result&JarName > 0 {
+		readableReasons = append(readableReasons, "jar name matched")
+		findingNames = append(findingNames, "jarName")
+	}
+	if result&JarNameInsideArchive > 0 {
+		readableReasons = append(readableReasons, "jar name inside archive matched")
+		findingNames = append(findingNames, "jarNameInsideArchive")
+	}
+	if result&JndiManagerClassPackageAndName > 0 {
+		readableReasons = append(readableReasons, "JndiManager class and package name matched")
+		findingNames = append(findingNames, "jndiManagerClassPackageAndName")
+	}
+	if result&ClassFileMd5 > 0 {
+		readableReasons = append(readableReasons, "class file MD5 matched")
+		findingNames = append(findingNames, "classFileMd5")
+	}
+	if result&ClassBytecodeInstructionMd5 > 0 {
+		readableReasons = append(readableReasons, "byte code instruction MD5 matched")
+		findingNames = append(findingNames, "classBytecodeInstructionMd5")
+	}
+	if result&JarFileObfuscated > 0 {
+		readableReasons = append(readableReasons, "jar file appeared obfuscated")
+		findingNames = append(findingNames, "jarFileObfuscated")
+	}
+	if result&ClassBytecodePartialMatch > 0 {
+		readableReasons = append(readableReasons, "byte code partially matched known version")
+		findingNames = append(findingNames, "classBytecodePartialMatch")
 	}
 
 	var output string
 	if r.OutputJSON {
+		cveInfo := JavaCVEInstance{
+			Message:       cveMessage,
+			FilePath:      path,
+			Findings:      findingNames,
+			Log4JVersions: versions,
+		}
 		// should not fail
 		jsonBytes, _ := json.Marshal(cveInfo)
 		output = string(jsonBytes)
 	} else {
-		var reasons []string
-		if cveInfo.JndiLookupClassNameMatched {
-			reasons = append(reasons, "JndiLookup class name matched")
-		}
-		if cveInfo.JndiLookupClassPackageAndNameMatched {
-			reasons = append(reasons, "JndiLookup class and package name matched")
-		}
-		if cveInfo.JndiManagerClassNameMatched {
-			reasons = append(reasons, "JndiManager class name matched")
-		}
-		if cveInfo.JarNameMatched {
-			reasons = append(reasons, "jar name matched")
-		}
-		if cveInfo.JarNameInsideArchiveMatched {
-			reasons = append(reasons, "jar name inside archive matched")
-		}
-		if cveInfo.JndiClassPackageAndNameMatch {
-			reasons = append(reasons, "JndiManager class and package name matched")
-		}
-		if cveInfo.ClassFileMD5Matched {
-			reasons = append(reasons, "class file MD5 matched")
-		}
-		if cveInfo.ByteCodeInstructionMD5Matched {
-			reasons = append(reasons, "byte code instruction MD5 matched")
-		}
-		if cveInfo.ObfuscatedClass {
-			reasons = append(reasons, "jar file appeared obfuscated")
-		}
-		if cveInfo.ByteCodePartialMatch {
-			reasons = append(reasons, "byte code partially matched known version")
-		}
-		output = fmt.Sprintf(cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(reasons, ", "))
+		output = fmt.Sprintf(cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
 	}
 	_, _ = fmt.Fprintln(r.OutputWriter, output)
 }

@@ -157,13 +157,22 @@ func TestCrawlBadVersions(t *testing.T) {
 				err = json.Unmarshal([]byte(line), &cveInstance)
 				require.NoError(t, err)
 				assert.Equal(t, currCase.findings[i].path, cveInstance.FilePath)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.JarName > 0, cveInstance.JarNameMatched, "unexpected finding for path: %s", currCase.findings[i].path)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.JarNameInsideArchive > 0, cveInstance.JarNameInsideArchiveMatched, "unexpected finding for path: %s", currCase.findings[i].path)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.JndiManagerClassPackageAndName > 0, cveInstance.JndiClassPackageAndNameMatch, "unexpected finding for path: %s", currCase.findings[i].path)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.ClassFileMd5 > 0, cveInstance.ClassFileMD5Matched, "unexpected finding for path: %s", currCase.findings[i].path)
+				assert.Equalf(t, currCase.findings[i].finding&crawl.JarName > 0, findingsContains("jarName", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
+				assert.Equalf(t, currCase.findings[i].finding&crawl.JarNameInsideArchive > 0, findingsContains("jarNameInsideArchive", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
+				assert.Equalf(t, currCase.findings[i].finding&crawl.JndiManagerClassPackageAndName > 0, findingsContains("jndiManagerClassPackageAndName", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
+				assert.Equalf(t, currCase.findings[i].finding&crawl.ClassFileMd5 > 0, findingsContains("classFileMd5", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
 			}
 		})
 	}
+}
+
+func findingsContains(s string, findings []string) bool {
+	for _, finding := range findings {
+		if finding == s {
+			return true
+		}
+	}
+	return false
 }
 
 type pathFinding struct {
