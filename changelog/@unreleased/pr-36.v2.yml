@@ -1,0 +1,6 @@
+type: feature
+feature:
+  description: |-
+    Compares classes found that appear to be obfuscated, or are named JndiManager, against bytecode snippets from known versions.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/36

@@ -16,10 +16,7 @@ package crawl
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
-	"crypto/md5"
-	"fmt"
 	"io"
 	"io/fs"
 	"path/filepath"
@@ -43,6 +40,7 @@ const (
 	JarName                     Finding = 1 << iota
 	JarNameInsideArchive        Finding = 1 << iota
 	ClassPackageAndName         Finding = 1 << iota
+	ClassBytecodePartialMatch   Finding = 1 << iota
 	ClassBytecodeInstructionMd5 Finding = 1 << iota
 	ClassFileMd5                Finding = 1 << iota
 )
@@ -71,33 +69,6 @@ const (
 var (
 	log4jRegex   = regexp.MustCompile(`(?i)^log4j-core-(\d+\.\d+(?:\..*)?)\.jar$`)
 	versionRegex = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:\..*)?$`)
-	// Generated using log4j-sniffer identify
-	classMd5s = map[string]string{
-		"6b15f42c333ac39abacfeeeb18852a44": "2.1-2.3",
-		"8b2260b1cce64144f6310876f94b1638": "2.4-2.5",
-		"3bd9f41b89ce4fe8ccbf73e43195a5ce": "2.6-2.6.2",
-		"415c13e7c8505fb056d540eac29b72fa": "2.7-2.8.1",
-		"a193703904a3f18fb3c90a877eb5c8a7": "2.8.2",
-		"04fdd701809d17465c17c7e603b1b202": "2.9.0-2.11.2",
-		"5824711d6c68162eb535cc4dbf7485d3": "2.12.0",
-		"102cac5b7726457244af1f44e54ff468": "2.12.2",
-		"21f055b62c15453f0d7970a9d994cab7": "2.13.0-2.13.3",
-		"f1d630c48928096a484e4b95ccb162a0": "2.14.0 - 2.14.1",
-		"5d253e53fa993e122ff012221aa49ec3": "2.15.0",
-		"ba1cf8f81e7b31c709768561ba8ab558": "2.16.0",
-		"3dc5cf97546007be53b2f3d44028fa58": "2.17.0",
-	}
-	bytecodeMd5s = map[string]string{
-		"e873c1367963fad624f7128e74013725-v0": "2.1-2.5",
-		"34603528cf70de0e17669acd122ad110-v0": "2.6-2.8.1",
-		"bdbc07b787588e54870b5e90933d2306-v0": "2.8.2",
-		"bd12d274eef8fa455f303284834ce62b-v0": "2.9.0-2.11.2",
-		"81fcf4a9f7dd4dcb4fa0ab6daaed496f-v0": "2.12.2",
-		"8139e14cd3955ef709139c3f23d38057-v0": "2.12.0 - 2.14.1",
-		"5120cdf3b914bb4347e3235efce4eabf-v0": "2.15.0",
-		"0761bbaeee745db2559b6416a3a30712-v0": "2.16.0",
-		"79cd7e06b1a00b375f221414f06bbdd6-v0": "2.17.0",
-	}
 )
 
 type Identifier interface {
@@ -106,13 +77,16 @@ type Identifier interface {
 
 // Log4jIdentifier identifies files that are vulnerable to Log4J-related CVEs.
 type Log4jIdentifier struct {
-	OpenFileZipReader  archive.ZipReadCloserProvider
-	ZipWalker          archive.ZipWalkFn
-	TarWalker          archive.WalkFn
-	Limiter            ratelimit.Limiter
-	ArchiveWalkTimeout time.Duration
-	ArchiveMaxDepth    uint
-	ArchiveMaxSize     uint
+	OpenFileZipReader                  archive.ZipReadCloserProvider
+	ZipWalker                          archive.ZipWalkFn
+	TarWalker                          archive.WalkFn
+	Limiter                            ratelimit.Limiter
+	ArchiveWalkTimeout                 time.Duration
+	ArchiveMaxDepth                    uint
+	ArchiveMaxSize                     uint
+	IdentifyObfuscation                bool
+	ObfuscatedClassNameAverageLength   float32
+	ObfuscatedPackageNameAverageLength float32
 }
 
 // Identify identifies vulnerable files.
@@ -150,7 +124,11 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 				err = cErr
 			}
 		}()
-		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader)
+		obfuscated := i.checkForObfuscation(&reader.Reader)
+		if err != nil {
+			return 0, nil, err
+		}
+		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader, obfuscated)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -177,7 +155,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	return NothingDetected, nil, nil
 }
 
-func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader) (Finding, Versions, error) {
+func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader, obfuscated bool) (Finding, Versions, error) {
 	archiveResult := NothingDetected
 	versions := Versions{}
 	i.Limiter.Take()
@@ -192,13 +170,15 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 					versions[archiveVersion] = struct{}{}
 				}
 			}
+
 			// Check depth here before recursing because we don't want to create a zip reader unnecessarily.
 			if depth+1 < i.ArchiveMaxDepth {
 				reader, err := archive.ZipReaderFromReader(contents, int(i.ArchiveMaxSize))
 				if err != nil {
 					return false, errors.Wrap(err, "creating zip reader from reader")
 				}
-				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader)
+				innerObfuscated := i.checkForObfuscation(reader)
+				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, innerObfuscated)
 				if err != nil {
 					return false, err
 				}
@@ -208,7 +188,7 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				}
 			}
 		}
-		finding, versionInFile, versionMatch := lookForMatchInFileInZip(path, size, contents)
+		finding, versionInFile, versionMatch := lookForMatchInFileInZip(path, size, contents, obfuscated)
 		if finding == NothingDetected {
 			return true, nil
 		}
@@ -227,10 +207,29 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 	return archiveResult, versions, nil
 }
 
-// boolean returned is whether the version was matched.
-func lookForMatchInFileInZip(path string, size int64, contents io.Reader) (Finding, string, bool) {
+// checkForObfuscation applies a heuristic to determine if a class appears to have been obfuscated.
+// Obfuscation typically changes Java class names from e.g. org.apache.logging.log4j.core.net.JndiManager
+// to org.a.a.a.a.b.c and it is this sort of result we look for.
+//
+// The heuristic currently used is that both the average unique package name length and the average class name length
+// must be below the configured maximums, which default to 3.
+//
+// Thus a jar made up of all a.a.a.b.c, a.a.a.d.e etc will match, but a jar full of org.apache.Foo and com.palantir.Bar
+// will not.
+func (i *Log4jIdentifier) checkForObfuscation(reader *zip.Reader) bool {
+	if !i.IdentifyObfuscation {
+		return false
+	}
+	averageSizes := java.AveragePackageAndClassLength(reader.File)
+	if 0 < averageSizes.PackageName && averageSizes.PackageName < i.ObfuscatedPackageNameAverageLength && 0 < averageSizes.ClassName && averageSizes.ClassName < i.ObfuscatedClassNameAverageLength {
+		return true
+	}
+	return false
+}
+
+func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
-		finding, version, hashMatch := lookForHashMatch(contents, size)
+		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if hashMatch {
 			return ClassPackageAndName | finding, version, true
 		}
@@ -241,12 +240,19 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader) (Findi
 		return JarNameInsideArchive, version, true
 	}
 
-	if strings.HasSuffix(path, "JndiManager.class") {
-		finding, version, hashMatch := lookForHashMatch(contents, size)
-		if hashMatch {
-			return ClassName | finding, version, true
+	hashClass := strings.HasSuffix(path, "JndiManager.class")
+	if obfuscated {
+		hashClass = hashClass || strings.HasSuffix(path, ".class")
+	}
+	if hashClass {
+		finding, version, hashMatch := LookForHashMatch(contents, size)
+		if strings.HasSuffix(path, "JndiManager.class") {
+			finding |= ClassName
 		}
-		return ClassName, "", false
+		if hashMatch {
+			return finding, version, true
+		}
+		return finding, "", false
 	}
 	return NothingDetected, "", false
 }
@@ -278,30 +284,6 @@ func pathMatchesLog4JVersion(path string) (string, bool) {
 	return fileNameMatchesLog4jVersion(filename)
 }
 
-const maxClassSize = 0xffff
-
-var classByteBuf bytes.Buffer = bytes.Buffer{}
-
-func lookForHashMatch(contents io.Reader, size int64) (Finding, string, bool) {
-	if size > maxClassSize {
-		return NothingDetected, UnknownVersion, false
-	}
-	classByteBuf.Reset()
-	_, err := classByteBuf.ReadFrom(contents)
-	if err != nil {
-		return NothingDetected, UnknownVersion, false
-	}
-	version, md5Match := classMd5Version(classByteBuf.Bytes())
-	if md5Match {
-		return ClassFileMd5, version, true
-	}
-	version, md5Match = bytecodeMd5Version(classByteBuf.Bytes())
-	if md5Match {
-		return ClassBytecodeInstructionMd5, version, true
-	}
-	return NothingDetected, UnknownVersion, false
-}
-
 func fileNameMatchesLog4jVersion(filename string) (string, bool) {
 	matches := log4jRegex.FindStringSubmatch(strings.ToLower(filename))
 	if len(matches) == 0 {
@@ -331,23 +313,4 @@ func vulnerableVersion(version string) bool {
 		patch = 0
 	}
 	return (major == 2 && minor < 17) && !(major == 2 && minor == 12 && patch >= 3)
-}
-
-func classMd5Version(classContents []byte) (string, bool) {
-	sum := md5.New()
-	if _, err := sum.Write(classContents); err != nil {
-		return "", false
-	}
-	hash := fmt.Sprintf("%x", sum.Sum(nil))
-	version, matches := classMd5s[hash]
-	return version, matches
-}
-
-func bytecodeMd5Version(classContents []byte) (string, bool) {
-	hash, err := java.HashClassInstructions(classContents)
-	if err != nil {
-		return UnknownVersion, false
-	}
-	version, matches := bytecodeMd5s[hash]
-	return version, matches
 }
