@@ -277,19 +277,19 @@ func TestIdentifyFromZipContents(t *testing.T) {
 		name:       "archive with JndiManager class in wrong package",
 		filename:   "java.jar",
 		filesInZip: []string{"a/package/with/JndiManager.class"},
-		result:     crawl.ClassName,
+		result:     crawl.JndiManagerClassName,
 		version:    crawl.UnknownVersion,
 	}, {
 		name:       "non-log4j archive with JndiManager in the log4j package",
 		filename:   "not-log4.jar",
 		filesInZip: []string{"org/apache/logging/log4j/core/net/JndiManager.class"},
-		result:     crawl.ClassPackageAndName,
+		result:     crawl.JndiManagerClassPackageAndName,
 		version:    crawl.UnknownVersion,
 	}, {
 		name:       "vulnerable log4j named jar with JndiManager class",
 		filename:   "log4j-core-2.14.1.jar",
 		filesInZip: []string{"org/apache/logging/log4j/core/net/JndiManager.class"},
-		result:     crawl.JarName | crawl.ClassPackageAndName,
+		result:     crawl.JarName | crawl.JndiManagerClassPackageAndName,
 		version:    "2.14.1",
 	}, {
 		name:       "fixed log4j version with JndiManager class",
@@ -352,13 +352,13 @@ func TestFindingString(t *testing.T) {
 		Out string
 	}{
 		{},
-		{crawl.ClassName, "ClassName"},
+		{crawl.JndiManagerClassName, "JndiManagerClassName"},
 		{crawl.JarName, "JarName"},
 		{crawl.JarNameInsideArchive, "JarNameInsideArchive"},
-		{crawl.ClassPackageAndName, "ClassPackageAndName"},
-		{crawl.ClassName | crawl.JarName, "ClassName,JarName"},
-		{crawl.ClassName | crawl.ClassPackageAndName, "ClassName,ClassPackageAndName"},
-		{crawl.ClassName | crawl.JarName | crawl.ClassPackageAndName, "ClassName,JarName,ClassPackageAndName"},
+		{crawl.JndiManagerClassPackageAndName, "JndiManagerClassPackageAndName"},
+		{crawl.JndiManagerClassName | crawl.JarName, "JndiManagerClassName,JarName"},
+		{crawl.JndiManagerClassName | crawl.JndiManagerClassPackageAndName, "JndiManagerClassName,JndiManagerClassPackageAndName"},
+		{crawl.JndiManagerClassName | crawl.JarName | crawl.JndiManagerClassPackageAndName, "JndiManagerClassName,JarName,JndiManagerClassPackageAndName"},
 	} {
 		t.Run(tc.Out, func(t *testing.T) {
 			assert.Equal(t, tc.Out, tc.In.String())

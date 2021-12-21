@@ -65,10 +65,10 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 	cveInfo := JavaCVEInstance{
 		Message:                       cveMessage,
 		FilePath:                      path,
-		ClassNameMatched:              result&ClassName > 0,
+		ClassNameMatched:              result&JndiManagerClassName > 0,
 		JarNameMatched:                result&JarName > 0,
 		JarNameInsideArchiveMatched:   result&JarNameInsideArchive > 0,
-		ClassPackageAndNameMatch:      result&ClassPackageAndName > 0,
+		ClassPackageAndNameMatch:      result&JndiManagerClassPackageAndName > 0,
 		ClassFileMD5Matched:           result&ClassFileMd5 > 0,
 		ByteCodeInstructionMD5Matched: result&ClassBytecodeInstructionMd5 > 0,
 		ByteCodePartialMatch:          result&ClassBytecodePartialMatch > 0,

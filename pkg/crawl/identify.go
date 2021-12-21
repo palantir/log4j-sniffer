@@ -35,20 +35,20 @@ type Finding int
 type Versions map[string]struct{}
 
 const (
-	NothingDetected             Finding = 0
-	ClassName                   Finding = 1 << iota
-	JarName                     Finding = 1 << iota
-	JarNameInsideArchive        Finding = 1 << iota
-	ClassPackageAndName         Finding = 1 << iota
-	ClassBytecodePartialMatch   Finding = 1 << iota
-	ClassBytecodeInstructionMd5 Finding = 1 << iota
-	ClassFileMd5                Finding = 1 << iota
+	NothingDetected                Finding = 0
+	JndiManagerClassName           Finding = 1 << iota
+	JarName                        Finding = 1 << iota
+	JarNameInsideArchive           Finding = 1 << iota
+	JndiManagerClassPackageAndName Finding = 1 << iota
+	ClassBytecodePartialMatch      Finding = 1 << iota
+	ClassBytecodeInstructionMd5    Finding = 1 << iota
+	ClassFileMd5                   Finding = 1 << iota
 )
 
 func (f Finding) String() string {
 	var out []string
-	if f&ClassName > 0 {
-		out = append(out, "ClassName")
+	if f&JndiManagerClassName > 0 {
+		out = append(out, "JndiManagerClassName")
 	}
 	if f&JarName > 0 {
 		out = append(out, "JarName")
@@ -56,8 +56,8 @@ func (f Finding) String() string {
 	if f&JarNameInsideArchive > 0 {
 		out = append(out, "JarNameInsideArchive")
 	}
-	if f&ClassPackageAndName > 0 {
-		out = append(out, "ClassPackageAndName")
+	if f&JndiManagerClassPackageAndName > 0 {
+		out = append(out, "JndiManagerClassPackageAndName")
 	}
 	return strings.Join(out, ",")
 }
@@ -230,9 +230,9 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfusc
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if hashMatch {
-			return ClassPackageAndName | finding, version, true
+			return JndiManagerClassPackageAndName | finding, version, true
 		}
-		return ClassPackageAndName, "", false
+		return JndiManagerClassPackageAndName, "", false
 	}
 
 	if version, match := pathMatchesLog4JVersion(path); match {
@@ -246,7 +246,7 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfusc
 	if hashClass {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if strings.HasSuffix(path, "JndiManager.class") {
-			finding |= ClassName
+			finding |= JndiManagerClassName
 		}
 		if hashMatch {
 			return finding, version, true

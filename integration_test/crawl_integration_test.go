@@ -35,13 +35,13 @@ func TestBadVersions(t *testing.T) {
 		count     int
 		finding   crawl.Finding
 	}{
-		{name: "single bad version", directory: "../examples/single_bad_version", count: 1, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "multiple bad versions", directory: "../examples/multiple_bad_versions", count: 13, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "inside a dist", directory: "../examples/inside_a_dist", count: 4, finding: crawl.JarNameInsideArchive | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "inside a par", directory: "../examples/inside_a_par", count: 1, finding: crawl.JarNameInsideArchive | crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.ClassPackageAndName | crawl.ClassFileMd5},
-		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.ClassName | crawl.ClassBytecodeInstructionMd5},
-		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JarName | crawl.ClassPackageAndName | crawl.ClassFileMd5},
+		{name: "single bad version", directory: "../examples/single_bad_version", count: 1, finding: crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "multiple bad versions", directory: "../examples/multiple_bad_versions", count: 13, finding: crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "inside a dist", directory: "../examples/inside_a_dist", count: 4, finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "inside a par", directory: "../examples/inside_a_par", count: 1, finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.JndiManagerClassName | crawl.ClassBytecodeInstructionMd5},
+		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
 		{name: "obfuscation", directory: "../examples/obfuscated", count: 1, finding: crawl.ClassBytecodePartialMatch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -55,7 +55,7 @@ func TestBadVersions(t *testing.T) {
 
 			testMatched(t, got, tc.finding, crawl.JarName, "jar name matched")
 			testMatched(t, got, tc.finding, crawl.JarNameInsideArchive, "jar name inside archive matched")
-			testMatched(t, got, tc.finding, crawl.ClassPackageAndName, "class and package name matched")
+			testMatched(t, got, tc.finding, crawl.JndiManagerClassPackageAndName, "class and package name matched")
 			testMatched(t, got, tc.finding, crawl.ClassFileMd5, "class file MD5 matched")
 			testMatched(t, got, tc.finding, crawl.ClassBytecodeInstructionMd5, "byte code instruction MD5 matched")
 			testMatched(t, got, tc.finding, crawl.ClassBytecodePartialMatch, "byte code partially matched known version")
