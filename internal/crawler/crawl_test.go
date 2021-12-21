@@ -159,7 +159,7 @@ func TestCrawlBadVersions(t *testing.T) {
 				assert.Equal(t, currCase.findings[i].path, cveInstance.FilePath)
 				assert.Equalf(t, currCase.findings[i].finding&crawl.JarName > 0, cveInstance.JarNameMatched, "unexpected finding for path: %s", currCase.findings[i].path)
 				assert.Equalf(t, currCase.findings[i].finding&crawl.JarNameInsideArchive > 0, cveInstance.JarNameInsideArchiveMatched, "unexpected finding for path: %s", currCase.findings[i].path)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.JndiManagerClassPackageAndName > 0, cveInstance.ClassPackageAndNameMatch, "unexpected finding for path: %s", currCase.findings[i].path)
+				assert.Equalf(t, currCase.findings[i].finding&crawl.JndiManagerClassPackageAndName > 0, cveInstance.JndiClassPackageAndNameMatch, "unexpected finding for path: %s", currCase.findings[i].path)
 				assert.Equalf(t, currCase.findings[i].finding&crawl.ClassFileMd5 > 0, cveInstance.ClassFileMD5Matched, "unexpected finding for path: %s", currCase.findings[i].path)
 			}
 		})

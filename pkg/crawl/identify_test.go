@@ -302,6 +302,19 @@ func TestIdentifyFromZipContents(t *testing.T) {
 		filesInZip: []string{"log4j-core-2.14.1.jAr"},
 		result:     crawl.JarNameInsideArchive,
 		version:    "2.14.1",
+	}, {
+		name:       "JndiLookup class name hit",
+		filename:   "foo.jar",
+		filesInZip: []string{"a/b/JndiLookup.class"},
+		result:     crawl.JndiLookupClassName,
+		version:    crawl.UnknownVersion,
+	}, {
+		name:     "JndiLookup class name and package hit",
+		filename: "log4j-core-2.14.1.jar",
+		filesInZip: []string{"org/apache/logging/log4j/core/net/JndiManager.class",
+			"org/apache/logging/log4j/core/lookup/JndiLookup.class"},
+		result:  crawl.JarName | crawl.JndiLookupClassPackageAndName | crawl.JndiManagerClassPackageAndName,
+		version: "2.14.1",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
 			// we only write the zip list once otherwise we will continue to recurse forever.
@@ -359,6 +372,7 @@ func TestFindingString(t *testing.T) {
 		{crawl.JndiManagerClassName | crawl.JarName, "JndiManagerClassName,JarName"},
 		{crawl.JndiManagerClassName | crawl.JndiManagerClassPackageAndName, "JndiManagerClassName,JndiManagerClassPackageAndName"},
 		{crawl.JndiManagerClassName | crawl.JarName | crawl.JndiManagerClassPackageAndName, "JndiManagerClassName,JarName,JndiManagerClassPackageAndName"},
+		{crawl.JarName | crawl.JndiLookupClassPackageAndName, "JndiLookupClassPackageAndName,JarName"},
 	} {
 		t.Run(tc.Out, func(t *testing.T) {
 			assert.Equal(t, tc.Out, tc.In.String())

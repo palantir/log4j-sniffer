@@ -36,16 +36,18 @@ type Reporter struct {
 }
 
 type JavaCVEInstance struct {
-	Message                       string   `json:"message"`
-	FilePath                      string   `json:"filePath"`
-	ClassNameMatched              bool     `json:"classNameMatched"`
-	ClassPackageAndNameMatch      bool     `json:"classPackageAndNameMatch"`
-	ClassFileMD5Matched           bool     `json:"classFileMd5Matched"`
-	ByteCodeInstructionMD5Matched bool     `json:"bytecodeInstructionMd5Matched"`
-	ByteCodePartialMatch          bool     `json:"bytecodePartialMatch"`
-	JarNameMatched                bool     `json:"jarNameMatched"`
-	JarNameInsideArchiveMatched   bool     `json:"jarNameInsideArchiveMatched"`
-	Log4JVersions                 []string `json:"log4jVersions"`
+	Message                              string   `json:"message"`
+	FilePath                             string   `json:"filePath"`
+	JndiLookupClassNameMatched           bool     `json:"jndiLookupClassNameMatched"`
+	JndiLookupClassPackageAndNameMatched bool     `json:"jndiLookupClassPackageAndNameMatched"`
+	JndiManagerClassNameMatched          bool     `json:"jndiManagerClassNameMatched"`
+	JndiClassPackageAndNameMatch         bool     `json:"jndiManagerClassPackageAndNameMatch"`
+	ClassFileMD5Matched                  bool     `json:"classFileMd5Matched"`
+	ByteCodeInstructionMD5Matched        bool     `json:"bytecodeInstructionMd5Matched"`
+	ByteCodePartialMatch                 bool     `json:"bytecodePartialMatch"`
+	JarNameMatched                       bool     `json:"jarNameMatched"`
+	JarNameInsideArchiveMatched          bool     `json:"jarNameInsideArchiveMatched"`
+	Log4JVersions                        []string `json:"log4jVersions"`
 }
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
@@ -63,16 +65,18 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 
 	cveMessage := r.buildCVEMessage(versions)
 	cveInfo := JavaCVEInstance{
-		Message:                       cveMessage,
-		FilePath:                      path,
-		ClassNameMatched:              result&JndiManagerClassName > 0,
-		JarNameMatched:                result&JarName > 0,
-		JarNameInsideArchiveMatched:   result&JarNameInsideArchive > 0,
-		ClassPackageAndNameMatch:      result&JndiManagerClassPackageAndName > 0,
-		ClassFileMD5Matched:           result&ClassFileMd5 > 0,
-		ByteCodeInstructionMD5Matched: result&ClassBytecodeInstructionMd5 > 0,
-		ByteCodePartialMatch:          result&ClassBytecodePartialMatch > 0,
-		Log4JVersions:                 versions,
+		Message:                              cveMessage,
+		FilePath:                             path,
+		JndiLookupClassNameMatched:           result&JndiLookupClassName > 0,
+		JndiLookupClassPackageAndNameMatched: result&JndiLookupClassPackageAndName > 0,
+		JndiManagerClassNameMatched:          result&JndiManagerClassName > 0,
+		JarNameMatched:                       result&JarName > 0,
+		JarNameInsideArchiveMatched:          result&JarNameInsideArchive > 0,
+		JndiClassPackageAndNameMatch:         result&JndiManagerClassPackageAndName > 0,
+		ClassFileMD5Matched:                  result&ClassFileMd5 > 0,
+		ByteCodeInstructionMD5Matched:        result&ClassBytecodeInstructionMd5 > 0,
+		ByteCodePartialMatch:                 result&ClassBytecodePartialMatch > 0,
+		Log4JVersions:                        versions,
 	}
 
 	var output string
@@ -82,8 +86,14 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		output = string(jsonBytes)
 	} else {
 		var reasons []string
-		if cveInfo.ClassNameMatched {
-			reasons = append(reasons, "class name matched")
+		if cveInfo.JndiLookupClassNameMatched {
+			reasons = append(reasons, "JndiLookup class name matched")
+		}
+		if cveInfo.JndiLookupClassPackageAndNameMatched {
+			reasons = append(reasons, "JndiLookup class and package name matched")
+		}
+		if cveInfo.JndiManagerClassNameMatched {
+			reasons = append(reasons, "JndiManager class name matched")
 		}
 		if cveInfo.JarNameMatched {
 			reasons = append(reasons, "jar name matched")
@@ -91,8 +101,8 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		if cveInfo.JarNameInsideArchiveMatched {
 			reasons = append(reasons, "jar name inside archive matched")
 		}
-		if cveInfo.ClassPackageAndNameMatch {
-			reasons = append(reasons, "class and package name matched")
+		if cveInfo.JndiClassPackageAndNameMatch {
+			reasons = append(reasons, "JndiManager class and package name matched")
 		}
 		if cveInfo.ClassFileMD5Matched {
 			reasons = append(reasons, "class file MD5 matched")

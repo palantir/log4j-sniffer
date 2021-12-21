@@ -17,6 +17,7 @@ package crawl
 import (
 	"archive/zip"
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"path/filepath"
@@ -36,6 +37,8 @@ type Versions map[string]struct{}
 
 const (
 	NothingDetected                Finding = 0
+	JndiLookupClassName            Finding = 1 << iota
+	JndiLookupClassPackageAndName  Finding = 1 << iota
 	JndiManagerClassName           Finding = 1 << iota
 	JarName                        Finding = 1 << iota
 	JarNameInsideArchive           Finding = 1 << iota
@@ -47,6 +50,12 @@ const (
 
 func (f Finding) String() string {
 	var out []string
+	if f&JndiLookupClassName > 0 {
+		out = append(out, "JndiLookupClassName")
+	}
+	if f&JndiLookupClassPackageAndName > 0 {
+		out = append(out, "JndiLookupClassPackageAndName")
+	}
 	if f&JndiManagerClassName > 0 {
 		out = append(out, "JndiManagerClassName")
 	}
@@ -77,6 +86,7 @@ type Identifier interface {
 
 // Log4jIdentifier identifies files that are vulnerable to Log4J-related CVEs.
 type Log4jIdentifier struct {
+	ErrorWriter                        io.Writer
 	OpenFileZipReader                  archive.ZipReadCloserProvider
 	ZipWalker                          archive.ZipWalkFn
 	TarWalker                          archive.WalkFn
@@ -117,6 +127,9 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		}
 		reader, err := i.OpenFileZipReader(path)
 		if err != nil {
+			if i.ErrorWriter != nil {
+				_, _ = fmt.Fprintf(i.ErrorWriter, "Error opening zip: %v", err)
+			}
 			return 0, nil, err
 		}
 		defer func() {
@@ -125,11 +138,11 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 			}
 		}()
 		obfuscated := i.checkForObfuscation(&reader.Reader)
-		if err != nil {
-			return 0, nil, err
-		}
 		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader, obfuscated)
 		if err != nil {
+			if i.ErrorWriter != nil {
+				_, _ = fmt.Fprintf(i.ErrorWriter, "Error scanning zip file: %v", err)
+			}
 			return 0, nil, err
 		}
 		for v := range inZipVs {
@@ -179,6 +192,9 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				innerObfuscated := i.checkForObfuscation(reader)
 				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, innerObfuscated)
 				if err != nil {
+					if i.ErrorWriter != nil {
+						_, _ = fmt.Fprintf(i.ErrorWriter, "Error scanning zip file: %v", err)
+					}
 					return false, err
 				}
 				archiveResult = finding | archiveResult
@@ -198,7 +214,7 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 			versions[versionInFile] = struct{}{}
 		}
 		archiveResult = finding | archiveResult
-		return false, nil
+		return true, nil
 	})
 	if err != nil {
 		return NothingDetected, Versions{}, err
@@ -234,6 +250,9 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfusc
 		}
 		return JndiManagerClassPackageAndName, "", false
 	}
+	if path == "org/apache/logging/log4j/core/lookup/JndiLookup.class" {
+		return JndiLookupClassPackageAndName, "", false
+	}
 
 	if version, match := pathMatchesLog4JVersion(path); match {
 		return JarNameInsideArchive, version, true
@@ -252,6 +271,9 @@ func lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfusc
 			return finding, version, true
 		}
 		return finding, "", false
+	}
+	if strings.HasSuffix(path, "JndiLookup.class") {
+		return JndiLookupClassName, "", false
 	}
 	return NothingDetected, "", false
 }
