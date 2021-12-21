@@ -101,13 +101,13 @@ func TestCrawlBadVersions(t *testing.T) {
 			count:     4,
 			findings: []pathFinding{{
 				path:    "../../examples/inside_a_dist/wrapped_log4j.tar",
-				finding: crawl.JarNameInsideArchive,
+				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			}, {
 				path:    "../../examples/inside_a_dist/wrapped_log4j.tar.bz2",
-				finding: crawl.JarNameInsideArchive,
+				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			}, {
 				path:    "../../examples/inside_a_dist/wrapped_log4j.tar.gz",
-				finding: crawl.JarNameInsideArchive,
+				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			}, {
 				path:    "../../examples/inside_a_dist/wrapped_log4j.zip",
 				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
@@ -131,6 +131,14 @@ func TestCrawlBadVersions(t *testing.T) {
 			}},
 		},
 		{
+			name:      "archived fat jar",
+			directory: "../../examples/archived_fat_jar",
+			count:     1, findings: []pathFinding{{
+				path:    "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
+				finding: crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			}},
+		},
+		{
 			name:      "light shading",
 			directory: "../../examples/light_shading",
 			count:     1,
@@ -139,15 +147,26 @@ func TestCrawlBadVersions(t *testing.T) {
 				finding: crawl.JndiManagerClassName,
 			}},
 		},
+		{
+			name:      "obfuscated",
+			directory: "../../examples/obfuscated",
+			count:     1,
+			findings: []pathFinding{{
+				path:    "../../examples/obfuscated/2.14.1-aaaagb.jar",
+				finding: crawl.JndiManagerClassName,
+			}},
+		},
 	} {
 		t.Run(currCase.name, func(t *testing.T) {
 			buf := &bytes.Buffer{}
 			var stderr bytes.Buffer
 			numIssues, err := Crawl(context.Background(), Config{
-				Root:            currCase.directory,
-				OutputJSON:      true,
-				ArchiveMaxDepth: 5,
-				ArchiveMaxSize:  1024 * 1024 * 10,
+				Root:                               currCase.directory,
+				OutputJSON:                         true,
+				ArchiveMaxDepth:                    5,
+				ArchiveMaxSize:                     1024 * 1024 * 10,
+				ObfuscatedClassNameAverageLength:   3,
+				ObfuscatedPackageNameAverageLength: 3,
 			}, buf, &stderr)
 			require.NoError(t, err, stderr.String())
 			assert.Equal(t, currCase.count, numIssues, stderr.String())

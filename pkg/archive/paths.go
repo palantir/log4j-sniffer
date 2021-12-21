@@ -15,24 +15,19 @@
 package archive
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"context"
 	"io"
-	"os"
 )
 
-// A WalkFn iterates through an archive, using TarReaderProvider to read the archive type, calling FileWalkFn on each member file.
-type WalkFn func(ctx context.Context, path string, getTarReader TarReaderProvider, walkFn FileWalkFn) error
-
-// A ZipWalkFn iterates through an zip, calling FileWalkFn on each member file.
-type ZipWalkFn func(ctx context.Context, r *zip.Reader, walkFn FileWalkFn) error
-
-// ZipReadCloserProvider should open a zip.ReadCloser when provided with the given path.
-type ZipReadCloserProvider func(path string) (*zip.ReadCloser, error)
+// A WalkFn iterates through an archive, calling FileWalkFn on each member file.
+type WalkFn func(ctx context.Context, walkFn FileWalkFn) error
 
 // FileWalkFn is called by a WalkFn on each file contained in an archive.
 type FileWalkFn func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error)
 
+// WalkZipFiles walks the files in the provided *zip.Reader, calling walkFn on each header.
 func WalkZipFiles(ctx context.Context, r *zip.Reader, walkFn FileWalkFn) (err error) {
 	for _, zipFile := range r.File {
 		select {
@@ -53,36 +48,22 @@ func WalkZipFiles(ctx context.Context, r *zip.Reader, walkFn FileWalkFn) (err er
 	return nil
 }
 
-// WalkTarFiles accepts an archive path, a TarReaderProvider function for reading the archive, and a walking function to
-// use when traversing files in the archive.
-func WalkTarFiles(ctx context.Context, path string, tarReader TarReaderProvider, walkFn FileWalkFn) (err error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if cErr := file.Close(); err == nil && cErr != nil {
-			err = cErr
-		}
-	}()
-	reader, err := tarReader(file)
-	if err != nil {
-		return err
-	}
+// WalkTarFiles walks the files in the provided *tar.Reader, calling walkFn on each header.
+func WalkTarFiles(ctx context.Context, r *tar.Reader, walkFn FileWalkFn) (err error) {
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
-		header, err := reader.Next()
+		header, err := r.Next()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return err
 		}
-		if proceed, err := walkFn(ctx, header.Name, header.Size, reader); err != nil {
+		if proceed, err := walkFn(ctx, header.Name, header.Size, r); err != nil {
 			return err
 		} else if !proceed {
 			break

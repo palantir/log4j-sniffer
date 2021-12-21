@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"path/filepath"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,7 +29,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/java"
-	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
 )
 
@@ -102,125 +101,137 @@ type Identifier interface {
 type Log4jIdentifier struct {
 	ErrorWriter                        io.Writer
 	DetailedOutputWriter               io.Writer
-	OpenFileZipReader                  archive.ZipReadCloserProvider
-	ZipWalker                          archive.ZipWalkFn
-	TarWalker                          archive.WalkFn
 	Limiter                            ratelimit.Limiter
-	ArchiveWalkTimeout                 time.Duration
-	ArchiveMaxDepth                    uint
-	ArchiveMaxSize                     uint
 	IdentifyObfuscation                bool
 	ObfuscatedClassNameAverageLength   float32
 	ObfuscatedPackageNameAverageLength float32
+	OpenFile                           func(string) (*os.File, error)
+	ArchiveWalkTimeout                 time.Duration
+	ArchiveMaxDepth                    uint
+	ArchiveMaxSize                     uint
+	ParseArchiveFormat                 func(string) (archive.FormatType, bool)
+	ArchiveWalkers                     func(archive.FormatType) (archive.WalkerProvider, bool)
 }
 
 // Identify identifies vulnerable files.
 // The function identifies:
 // - vulnerable log4j jar files.
 // - zipped files containing vulnerable log4j files, using the provided ZipFileLister.
-func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error) {
+func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEntry) (result Finding, versions Versions, err error) {
 	if i.ArchiveWalkTimeout > 0 {
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, i.ArchiveWalkTimeout)
 		defer cancel()
 		ctx = ctxWithTimeout
 	}
 
+	versions = make(Versions)
 	lowercaseFilename := strings.ToLower(d.Name())
-	archiveType, ok := archive.ParseArchiveFormatFromFile(lowercaseFilename)
-	if !ok {
-		return NothingDetected, nil, nil
-	}
-	switch archiveType {
-	case archive.ZipArchive:
-		versions := make(Versions)
-		result := NothingDetected
 
+	// TODO(glynternet): support checking obfusctating at further nested levels.
+	var obfuscated bool
+	var log4jMatch bool
+	if strings.HasSuffix(lowercaseFilename, ".jar") {
+		var err error
+		obfuscated, err = i.checkForObfuscation(path)
+		if err != nil {
+			return NothingDetected, nil, err
+		}
 		archiveVersion, match := fileNameMatchesLog4jVersion(lowercaseFilename)
 		if match && vulnerableVersion(archiveVersion) {
 			result |= JarName
 			versions[archiveVersion] = struct{}{}
+			i.printInfoFinding("Found archive with name matching vulnerable log4j-core format at %s", path)
 		}
-		reader, err := i.OpenFileZipReader(path)
-		if err != nil {
-			i.printErrorFinding("Error opening zip: %v", err)
-			return 0, nil, err
-		}
-		defer func() {
-			if cErr := reader.Close(); err == nil && cErr != nil {
-				err = cErr
-			}
-		}()
-		obfuscated := i.checkForObfuscation(&reader.Reader)
-		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader, obfuscated)
-		if err != nil {
-			i.printErrorFinding("Error scanning zip file: %v", err)
-			return 0, nil, err
-		}
-		for v := range inZipVs {
-			versions[v] = struct{}{}
-		}
-		// If file on disk matches log4j but no signs of vulnerable version have been found
-		// during identification phase, then we assume non-vulnerable.
-		if match && len(versions) == 0 {
-			return NothingDetected, nil, nil
-		}
-		if inZip != NothingDetected && !obfuscated {
-			result |= inZip
-		} else if inZip != NothingDetected {
-			i.printInfoFinding("Found finding in what appeared to be an obfuscated jar at %s", path)
-			result |= JarFileObfuscated | inZip
-		}
-		if result != NothingDetected && len(versions) == 0 {
-			versions[UnknownVersion] = struct{}{}
-		}
-		return result, versions, err
-	case archive.TarGzArchive:
-		return i.lookForMatchInTar(ctx, archive.TarGzipReader, path)
-	case archive.TarBz2Archive:
-		return i.lookForMatchInTar(ctx, archive.TarBzip2Reader, path)
-	case archive.TarArchive:
-		return i.lookForMatchInTar(ctx, archive.TarUncompressedReader, path)
+		log4jMatch = match
 	}
-	return NothingDetected, nil, nil
+
+	archiveType, ok := i.ParseArchiveFormat(lowercaseFilename)
+	if !ok {
+		return result, versions, nil
+	}
+
+	getWalker, ok := i.ArchiveWalkers(archiveType)
+	if !ok {
+		// TODO(glynternet): Support human-friendly names of archives in errors
+		return NothingDetected, nil, fmt.Errorf("archive type unsupported: %d", archiveType)
+	}
+	file, openErr := i.OpenFile(path)
+	if openErr != nil {
+		return NothingDetected, nil, openErr
+	}
+	defer func() {
+		if cErr := file.Close(); err == nil && cErr != nil {
+			err = cErr
+		}
+	}()
+
+	walker, close, tErr := getWalker.FromFile(file)
+	if tErr != nil {
+		return NothingDetected, nil, tErr
+	}
+	defer func() {
+		if cErr := close(); err == nil && cErr != nil {
+			err = cErr
+		}
+	}()
+	inZip, inZipVs, err := i.findArchiveVulnerabilities(ctx, 0, walker, obfuscated)
+	if err != nil {
+		return 0, nil, err
+	}
+	for v := range inZipVs {
+		versions[v] = struct{}{}
+	}
+	// If file on disk matches log4j but no signs of vulnerable version have been found
+	// during identification phase, then we assume non-vulnerable.
+	if log4jMatch && len(versions) == 0 {
+		return NothingDetected, nil, nil
+	}
+	result |= inZip
+	if result != NothingDetected && len(versions) == 0 {
+		versions[UnknownVersion] = struct{}{}
+	}
+	return result, versions, err
 }
 
-func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *zip.Reader, obfuscated bool) (Finding, Versions, error) {
+func (i *Log4jIdentifier) findArchiveVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn, obfuscated bool) (Finding, Versions, error) {
 	archiveResult := NothingDetected
-	versions := Versions{}
+	versions := make(Versions)
 	i.Limiter.Take()
-	err := i.ZipWalker(ctx, r, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
-		archiveType, ok := archive.ParseArchiveFormatFromFile(path)
-		if ok && archiveType == archive.ZipArchive {
-			_, filename := filepath.Split(path)
-			archiveVersion, match := fileNameMatchesLog4jVersion(strings.ToLower(filename))
-			if match {
-				if vulnerableVersion(archiveVersion) {
-					i.printInfoFinding("Found archive with name matching vulnerable log4j-core format at %s", path)
-					archiveResult |= JarNameInsideArchive
-					versions[archiveVersion] = struct{}{}
-				}
+	if err := walk(ctx, i.vulnerabilityFileWalkFunc(depth, &archiveResult, versions, obfuscated)); err != nil {
+		return NothingDetected, nil, err
+	}
+	return archiveResult, versions, nil
+}
+
+func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, obfuscated bool) archive.FileWalkFn {
+	return func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+		archiveType, ok := i.ParseArchiveFormat(path)
+		if ok && depth < i.ArchiveMaxDepth {
+			getWalker, ok := i.ArchiveWalkers(archiveType)
+			if !ok {
+				return false, fmt.Errorf("archive format unsupported: %d", archiveType)
 			}
-			// Check depth here before recursing because we don't want to create a zip reader unnecessarily.
-			if depth+1 < i.ArchiveMaxDepth {
-				reader, err := archive.ZipReaderFromReader(contents, int(i.ArchiveMaxSize))
-				if err != nil {
-					return false, errors.Wrap(err, "creating zip reader from reader")
+
+			walker, close, archiveErr := getWalker.FromReader(contents)
+			if archiveErr != nil {
+				return false, archiveErr
+			}
+			defer func() {
+				if cErr := close(); err == nil {
+					err = cErr
 				}
-				innerObfuscated := i.checkForObfuscation(reader)
-				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, innerObfuscated)
-				if err != nil {
-					i.printErrorFinding("Error scanning zip file: %v", err)
-					return false, err
-				}
-				if finding != NothingDetected && !innerObfuscated {
-					archiveResult = finding | archiveResult
-				} else if finding != NothingDetected {
-					i.printInfoFinding("Found finding in what appeared to be an obfuscated jar at %s", path)
-					archiveResult = JarFileObfuscated | finding | archiveResult
-				}
-				for vv := range innerVersions {
-					versions[vv] = struct{}{}
-				}
+			}()
+
+			i.printErrorFinding("Error scanning zip file: %v", err)
+			i.printInfoFinding("Found finding in what appeared to be an obfuscated jar at %s", path)
+
+			finding, innerVersions, err := i.findArchiveVulnerabilities(ctx, depth+1, walker, obfuscated)
+			if err != nil {
+				return false, err
+			}
+			*result |= finding
+			for vv := range innerVersions {
+				versions[vv] = struct{}{}
 			}
 		}
 		finding, versionInFile, versionMatch := i.lookForMatchInFileInZip(path, size, contents, obfuscated)
@@ -233,13 +244,9 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 			}
 			versions[versionInFile] = struct{}{}
 		}
-		archiveResult = finding | archiveResult
+		*result |= finding
 		return true, nil
-	})
-	if err != nil {
-		return NothingDetected, Versions{}, err
 	}
-	return archiveResult, versions, nil
 }
 
 // checkForObfuscation applies a heuristic to determine if a class appears to have been obfuscated.
@@ -251,15 +258,27 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 //
 // Thus a jar made up of all a.a.a.b.c, a.a.a.d.e etc will match, but a jar full of org.apache.Foo and com.palantir.Bar
 // will not.
-func (i *Log4jIdentifier) checkForObfuscation(reader *zip.Reader) bool {
+func (i *Log4jIdentifier) checkForObfuscation(path string) (obfuscated bool, err error) {
 	if !i.IdentifyObfuscation {
-		return false
+		return false, nil
 	}
-	averageSizes := java.AveragePackageAndClassLength(reader.File)
+
+	r, oErr := zip.OpenReader(path)
+	if oErr != nil {
+		return false, oErr
+	}
+
+	defer func() {
+		if cerr := r.Close(); err == nil {
+			err = cerr
+		}
+	}()
+
+	averageSizes := java.AveragePackageAndClassLength(r.File)
 	if 0 < averageSizes.PackageName && averageSizes.PackageName < i.ObfuscatedPackageNameAverageLength && 0 < averageSizes.ClassName && averageSizes.ClassName < i.ObfuscatedClassNameAverageLength {
-		return true
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 func (i *Log4jIdentifier) lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
@@ -303,26 +322,6 @@ func (i *Log4jIdentifier) lookForMatchInFileInZip(path string, size int64, conte
 		return JndiLookupClassName, "", false
 	}
 	return NothingDetected, "", false
-}
-
-func (i *Log4jIdentifier) lookForMatchInTar(ctx context.Context, getTarReader archive.TarReaderProvider, path string) (Finding, Versions, error) {
-	archiveResult := NothingDetected
-	versions := Versions{}
-	if err := i.TarWalker(ctx, path, getTarReader, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
-		version, match := pathMatchesLog4JVersion(filename)
-		if !match || !vulnerableVersion(version) {
-			return true, nil
-		}
-		i.printInfoFinding("Found archive with name matching vulnerable log4j-core format at %s", path)
-		archiveResult = JarNameInsideArchive | archiveResult
-		if version != "" {
-			versions[version] = struct{}{}
-		}
-		return false, nil
-	}); err != nil {
-		return NothingDetected, versions, err
-	}
-	return archiveResult, versions, nil
 }
 
 func (i *Log4jIdentifier) printDetailedHashFinding(path string, finding Finding) {

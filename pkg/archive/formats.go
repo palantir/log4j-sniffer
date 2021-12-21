@@ -16,7 +16,6 @@ package archive
 
 import (
 	"archive/tar"
-	"compress/bzip2"
 	"compress/gzip"
 	"io"
 	"strings"
@@ -33,9 +32,6 @@ const (
 // FormatType specifies the type of archive format the identifier should expect.
 type FormatType int
 
-// TarReaderProvider function is used for loading different kinds of tar archives, such as uncompressed, gzip compressed, and bzip2 compressed.
-type TarReaderProvider func(io.Reader) (*tar.Reader, error)
-
 var (
 	extensions = map[string]FormatType{
 		"ear":     ZipArchive,
@@ -51,20 +47,14 @@ var (
 	}
 )
 
-func TarGzipReader(iReader io.Reader) (*tar.Reader, error) {
-	gzipReader, err := gzip.NewReader(iReader)
+// TarGzipReader creates a reader for gzipped tar content.
+// The returned function should be called to release all underlying resources.
+func TarGzipReader(r io.Reader) (*tar.Reader, func() error, error) {
+	gzipReader, err := gzip.NewReader(r)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return tar.NewReader(gzipReader), nil
-}
-
-func TarBzip2Reader(iReader io.Reader) (*tar.Reader, error) {
-	return tar.NewReader(bzip2.NewReader(iReader)), nil
-}
-
-func TarUncompressedReader(iReader io.Reader) (*tar.Reader, error) {
-	return tar.NewReader(iReader), nil
+	return tar.NewReader(gzipReader), gzipReader.Close, nil
 }
 
 func ParseArchiveFormatFromFile(filename string) (FormatType, bool) {

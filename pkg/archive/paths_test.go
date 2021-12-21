@@ -15,6 +15,7 @@
 package archive
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"context"
 	"io"
@@ -29,18 +30,26 @@ func TestWalkTarFiles(t *testing.T) {
 	t.Run("cancels on context done", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		err := WalkTarFiles(ctx, "../../examples/archived_fat_jar/archived_fat_jar.tar.gz", TarGzipReader, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
-			return true, nil
-		})
+		reader, close := mustTarGZReader(t, "../../examples/archived_fat_jar/archived_fat_jar.tar.gz")
+		defer close(t)
+
+		err := WalkTarFiles(ctx, reader,
+			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+				return true, nil
+			})
 		require.Equal(t, ctx.Err(), err)
 	})
 
 	t.Run("successfully lists paths", func(t *testing.T) {
 		var paths []string
-		err := WalkTarFiles(context.Background(), "../../examples/archived_fat_jar/archived_fat_jar.tar.gz", TarGzipReader, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
-			paths = append(paths, path)
-			return true, nil
-		})
+		reader, close := mustTarGZReader(t, "../../examples/archived_fat_jar/archived_fat_jar.tar.gz")
+		defer close(t)
+
+		err := WalkTarFiles(context.Background(), reader,
+			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+				paths = append(paths, path)
+				return true, nil
+			})
 		require.NoError(t, err)
 		assert.NotEmpty(t, paths)
 	})
@@ -93,6 +102,24 @@ func mustZipFileReader(t *testing.T, path string) (*zip.Reader, func(*testing.T)
 
 	return r, func(t *testing.T) {
 		t.Helper()
+		assert.NoError(t, file.Close())
+	}
+}
+func mustTarGZReader(t *testing.T, path string) (*tar.Reader, func(*testing.T)) {
+	t.Helper()
+
+	file, err := os.Open(path)
+	require.NoError(t, err)
+
+	r, close, err := TarGzipReader(file)
+	if err != nil {
+		assert.NoError(t, file.Close())
+		require.NoError(t, err)
+	}
+
+	return r, func(t *testing.T) {
+		t.Helper()
+		assert.NoError(t, close())
 		assert.NoError(t, file.Close())
 	}
 }

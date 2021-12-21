@@ -15,11 +15,11 @@
 package crawler
 
 import (
-	"archive/zip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"time"
 
@@ -77,16 +77,28 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 	identifier := crawl.Log4jIdentifier{
 		ErrorWriter:                        stderr,
 		DetailedOutputWriter:               outputWriter,
-		ZipWalker:                          archive.WalkZipFiles,
-		TarWalker:                          archive.WalkTarFiles,
-		Limiter:                            limiterFromConfig(config.ArchivesCrawledPerSecond),
-		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
-		OpenFileZipReader:                  zip.OpenReader,
-		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
-		ArchiveMaxSize:                     config.ArchiveMaxSize,
 		IdentifyObfuscation:                config.ObfuscatedClassNameAverageLength > 0 && config.ObfuscatedPackageNameAverageLength > 0,
 		ObfuscatedClassNameAverageLength:   float32(config.ObfuscatedClassNameAverageLength),
 		ObfuscatedPackageNameAverageLength: float32(config.ObfuscatedPackageNameAverageLength),
+		Limiter:                            limiterFromConfig(config.ArchivesCrawledPerSecond),
+		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
+		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
+		ArchiveMaxSize:                     config.ArchiveMaxSize,
+		OpenFile:                           os.Open,
+		ParseArchiveFormat:                 archive.ParseArchiveFormatFromFile,
+		ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, bool) {
+			switch formatType {
+			case archive.ZipArchive:
+				return archive.ZipArchiveWalkers(int(config.ArchiveMaxSize)), true
+			case archive.TarArchive:
+				return archive.TarArchiveWalkers(), true
+			case archive.TarGzArchive:
+				return archive.TarGzWalkers(), true
+			case archive.TarBz2Archive:
+				return archive.TarBz2Walkers(), true
+			}
+			return nil, false
+		},
 	}
 	crawler := crawl.Crawler{
 		Limiter:     limiterFromConfig(config.DirectoriesCrawledPerSecond),
