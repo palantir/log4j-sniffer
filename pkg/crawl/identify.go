@@ -141,7 +141,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		reader, err := i.OpenFileZipReader(path)
 		if err != nil {
 			if i.ErrorWriter != nil {
-				_, _ = fmt.Fprintf(i.ErrorWriter, "Error opening zip: %v", err)
+				_, _ = fmt.Fprintf(i.ErrorWriter, "Error opening zip: %v\n", err)
 			}
 			return 0, nil, err
 		}
@@ -154,7 +154,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		inZip, inZipVs, err := i.lookForMatchInZip(ctx, 0, &reader.Reader, obfuscated)
 		if err != nil {
 			if i.ErrorWriter != nil {
-				_, _ = fmt.Fprintf(i.ErrorWriter, "Error scanning zip file: %v", err)
+				_, _ = fmt.Fprintf(i.ErrorWriter, "Error scanning zip file: %v\n", err)
 			}
 			return 0, nil, err
 		}
@@ -210,7 +210,7 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				finding, innerVersions, err := i.lookForMatchInZip(ctx, depth+1, reader, innerObfuscated)
 				if err != nil {
 					if i.ErrorWriter != nil {
-						_, _ = fmt.Fprintf(i.ErrorWriter, "Error scanning zip file: %v", err)
+						_, _ = fmt.Fprintf(i.ErrorWriter, "Error scanning zip file: %v\n", err)
 					}
 					return false, err
 				}

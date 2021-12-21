@@ -94,7 +94,7 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, reporter.Collect)
 	if err != nil {
 		if stderr != nil {
-			_, _ = fmt.Fprintf(stderr, "Error crawling: %v", err)
+			_, _ = fmt.Fprintf(stderr, "Error crawling: %v\n", err)
 		}
 		return 0, err
 	}
