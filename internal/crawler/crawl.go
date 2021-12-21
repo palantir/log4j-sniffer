@@ -58,7 +58,7 @@ type SummaryJSON struct {
 func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64, error) {
 	identifier := crawl.Log4jIdentifier{
 		ZipWalker:          archive.WalkZipFiles,
-		TgzZWalker:         archive.WalkTarGzFiles,
+		TarWalker:          archive.WalkTarFiles,
 		ArchiveWalkTimeout: config.ArchiveListTimeout,
 		OpenFileZipReader:  zip.OpenReader,
 		ArchiveMaxDepth:    config.ArchiveMaxDepth,

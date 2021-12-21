@@ -98,8 +98,14 @@ func TestCrawlBadVersions(t *testing.T) {
 		{
 			name:      "inside a dist",
 			directory: "../../examples/inside_a_dist",
-			count:     2,
+			count:     4,
 			findings: []pathFinding{{
+				path:    "../../examples/inside_a_dist/wrapped_log4j.tar",
+				finding: crawl.JarNameInsideArchive,
+			}, {
+				path:    "../../examples/inside_a_dist/wrapped_log4j.tar.bz2",
+				finding: crawl.JarNameInsideArchive,
+			}, {
 				path:    "../../examples/inside_a_dist/wrapped_log4j.tar.gz",
 				finding: crawl.JarNameInsideArchive,
 			}, {
