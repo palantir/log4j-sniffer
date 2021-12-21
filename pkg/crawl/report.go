@@ -55,8 +55,8 @@ type JavaCVEInstance struct {
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
 func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, result Finding, versionSet Versions) {
-	versions := SortVersions(versionSet)
-	if r.DisableCVE45105 && Cve45105VersionsOnly(versions) {
+	versions := sortVersions(versionSet)
+	if r.DisableCVE45105 && cve45105VersionsOnly(versions) {
 		return
 	}
 	r.count++
@@ -119,7 +119,7 @@ func (r *Reporter) buildCVEMessage(versions []string, path string) string {
 	if r.DisableCVE45105 {
 		return fmt.Sprintf("CVE-2021-45046 detected in file %s.", path)
 	}
-	if Cve45105VersionsOnly(versions) {
+	if cve45105VersionsOnly(versions) {
 		return fmt.Sprintf("CVE-2021-45105 detected in file %s.", path)
 	}
 	return fmt.Sprintf("CVE-2021-45046 and CVE-2021-45105 detected in file %s.", path)
@@ -129,13 +129,13 @@ func (r *Reporter) buildCVEDockerMessage(versions []string, path string) string 
 	if r.DisableCVE45105 {
 		return fmt.Sprintf("CVE-2021-45046 detected in image %s %s at %s.", r.imageID, r.imageTags, path)
 	}
-	if Cve45105VersionsOnly(versions) {
+	if cve45105VersionsOnly(versions) {
 		return fmt.Sprintf("CVE-2021-45105 detected in image %s %s at %s.", r.imageID, r.imageTags, path)
 	}
 	return fmt.Sprintf("CVE-2021-45046 and CVE-2021-45105 detected in image %s %s at %s.", r.imageID, r.imageTags, path)
 }
 
-func Cve45105VersionsOnly(versions []string) bool {
+func cve45105VersionsOnly(versions []string) bool {
 	if len(versions) == 1 && (versions[0] == "2.16.0" || versions[0] == "2.12.2") {
 		return true
 	}
@@ -145,7 +145,7 @@ func Cve45105VersionsOnly(versions []string) bool {
 	return false
 }
 
-func SortVersions(versions Versions) []string {
+func sortVersions(versions Versions) []string {
 	var out []string
 	for v := range versions {
 		out = append(out, v)
