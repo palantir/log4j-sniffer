@@ -43,6 +43,7 @@ const (
 	JarName                        Finding = 1 << iota
 	JarNameInsideArchive           Finding = 1 << iota
 	JndiManagerClassPackageAndName Finding = 1 << iota
+	JarFileObfuscated              Finding = 1 << iota
 	ClassBytecodePartialMatch      Finding = 1 << iota
 	ClassBytecodeInstructionMd5    Finding = 1 << iota
 	ClassFileMd5                   Finding = 1 << iota
@@ -67,6 +68,18 @@ func (f Finding) String() string {
 	}
 	if f&JndiManagerClassPackageAndName > 0 {
 		out = append(out, "JndiManagerClassPackageAndName")
+	}
+	if f&JarFileObfuscated > 0 {
+		out = append(out, "JarFileObfuscated")
+	}
+	if f&ClassBytecodePartialMatch > 0 {
+		out = append(out, "ClassBytecodePartialMatch")
+	}
+	if f&ClassBytecodeInstructionMd5 > 0 {
+		out = append(out, "ClassBytecodeInstructionMd5")
+	}
+	if f&ClassFileMd5 > 0 {
+		out = append(out, "ClassFileMd5")
 	}
 	return strings.Join(out, ",")
 }
@@ -153,7 +166,11 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		if match && len(versions) == 0 {
 			return NothingDetected, nil, nil
 		}
-		result |= inZip
+		if inZip != NothingDetected && !obfuscated {
+			result |= inZip
+		} else if inZip != NothingDetected {
+			result |= JarFileObfuscated | inZip
+		}
 		if result != NothingDetected && len(versions) == 0 {
 			versions[UnknownVersion] = struct{}{}
 		}
@@ -197,7 +214,11 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 					}
 					return false, err
 				}
-				archiveResult = finding | archiveResult
+				if finding != NothingDetected && !innerObfuscated {
+					archiveResult = finding | archiveResult
+				} else if finding != NothingDetected {
+					archiveResult = JarFileObfuscated | finding | archiveResult
+				}
 				for vv := range innerVersions {
 					versions[vv] = struct{}{}
 				}

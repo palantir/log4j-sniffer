@@ -46,6 +46,7 @@ type JavaCVEInstance struct {
 	JndiClassPackageAndNameMatch         bool     `json:"jndiManagerClassPackageAndNameMatch"`
 	ClassFileMD5Matched                  bool     `json:"classFileMd5Matched"`
 	ByteCodeInstructionMD5Matched        bool     `json:"bytecodeInstructionMd5Matched"`
+	ObfuscatedClass                      bool     `json:"obfuscatedClass"`
 	ByteCodePartialMatch                 bool     `json:"bytecodePartialMatch"`
 	JarNameMatched                       bool     `json:"jarNameMatched"`
 	JarNameInsideArchiveMatched          bool     `json:"jarNameInsideArchiveMatched"`
@@ -80,6 +81,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		JndiClassPackageAndNameMatch:         result&JndiManagerClassPackageAndName > 0,
 		ClassFileMD5Matched:                  result&ClassFileMd5 > 0,
 		ByteCodeInstructionMD5Matched:        result&ClassBytecodeInstructionMd5 > 0,
+		ObfuscatedClass:                      result&JarFileObfuscated > 0,
 		ByteCodePartialMatch:                 result&ClassBytecodePartialMatch > 0,
 		Log4JVersions:                        versions,
 	}
@@ -114,6 +116,9 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		}
 		if cveInfo.ByteCodeInstructionMD5Matched {
 			reasons = append(reasons, "byte code instruction MD5 matched")
+		}
+		if cveInfo.ObfuscatedClass {
+			reasons = append(reasons, "jar file appeared obfuscated")
 		}
 		if cveInfo.ByteCodePartialMatch {
 			reasons = append(reasons, "byte code partially matched known version")
