@@ -54,11 +54,8 @@ func NewScannerFromConfig(config Config, outputWriter, errorWriter io.Writer) Sc
 }
 
 func newRateLimiter(limit int) ratelimit.Limiter {
-	var limiter ratelimit.Limiter
 	if limit > 0 {
-		limiter = ratelimit.New(limit)
-	} else {
-		limiter = ratelimit.NewUnlimited()
+		return ratelimit.New(limit)
 	}
-	return limiter
+	return ratelimit.NewUnlimited()
 }
