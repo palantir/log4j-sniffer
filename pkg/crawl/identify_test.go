@@ -32,7 +32,7 @@ import (
 
 func TestTgzIdentifierImplementsTimeout(t *testing.T) {
 	ientifier := crawl.Log4jIdentifier{
-		TgzZWalker: func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+		TarWalker: func(ctx context.Context, path string, getTarReader archive.TarReaderProvider, walkFn archive.FileWalkFn) error {
 			time.Sleep(50 * time.Millisecond)
 			select {
 			case <-ctx.Done():
@@ -311,7 +311,7 @@ func TestIdentifyFromZipContents(t *testing.T) {
 					}
 					return nil
 				},
-				TgzZWalker: func(ctx context.Context, path string, walkFn archive.FileWalkFn) error {
+				TarWalker: func(ctx context.Context, path string, getTarReader archive.TarReaderProvider, walkFn archive.FileWalkFn) error {
 					assert.Equal(t, "/path/on/disk/", path)
 					for _, s := range tc.filesInTar {
 						if _, err := walkFn(ctx, s, 0, bytes.NewReader([]byte{})); err != nil {

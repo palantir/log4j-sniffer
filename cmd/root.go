@@ -38,7 +38,8 @@ func Execute() int {
 		Short: "Filesystem crawler to identify jars and java classes",
 	}
 	rootCmd.AddCommand(crawlCmd())
-	rootCmd.AddCommand(bytecodeCmd())
+	rootCmd.AddCommand(identifyCmd())
+	rootCmd.AddCommand(compareCmd())
 	rootCmd.AddCommand(dockerCmd())
 	rootCmd.PersistentFlags().StringSliceVar(&ignoreDirs, "ignore-dir", nil, `Specify directory pattern to ignore. Use multiple times to supply multiple patterns.
 Patterns should be relative to the provided root.

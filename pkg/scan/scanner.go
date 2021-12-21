@@ -43,7 +43,7 @@ func NewScannerFromConfig(config Config, outputWriter, errorWriter io.Writer) Sc
 		},
 		Identifier: &crawl.Log4jIdentifier{
 			ZipWalker:          archive.WalkZipFiles,
-			TgzZWalker:         archive.WalkTarGzFiles,
+			TarWalker:          archive.WalkTarFiles,
 			ArchiveWalkTimeout: config.ArchiveListTimeout,
 			OpenFileZipReader:  zip.OpenReader,
 			ArchiveMaxDepth:    config.ArchiveMaxDepth,

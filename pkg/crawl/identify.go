@@ -68,11 +68,8 @@ const (
 )
 
 var (
-	log4jRegex    = regexp.MustCompile(`(?i)^log4j-core-(\d+\.\d+(?:\..*)?)\.jar$`)
-	versionRegex  = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:\..*)?$`)
-	zipExtensions = map[string]struct{}{
-		".ear": {}, ".jar": {}, ".par": {}, ".war": {}, ".zip": {},
-	}
+	log4jRegex   = regexp.MustCompile(`(?i)^log4j-core-(\d+\.\d+(?:\..*)?)\.jar$`)
+	versionRegex = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:\..*)?$`)
 	// Generated using log4j-sniffer identify
 	classMd5s = map[string]string{
 		"6b15f42c333ac39abacfeeeb18852a44": "2.1-2.3",
@@ -110,7 +107,7 @@ type Identifier interface {
 type Log4jIdentifier struct {
 	OpenFileZipReader  archive.ZipReadCloserProvider
 	ZipWalker          archive.ZipWalkFn
-	TgzZWalker         archive.WalkFn
+	TarWalker          archive.WalkFn
 	ArchiveWalkTimeout time.Duration
 	ArchiveMaxDepth    uint
 	ArchiveMaxSize     uint
@@ -139,7 +136,12 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	} else {
 		archiveVersion = UnknownVersion
 	}
-	if hasZipFileEnding(lowercaseFilename) {
+	archiveType, ok := archive.ParseArchiveFormatFromFile(lowercaseFilename)
+	if !ok {
+		return NothingDetected, nil, nil
+	}
+	switch archiveType {
+	case archive.ZipArchive:
 		reader, err := i.OpenFileZipReader(path)
 		if err != nil {
 			return 0, nil, err
@@ -154,9 +156,12 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 			versions[v] = struct{}{}
 		}
 		return result | inZip, versions, err
-	}
-	if hasTgzFileEnding(lowercaseFilename) {
-		return i.lookForMatchInTar(ctx, path)
+	case archive.TarGzArchive:
+		return i.lookForMatchInTar(ctx, archive.TarGzipReader, path)
+	case archive.TarBz2Archive:
+		return i.lookForMatchInTar(ctx, archive.TarBzip2Reader, path)
+	case archive.TarArchive:
+		return i.lookForMatchInTar(ctx, archive.TarUncompressedReader, path)
 	}
 	return NothingDetected, nil, nil
 }
@@ -165,7 +170,8 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 	archiveResult := NothingDetected
 	versions := Versions{}
 	err := i.ZipWalker(ctx, r, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
-		if hasZipFileEnding(path) {
+		archiveType, ok := archive.ParseArchiveFormatFromFile(path)
+		if ok && archiveType == archive.ZipArchive {
 			_, filename := filepath.Split(path)
 			archiveVersion, match := fileNameMatchesLog4jVersion(strings.ToLower(filename))
 			if match {
@@ -190,13 +196,18 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 				}
 			}
 		}
-		finding, version, err := lookForMatchInFileInZip(path, size, contents, parentVersion)
-		if err != nil {
-			return false, err
-		}
-		if finding == NothingDetected || !vulnerableVersion(version) {
+		finding, versionInFile, versionMatch := lookForMatchInFileInZip(path, size, contents)
+		if finding == NothingDetected {
 			return true, nil
 		}
+		version := parentVersion
+		if versionMatch {
+			version = versionInFile
+		}
+		if !vulnerableVersion(version) {
+			return true, nil
+		}
+
 		archiveResult = finding | archiveResult
 		versions[version] = struct{}{}
 		return false, nil
@@ -207,33 +218,34 @@ func (i *Log4jIdentifier) lookForMatchInZip(ctx context.Context, depth uint, r *
 	return archiveResult, versions, nil
 }
 
-func lookForMatchInFileInZip(path string, size int64, contents io.Reader, parentVersion string) (Finding, string, error) {
+// boolean returned is whether the version was matched.
+func lookForMatchInFileInZip(path string, size int64, contents io.Reader) (Finding, string, bool) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
 		finding, version, hashMatch := lookForHashMatch(contents, size)
 		if hashMatch {
-			return ClassPackageAndName | finding, version, nil
+			return ClassPackageAndName | finding, version, true
 		}
-		return ClassPackageAndName, parentVersion, nil
+		return ClassPackageAndName, "", false
 	}
 
 	if version, match := pathMatchesLog4JVersion(path); match {
-		return JarNameInsideArchive, version, nil
+		return JarNameInsideArchive, version, true
 	}
 
 	if strings.HasSuffix(path, "JndiManager.class") {
 		finding, version, hashMatch := lookForHashMatch(contents, size)
 		if hashMatch {
-			return ClassName | finding, version, nil
+			return ClassName | finding, version, true
 		}
-		return ClassName, parentVersion, nil
+		return ClassName, "", false
 	}
-	return NothingDetected, parentVersion, nil
+	return NothingDetected, "", false
 }
 
-func (i *Log4jIdentifier) lookForMatchInTar(ctx context.Context, path string) (Finding, Versions, error) {
+func (i *Log4jIdentifier) lookForMatchInTar(ctx context.Context, getTarReader archive.TarReaderProvider, path string) (Finding, Versions, error) {
 	archiveResult := NothingDetected
 	versions := Versions{}
-	if err := i.TgzZWalker(ctx, path, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
+	if err := i.TarWalker(ctx, path, getTarReader, func(ctx context.Context, filename string, size int64, contents io.Reader) (proceed bool, err error) {
 		version, match := pathMatchesLog4JVersion(filename)
 		if !match || !vulnerableVersion(version) {
 			return true, nil
@@ -329,21 +341,4 @@ func bytecodeMd5Version(classContents []byte) (string, bool) {
 	}
 	version, matches := bytecodeMd5s[hash]
 	return version, matches
-}
-
-func hasZipFileEnding(name string) bool {
-	_, ok := zipExtensions[filepath.Ext(name)]
-	return ok
-}
-
-func hasTgzFileEnding(name string) bool {
-	switch lastExt := filepath.Ext(name); lastExt {
-	case ".tgz":
-		return true
-	case ".gz":
-		return strings.HasSuffix(name, ".tar.gz")
-	case ".tar":
-		return true
-	}
-	return false
 }

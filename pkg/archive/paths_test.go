@@ -25,24 +25,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWalkTarGzFiles(t *testing.T) {
+func TestWalkTarFiles(t *testing.T) {
 	t.Run("cancels on context done", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		err := WalkTarGzFiles(ctx, "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
-			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
-				return true, nil
-			})
+		err := WalkTarFiles(ctx, "../../examples/archived_fat_jar/archived_fat_jar.tar.gz", TarGzipReader, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+			return true, nil
+		})
 		require.Equal(t, ctx.Err(), err)
 	})
 
 	t.Run("successfully lists paths", func(t *testing.T) {
 		var paths []string
-		err := WalkTarGzFiles(context.Background(), "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
-			func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
-				paths = append(paths, path)
-				return true, nil
-			})
+		err := WalkTarFiles(context.Background(), "../../examples/archived_fat_jar/archived_fat_jar.tar.gz", TarGzipReader, func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+			paths = append(paths, path)
+			return true, nil
+		})
 		require.NoError(t, err)
 		assert.NotEmpty(t, paths)
 	})

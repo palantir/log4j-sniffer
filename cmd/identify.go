@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func bytecodeCmd() *cobra.Command {
+func identifyCmd() *cobra.Command {
 	var className string
 	cmd := cobra.Command{
 		Use:   "identify <jar>",

@@ -29,8 +29,8 @@
 package java
 
 import (
+	"bytes"
 	md52 "crypto/md5"
-	"errors"
 	"fmt"
 
 	"github.com/zxh0/jvm.go/classfile"
@@ -68,37 +68,47 @@ func HashClassInstructions(classBytes []byte) (string, error) {
 				for i < len(code) {
 					opcode := code[i]
 					h.Write([]byte{opcode})
-
-					// Look in the opcode tables to see how many operands
-					// this opcode takes, and advance to the end which must
-					// be another opcode or the end of the bytecode
-					if opcodes.NoOperandOpcodeLookupTable[opcode] {
-						i++
-					} else if opcodes.SingleOperandOpcodeLookupTable[opcode] {
-						i += 2
-					} else if opcodes.DoubleOperandOpcodeLookupTable[opcode] {
-						i += 3
-					} else if opcodes.QuadOperandOpcodeLookupTable[opcode] {
-						i += 5
-					} else {
-						for _, tripleOpcode := range opcodes.TripleOperandOpcodes {
-							if opcode == tripleOpcode {
-								i += 4
-								continue
-							}
-						}
-						// These opcodes take a variable amount of data and are not used
-						// in log4j. We're ignoring them for now as a result.
-						for _, otherOpcode := range opcodes.OtherOpcodes {
-							if opcode == otherOpcode {
-								return "", errors.New("unsupported opcode type")
-							}
-						}
-						return "", errors.New("unrecognised opcode")
+					operands, err := opcodes.OpcodeOperands(opcode)
+					if err != nil {
+						return "", err
 					}
+					i += operands + 1
 				}
 			}
 		}
 	}
 	return fmt.Sprintf("%x-v0", h.Sum(nil)), nil
+}
+
+func ExtractBytecode(classBytes []byte) ([][]byte, error) {
+	classFile, err := classfile.Parse(classBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	var bytecode [][]byte
+	opcodes := OpcodeLookupTables()
+
+	for _, method := range classFile.Methods {
+		for _, attribute := range method.AttributeTable {
+			switch t := attribute.(type) {
+			default:
+				// ignore
+			case classfile.CodeAttribute:
+				code, i, extracted := t.Code, 0, bytes.Buffer{}
+				for i < len(code) {
+					opcode := code[i]
+					extracted.WriteByte(opcode)
+
+					operands, err := opcodes.OpcodeOperands(opcode)
+					if err != nil {
+						return nil, err
+					}
+					i += operands + 1
+				}
+				bytecode = append(bytecode, extracted.Bytes())
+			}
+		}
+	}
+	return bytecode, nil
 }
