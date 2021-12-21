@@ -17,8 +17,6 @@ package scan
 import (
 	"regexp"
 	"time"
-
-	"github.com/palantir/log4j-sniffer/pkg/crawl"
 )
 
 type Config struct {
@@ -40,9 +38,4 @@ type Config struct {
 	OutputJSON bool
 	// If true, prints summary output after completion.
 	OutputSummary bool
-}
-
-type SummaryJSON struct {
-	crawl.Stats
-	NumImpactedFiles int64 `json:"numImpactedFiles"`
 }

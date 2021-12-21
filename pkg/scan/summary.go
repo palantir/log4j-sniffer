@@ -22,6 +22,11 @@ import (
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
 )
 
+type SummaryJSON struct {
+	crawl.Stats
+	NumImpactedFiles int64 `json:"numImpactedFiles"`
+}
+
 func WriteSummary(w io.Writer, config Config, crawlStats crawl.Stats, count int64) error {
 	cveInfo := "CVE-2021-45046"
 	if !config.DisableCVE45105 {

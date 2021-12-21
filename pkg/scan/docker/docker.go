@@ -112,7 +112,7 @@ func scanImage(ctx context.Context, scanner scan.Scanner, client client.CommonAP
 	}
 
 	// change to the extracted image directory so paths are reported relative to
-	// the root of the container
+	// the root of the image
 	if err := os.Chdir(imageTmpDir); err != nil {
 		return crawl.Stats{}, err
 	}
