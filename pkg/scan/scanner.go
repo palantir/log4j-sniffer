@@ -23,7 +23,6 @@ import (
 )
 
 type Scanner struct {
-	Config Config
 	crawl.Crawler
 	*crawl.Reporter
 	crawl.Identifier
@@ -31,7 +30,6 @@ type Scanner struct {
 
 func NewScannerFromConfig(config Config, outputWriter, errorWriter io.Writer) Scanner {
 	return Scanner{
-		Config: config,
 		Crawler: crawl.Crawler{
 			ErrorWriter: errorWriter,
 			IgnoreDirs:  config.Ignores,
