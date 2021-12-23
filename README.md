@@ -106,8 +106,9 @@ Getting started
 
 1. Type "Command Prompt" into the search bar at the bottom and in the right pane click "Run as administrator".
 2. Navigate to your Downloads folder, e.g. `cd C:\Users\yourname\Downloads`
-3. Run `log4j-sniffer-0.8.0-windows-amd64.exe crawl C:\` to crawl the entire system, substituting the drive of your choice, e.g. `C:\`, `D:\`
-    1. Run `log4j-sniffer-0.8.0-windows-amd64.exe crawl C:\PATH\TO\YOUR\FOLDER` to crawl specific folders
+3. Run tar `-xvzf C:\Users\USERNAMEHERE\Downloads\log4j-sniffer-1.0.0-windows-amd64.tgz -C C:\Users\yourname\Downloads` to convert the linux tgz to exe.
+4. Run `.\log4j-sniffer.exe crawl C:\` to crawl the entire system, substituting the drive of your choice, e.g. `C:\`, `D:\`
+    1. Run `.\log4j-sniffer.exe crawl C:\PATH\TO\YOUR\FOLDER` to crawl specific folders.
 
 Primary Usage
 =============
