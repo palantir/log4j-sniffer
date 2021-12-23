@@ -71,7 +71,7 @@ Getting started
 
 ##### Download the latest version
 
-1. Locate log4j-sniffer/releases (https://github.com/palantir/log4j-sniffer/releases).
+1. Locate [releases] (https://github.com/palantir/log4j-sniffer/releases).
 2. You will need a different asset depending on the generation of your Mac.
     1. Select the asset with “macos-amd” in the file name for older Intel Macs.
     2. Select “macos-arm” for newer m1 Macs
@@ -98,7 +98,7 @@ Getting started
 
 ##### Download the latest version
 
-1. Locate log4j-sniffer/releases (https://github.com/palantir/log4j-sniffer/releases).
+1. Locate [releases] (https://github.com/palantir/log4j-sniffer/releases).
 2. Select the Windows asset.
 3. Confirm that the file is downloading to your “Downloads” folder.
 
