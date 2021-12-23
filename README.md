@@ -71,7 +71,7 @@ Getting started
 
 ##### Download the latest version
 
-1. Locate log4j-sniffer/releases (https://github.com/palantir/log4j-sniffer/releases).
+1. Locate [releases] (https://github.com/palantir/log4j-sniffer/releases).
 2. You will need a different asset depending on the generation of your Mac.
     1. Select the asset with “macos-amd” in the file name for older Intel Macs.
     2. Select “macos-arm” for newer m1 Macs
@@ -98,7 +98,7 @@ Getting started
 
 ##### Download the latest version
 
-1. Locate log4j-sniffer/releases (https://github.com/palantir/log4j-sniffer/releases).
+1. Locate [releases] (https://github.com/palantir/log4j-sniffer/releases).
 2. Select the Windows asset.
 3. Confirm that the file is downloading to your “Downloads” folder.
 
@@ -106,8 +106,9 @@ Getting started
 
 1. Type "Command Prompt" into the search bar at the bottom and in the right pane click "Run as administrator".
 2. Navigate to your Downloads folder, e.g. `cd C:\Users\yourname\Downloads`
-3. Run `log4j-sniffer-0.8.0-windows-amd64.exe crawl C:\` to crawl the entire system, substituting the drive of your choice, e.g. `C:\`, `D:\`
-    1. Run `log4j-sniffer-0.8.0-windows-amd64.exe crawl C:\PATH\TO\YOUR\FOLDER` to crawl specific folders
+3. Run `tar -xvzf C:\Users\USERNAMEHERE\Downloads\log4j-sniffer-1.0.0-windows-amd64.tgz -C C:\Users\USERNAMEHERE\Downloads` to extract the executable.
+4. Run `.\log4j-sniffer.exe crawl C:\` to crawl the entire system, substituting the drive of your choice, e.g. `C:\`, `D:\`
+    1. Run `.\log4j-sniffer.exe crawl C:\PATH\TO\YOUR\FOLDER` to crawl specific folders.
 
 Primary Usage
 =============
