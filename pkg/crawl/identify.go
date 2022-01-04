@@ -22,7 +22,6 @@ import (
 	"io/fs"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -88,10 +87,7 @@ const (
 	UnknownVersion = "unknown"
 )
 
-var (
-	log4jRegex   = regexp.MustCompile(`(?i)^log4j-core-(\d+\.\d+(?:\..*)?)\.jar$`)
-	versionRegex = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:\..*)?$`)
-)
+var log4jRegex = regexp.MustCompile(`(?i)^log4j-core-(\d+\.\d+(?:\..*)?)\.jar$`)
 
 type Identifier interface {
 	Identify(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error)
@@ -370,23 +366,9 @@ func fileNameMatchesLog4jVersion(filename string) (string, bool) {
 }
 
 func vulnerableVersion(version string) bool {
-	matches := versionRegex.FindStringSubmatch(version)
-	if len(matches) == 0 {
+	major, minor, patch, parsed := ParseLog4jVersion(version)
+	if !parsed {
 		return true
 	}
-	major, err := strconv.Atoi(matches[1])
-	if err != nil {
-		// should not be possible due to group of \d+ in regex
-		return false
-	}
-	minor, err := strconv.Atoi(matches[2])
-	if err != nil {
-		// should not be possible due to group of \d+ in regex
-		return true
-	}
-	patch, err := strconv.Atoi(matches[3])
-	if err != nil {
-		patch = 0
-	}
-	return (major == 2 && minor < 17) && !(major == 2 && minor == 12 && patch >= 3)
+	return (major == 2 && minor <= 17) && !(major == 2 && minor == 17 && patch >= 1) && !(major == 2 && minor == 12 && patch >= 4) && !(major == 2 && minor == 3 && patch >= 2)
 }

@@ -20,7 +20,9 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/fatih/color"
@@ -33,8 +35,10 @@ type Reporter struct {
 	OutputJSON bool
 	// Disables results only matching JndiLookup classes
 	DisableFlaggingJndiLookup bool
-	// Disables detection of CVE-45105
+	// Disables detection of CVE-2021-45105
 	DisableCVE45105 bool
+	// Disables detection of CVE-2021-44832
+	DisableCVE44832 bool
 	// Number of issues that have been found
 	count int64
 }
@@ -42,14 +46,113 @@ type Reporter struct {
 type JavaCVEInstance struct {
 	Message       string   `json:"message"`
 	FilePath      string   `json:"filePath"`
+	CVEsDetected  []string `json:"cvesDetected"`
 	Findings      []string `json:"findings"`
 	Log4JVersions []string `json:"log4jVersions"`
+}
+
+var Log4jVersionRegex = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:[\./-].*)?$`)
+
+type Log4jVersion struct {
+	Major int
+	Minor int
+	Patch int
+}
+
+type AffectedVersion struct {
+	CVE             string
+	FixedAfter      Log4jVersion
+	PatchedVersions []Log4jVersion
+}
+
+var cveVersions = []AffectedVersion{
+	{
+		CVE: "CVE-2021-44228",
+		FixedAfter: Log4jVersion{
+			Major: 2,
+			Minor: 16,
+			Patch: 0,
+		},
+		PatchedVersions: []Log4jVersion{
+			{
+				Major: 2,
+				Minor: 12,
+				Patch: 2,
+			},
+			{
+				Major: 2,
+				Minor: 3,
+				Patch: 1,
+			},
+		},
+	},
+	{
+		CVE: "CVE-2021-45046",
+		FixedAfter: Log4jVersion{
+			Major: 2,
+			Minor: 16,
+			Patch: 0,
+		},
+		PatchedVersions: []Log4jVersion{
+			{
+				Major: 2,
+				Minor: 12,
+				Patch: 2,
+			},
+			{
+				Major: 2,
+				Minor: 3,
+				Patch: 1,
+			},
+		},
+	},
+	{
+		CVE: "CVE-2021-45105",
+		FixedAfter: Log4jVersion{
+			Major: 2,
+			Minor: 17,
+			Patch: 0,
+		},
+		PatchedVersions: []Log4jVersion{
+			{
+				Major: 2,
+				Minor: 12,
+				Patch: 3,
+			},
+			{
+				Major: 2,
+				Minor: 3,
+				Patch: 1,
+			},
+		},
+	},
+	{
+		CVE: "CVE-2021-44832",
+		FixedAfter: Log4jVersion{
+			Major: 2,
+			Minor: 17,
+			Patch: 1,
+		},
+		PatchedVersions: []Log4jVersion{
+			{
+				Major: 2,
+				Minor: 12,
+				Patch: 4,
+			},
+			{
+				Major: 2,
+				Minor: 3,
+				Patch: 2,
+			},
+		},
+	},
 }
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
 func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, result Finding, versionSet Versions) {
 	versions := sortVersions(versionSet)
-	if r.DisableCVE45105 && cve45105VersionsOnly(versions) {
+	cvesFound := r.matchedCVEs(versions)
+	if len(cvesFound) == 0 {
 		return
 	}
 	if r.DisableFlaggingJndiLookup && jndiLookupResultsOnly(result) {
@@ -62,7 +165,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		return
 	}
 
-	cveMessage := r.buildCVEMessage(versions)
+	cveMessage := strings.Join(cvesFound, ", ") + " detected"
 
 	var readableReasons []string
 	var findingNames []string
@@ -111,6 +214,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		cveInfo := JavaCVEInstance{
 			Message:       cveMessage,
 			FilePath:      path,
+			CVEsDetected:  cvesFound,
 			Findings:      findingNames,
 			Log4JVersions: versions,
 		}
@@ -122,24 +226,37 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 	}
 }
 
-func (r *Reporter) buildCVEMessage(versions []string) string {
-	if r.DisableCVE45105 {
-		return "CVE-2021-45046 detected"
+func (r *Reporter) matchedCVEs(versions []string) []string {
+	if len(versions) == 0 {
+		return []string{"unknown version - unknown CVE status"}
 	}
-	if cve45105VersionsOnly(versions) {
-		return "CVE-2021-45105 detected"
+	cvesFound := make(map[string]struct{})
+	for _, version := range versions {
+		major, minor, patch, parsed := ParseLog4jVersion(version)
+		if !parsed {
+			cvesFound["unknown version - unknown CVE status"] = struct{}{}
+		}
+		for _, vulnerability := range cveVersions {
+			if major >= vulnerability.FixedAfter.Major && minor >= vulnerability.FixedAfter.Minor && patch >= vulnerability.FixedAfter.Patch {
+				continue
+			}
+			vulnerable := true
+			for _, fixedVersion := range vulnerability.PatchedVersions {
+				if major == fixedVersion.Major && minor == fixedVersion.Minor && patch >= fixedVersion.Patch {
+					vulnerable = false
+					break
+				}
+			}
+			if vulnerable && !(r.DisableCVE45105 && vulnerability.CVE == "CVE-2021-45105") && !(r.DisableCVE44832 && vulnerability.CVE == "CVE-2021-44832") {
+				cvesFound[vulnerability.CVE] = struct{}{}
+			}
+		}
 	}
-	return "CVE-2021-45046 and CVE-2021-45105 detected"
-}
-
-func cve45105VersionsOnly(versions []string) bool {
-	if len(versions) == 1 && (versions[0] == "2.16.0" || versions[0] == "2.12.2") {
-		return true
+	var uniqueCVEs []string
+	for cve := range cvesFound {
+		uniqueCVEs = append(uniqueCVEs, cve)
 	}
-	if len(versions) == 2 && versions[0] == "2.12.2" && versions[1] == "2.16.0" {
-		return true
-	}
-	return false
+	return uniqueCVEs
 }
 
 func jndiLookupResultsOnly(result Finding) bool {
@@ -159,4 +276,26 @@ func sortVersions(versions Versions) []string {
 // Count returns the number of times that Collect has been called
 func (r Reporter) Count() int64 {
 	return r.count
+}
+
+func ParseLog4jVersion(version string) (int, int, int, bool) {
+	matches := Log4jVersionRegex.FindStringSubmatch(version)
+	if len(matches) == 0 {
+		return 0, 0, 0, false
+	}
+	major, err := strconv.Atoi(matches[1])
+	if err != nil {
+		// should not be possible due to group of \d+ in regex
+		return 0, 0, 0, false
+	}
+	minor, err := strconv.Atoi(matches[2])
+	if err != nil {
+		// should not be possible due to group of \d+ in regex
+		return 0, 0, 0, false
+	}
+	patch, err := strconv.Atoi(matches[3])
+	if err != nil {
+		patch = 0
+	}
+	return major, minor, patch, true
 }

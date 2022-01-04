@@ -175,7 +175,7 @@ func TestIdentifyFromFileName(t *testing.T) {
 		in:   "log4j-core-2.10.0.png",
 	}, {
 		name: "log4j patched version",
-		in:   "log4j-core-2.17.0.jar",
+		in:   "log4j-core-2.17.1.jar",
 	}, {
 		name:    "log4j major minor vulnerable version",
 		in:      "log4j-core-2.15.jar",
@@ -274,7 +274,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 		version:        "2.14.1",
 	}, {
 		name:           "fixed log4j version with JndiManager class",
-		filename:       "log4j-core-2.17.0.jar",
+		filename:       "log4j-core-2.17.1.jar",
 		filesInArchive: []string{"org/apache/logging/log4j/core/net/JndiManager.class"},
 		result:         crawl.NothingDetected,
 	}, {

@@ -8,7 +8,7 @@ log4j-sniffer
 log4j-sniffer crawls for all instances of log4j that are earlier than version 2.16 on disk within a specified directory.
 It can be used to determine whether there are any vulnerable instances of log4j within a directory tree.
 
-Scanning for CVE-2021-45046 and CVE-2021-45105 is currently supported.
+Scanning for versions affected by CVE-2021-44228, CVE-2021-45046, CVE-2021-45105 and CVE-2021-44832 is currently supported.
 
 What this does
 ==============
@@ -59,8 +59,8 @@ Output for vulnerable files looks as follows:
 [INFO] Found archive with name matching vulnerable log4j-core format at examples/single_bad_version/log4j-core-2.14.1.jar
 [INFO] Found JndiManager class that was an exact md5 match for a known version at org/apache/logging/log4j/core/net/JndiManager.class
 [INFO] Found JndiLookup class in the log4j package at org/apache/logging/log4j/core/lookup/JndiLookup.class
-[MATCH] CVE-2021-45046 and CVE-2021-45105 detected in file examples/single_bad_version/log4j-core-2.14.1.jar. log4j versions: 2.14.0-2.14.1, 2.14.1. Reasons: JndiLookup class and package name matched, jar name matched, JndiManager class and package name matched, class file MD5 matched
-Files affected by CVE-2021-45046 or CVE-2021-45105 detected: 1 file(s) impacted by CVE-2021-45046 or CVE-2021-45105
+[MATCH] CVE-2021-44228, CVE-2021-45046, CVE-2021-45105, CVE-2021-44832 detected in file examples/single_bad_version/log4j-core-2.14.1.jar. log4j versions: 2.14.0-2.14.1, 2.14.1. Reasons: JndiLookup class and package name matched, jar name matched, JndiManager class and package name matched, class file MD5 matched
+Files affected by CVE-2021-44228 or CVE-2021-45046 or CVE-2021-45105 or CVE-2021-44832 detected: 1 file(s)
 1 total files scanned, skipped 0 paths due to permission denied errors, encountered 0 errors processing paths
 ```
 
@@ -129,13 +129,14 @@ a line of JSON.
 Here is an example of the output with `--json`:
 
 ```
-{"message":"CVE-2021-45046 and CVE-2021-45105 detected","filePath":"examples/single_bad_version/log4j-core-2.14.1.jar","findings":["jndiLookupClassPackageAndName","jarName","jndiManagerClassPackageAndName","classFileMd5"],"log4jVersions":["2.14.0-2.14.1","2.14.1"]}
+{"message":"CVE-2021-44832, CVE-2021-44228, CVE-2021-45046, CVE-2021-45105 detected","filePath":"examples/single_bad_version/log4j-core-2.14.1.jar","cvesDetected":["CVE-2021-44832","CVE-2021-44228","CVE-2021-45046","CVE-2021-45105"],"findings":["jndiLookupClassPackageAndName","jarName","jndiManagerClassPackageAndName","classFileMd5"],"log4jVersions":["2.14.0-2.14.1","2.14.1"]}
 {"filesScanned":1,"permissionDeniedErrors":0,"pathErrors":0,"numImpactedFiles":1}
 ```
 
 The JSON fields have the following meaning:
 - message: information about the output
-- filePath: the path to the file in which the vulnerability was detected 
+- filePath: the path to the file in which the vulnerability was detected
+- cvesDetected: CVEs matched against the version found
 - log4jVersions: the versions detected at this location based on all applied detections, note that some detections are more accurate than others and so a range of versions might be reported
 
 The findings array reports the following possible values:
@@ -242,6 +243,7 @@ Usage:
 Flags:
       --archives-per-second-rate-limit int                      The maximum number of archives to scan per second. 0 for unlimited.
       --directories-per-second-rate-limit int                   The maximum number of directories to crawl per second. 0 for unlimited.
+      --disable-cve-2021-44832-detection                        Disable detection of CVE-2021-44832 in versions up to 2.17.0
       --disable-cve-2021-45105-detection                        Disable detection of CVE-2021-45105 in versions up to 2.16.0
       --disable-detailed-findings                               Do not print out detailed finding information when not outputting in JSON.
       --disable-flagging-jndi-lookup                            Do not report results that only match on the presence of a JndiLookup class.
@@ -287,9 +289,9 @@ The heuristic used is that both the average package name length and class name l
 
 If you wish to turn off obfuscation detection entirely then `--enable-obfuscation-detection` can be used. If instead you wish to apply partial matching to all Jars, regardless of whether they appear obfuscated, then you can use `--enable-partial-matching-on-all-classes`.
 
-#### CVE-2021-45105
+#### CVE-2021-45105 and CVE-2021-44832
 
-If you do not wish to report results for CVE-2021-45105 then pass the `--disable-cve-2021-45105-detection` flag to the crawl command.
+If you do not wish to report results for CVE-2021-45105 or CVE-2021-44832 then pass the `--disable-cve-2021-45105-detection` or `--disable-cve-2021-44832-detection` flags to the crawl command.
 
 By default, both CVE-2021-45046 and CVE-2021-45105 will be reported.
 
