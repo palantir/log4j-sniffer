@@ -234,7 +234,7 @@ func (r *Reporter) matchedCVEs(versions []string) []string {
 	for _, version := range versions {
 		major, minor, patch, parsed := ParseLog4jVersion(version)
 		if !parsed {
-			cvesFound["unknown version - unknown CVE status"] = struct{}{}
+			cvesFound["invalid version - unknown CVE status"] = struct{}{}
 		}
 		for _, vulnerability := range cveVersions {
 			if major >= vulnerability.FixedAfter.Major && minor >= vulnerability.FixedAfter.Minor && patch >= vulnerability.FixedAfter.Patch {
@@ -256,6 +256,7 @@ func (r *Reporter) matchedCVEs(versions []string) []string {
 	for cve := range cvesFound {
 		uniqueCVEs = append(uniqueCVEs, cve)
 	}
+	sort.Strings(uniqueCVEs)
 	return uniqueCVEs
 }
 
