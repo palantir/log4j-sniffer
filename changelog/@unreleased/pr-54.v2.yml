@@ -1,0 +1,6 @@
+type: feature
+feature:
+  description: Add support for new versions introduced to address CVE-2021-44832 and
+    report all relevant CVEs across the full version range supported.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/54

@@ -52,8 +52,10 @@ type Config struct {
 	PrintDetailedOutput bool
 	// If true, doesn't flag on Jars which only contain JndiLookup classes and do not meet any other criteria for Log4j presence.
 	DisableFlaggingJndiLookup bool
-	// If true, disables detection of CVE-45105
+	// If true, disables detection of CVE-2021-45105
 	DisableCVE45105 bool
+	// If true, disables detection of CVE-2021-44832
+	DisableCVE44832 bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.
 	Ignores []*regexp.Regexp
 	// If true, causes all output to be in JSON format (one JSON object per line).
@@ -109,6 +111,7 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		OutputJSON:      config.OutputJSON,
 		OutputWriter:    stdout,
 		DisableCVE45105: config.DisableCVE45105,
+		DisableCVE44832: config.DisableCVE44832,
 	}
 
 	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, reporter.Collect)
@@ -121,9 +124,12 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 
 	count := reporter.Count()
 	if config.OutputSummary {
-		cveInfo := "CVE-2021-45046"
+		cveInfo := "CVE-2021-44228 or CVE-2021-45046"
 		if !config.DisableCVE45105 {
 			cveInfo += " or CVE-2021-45105"
+		}
+		if !config.DisableCVE44832 {
+			cveInfo += " or CVE-2021-44832"
 		}
 
 		var output string
@@ -138,7 +144,7 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 			output = string(jsonBytes)
 		} else {
 			if count > 0 {
-				output = color.RedString("Files affected by %s detected: %d file(s) impacted by %s", cveInfo, count, cveInfo)
+				output = color.RedString("Files affected by %s detected: %d file(s)", cveInfo, count)
 			} else {
 				output = color.GreenString("No files affected by %s detected", cveInfo)
 			}

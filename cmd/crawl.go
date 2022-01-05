@@ -38,6 +38,7 @@ func crawlCmd() *cobra.Command {
 		enablePartialMatchingOnAllClasses  bool
 		disableDetailedFindings            bool
 		disableCVE45105                    bool
+		disableCVE44832                    bool
 		disableFlaggingJndiLookup          bool
 		outputJSON                         bool
 		outputSummary                      bool
@@ -81,6 +82,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				PrintDetailedOutput:                !disableDetailedFindings && !outputJSON,
 				DisableFlaggingJndiLookup:          disableFlaggingJndiLookup,
 				DisableCVE45105:                    disableCVE45105,
+				DisableCVE44832:                    disableCVE44832,
 				Ignores:                            ignores,
 				OutputJSON:                         outputJSON,
 				OutputSummary:                      outputSummary,
@@ -109,6 +111,7 @@ A max depth of 0 will open up an archive on the filesystem but not any nested ar
 	cmd.Flags().BoolVar(&disableFlaggingJndiLookup, "disable-flagging-jndi-lookup", false, `Do not report results that only match on the presence of a JndiLookup class.
 Even when disabled results which match other criteria will still report the presence of JndiLookup if relevant.`)
 	cmd.Flags().BoolVar(&disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
+	cmd.Flags().BoolVar(&disableCVE44832, "disable-cve-2021-44832-detection", false, `Disable detection of CVE-2021-44832 in versions up to 2.17.0`)
 	cmd.Flags().BoolVar(&outputJSON, "json", false, "If true, output will be in JSON format")
 	cmd.Flags().BoolVar(&outputSummary, "summary", true, "If true, outputs a summary of all operations once program completes")
 	return &cmd
