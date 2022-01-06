@@ -91,3 +91,13 @@ func TestFilePathOnlyOutput(t *testing.T) {
 	r.Collect(context.Background(), "test-name.jar", stubDirEntry{name: "test-name"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
 	assert.Equal(t, "test-name.jar\n", buf.String())
 }
+
+func TestDisableFlaggingUnknownVersions(t *testing.T) {
+	buf := &bytes.Buffer{}
+	r := crawl.Reporter{
+		OutputWriter:                   buf,
+		DisableFlaggingUnknownVersions: true,
+	}
+	r.Collect(context.Background(), "test-name.jar", stubDirEntry{name: "test-name"}, crawl.JarName, crawl.Versions{crawl.UnknownVersion: {}})
+	assert.Equal(t, "", buf.String())
+}
