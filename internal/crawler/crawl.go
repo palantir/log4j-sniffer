@@ -110,11 +110,12 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		IgnoreDirs:  config.Ignores,
 	}
 	reporter := crawl.Reporter{
-		OutputJSON:         config.OutputJSON,
-		OutputFilePathOnly: config.OutputFilePathOnly,
-		OutputWriter:       stdout,
-		DisableCVE45105:    config.DisableCVE45105,
-		DisableCVE44832:    config.DisableCVE44832,
+		OutputJSON:                config.OutputJSON,
+		OutputFilePathOnly:        config.OutputFilePathOnly,
+		OutputWriter:              stdout,
+		DisableCVE45105:           config.DisableCVE45105,
+		DisableCVE44832:           config.DisableCVE44832,
+		DisableFlaggingJndiLookup: config.DisableFlaggingJndiLookup,
 	}
 
 	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, reporter.Collect)

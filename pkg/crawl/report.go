@@ -172,11 +172,11 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 
 	var readableReasons []string
 	var findingNames []string
-	if result&JndiLookupClassName > 0 {
+	if result&JndiLookupClassName > 0 && !r.DisableFlaggingJndiLookup {
 		readableReasons = append(readableReasons, "JndiLookup class name matched")
 		findingNames = append(findingNames, "jndiLookupClassName")
 	}
-	if result&JndiLookupClassPackageAndName > 0 {
+	if result&JndiLookupClassPackageAndName > 0 && !r.DisableFlaggingJndiLookup {
 		readableReasons = append(readableReasons, "JndiLookup class and package name matched")
 		findingNames = append(findingNames, "jndiLookupClassPackageAndName")
 	}

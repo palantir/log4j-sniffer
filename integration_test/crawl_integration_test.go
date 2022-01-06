@@ -15,6 +15,7 @@
 package integration_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"testing"
@@ -119,6 +120,32 @@ func TestCve45105Flag(t *testing.T) {
 				assert.Contains(t, got, "Files affected by CVE-2021-44228 or CVE-2021-45046 or CVE-2021-45105 or CVE-2021-44832 detected")
 				assert.NotContains(t, got, "No files affected by CVE-2021-44228 or CVE-2021-45046 or CVE-2021-45105 or CVE-2021-44832 detected")
 			}
+		})
+	}
+}
+
+func TestDisableJNDILookupFlag(t *testing.T) {
+	cli, err := products.Bin("log4j-sniffer")
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name      string
+		directory string
+		count     int
+		finding   crawl.Finding
+	}{
+		{name: "issue not reported if --disable-jndi-lookup flag is specified", directory: "../examples/light_shading"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := exec.Command(cli, "crawl", "--json", "--disable-flagging-jndi-lookup", "--summary=false", tc.directory)
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
+
+			var cve crawl.JavaCVEInstance
+			err = json.Unmarshal(output, &cve)
+			require.NoError(t, err, "Failed to unmarshal as JSON: %q", string(output))
+
+			assert.NotContains(t, cve.Findings, "jndiLookupClassName")
 		})
 	}
 }
