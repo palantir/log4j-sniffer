@@ -42,6 +42,8 @@ type Reporter struct {
 	DisableCVE45105 bool
 	// Disables detection of CVE-2021-44832
 	DisableCVE44832 bool
+	// Disables flagging issues where version of log4j is not known
+	DisableFlaggingUnknownVersions bool
 	// Number of issues that have been found
 	count int64
 }
@@ -154,6 +156,9 @@ var cveVersions = []AffectedVersion{
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
 func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, result Finding, versionSet Versions) {
 	versions := sortVersions(versionSet)
+	if r.DisableFlaggingUnknownVersions && (len(versions) == 0 || len(versions) == 1 && versions[0] == UnknownVersion) {
+		return
+	}
 	cvesFound := r.matchedCVEs(versions)
 	if len(cvesFound) == 0 {
 		return

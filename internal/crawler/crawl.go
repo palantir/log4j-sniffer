@@ -56,6 +56,8 @@ type Config struct {
 	DisableCVE45105 bool
 	// If true, disables detection of CVE-2021-44832
 	DisableCVE44832 bool
+	// If true, does not report CVE unless the version of log4j can be determined
+	DisableUnknownVersions bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.
 	Ignores []*regexp.Regexp
 	// If true, causes all output to be in JSON format (one JSON object per line).
@@ -110,12 +112,13 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		IgnoreDirs:  config.Ignores,
 	}
 	reporter := crawl.Reporter{
-		OutputJSON:                config.OutputJSON,
-		OutputFilePathOnly:        config.OutputFilePathOnly,
-		OutputWriter:              stdout,
-		DisableCVE45105:           config.DisableCVE45105,
-		DisableCVE44832:           config.DisableCVE44832,
-		DisableFlaggingJndiLookup: config.DisableFlaggingJndiLookup,
+		OutputJSON:                     config.OutputJSON,
+		OutputFilePathOnly:             config.OutputFilePathOnly,
+		OutputWriter:                   stdout,
+		DisableCVE45105:                config.DisableCVE45105,
+		DisableCVE44832:                config.DisableCVE44832,
+		DisableFlaggingJndiLookup:      config.DisableFlaggingJndiLookup,
+		DisableFlaggingUnknownVersions: config.DisableUnknownVersions,
 	}
 
 	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, reporter.Collect)

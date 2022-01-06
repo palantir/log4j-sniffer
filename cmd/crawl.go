@@ -41,6 +41,7 @@ func crawlCmd() *cobra.Command {
 		disableCVE45105                    bool
 		disableCVE44832                    bool
 		disableFlaggingJndiLookup          bool
+		disableUnknownVersions             bool
 		outputJSON                         bool
 		outputFilePathOnly                 bool
 		outputSummary                      bool
@@ -89,6 +90,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				DisableFlaggingJndiLookup:          disableFlaggingJndiLookup,
 				DisableCVE45105:                    disableCVE45105,
 				DisableCVE44832:                    disableCVE44832,
+				DisableUnknownVersions:             disableUnknownVersions,
 				Ignores:                            ignores,
 				OutputJSON:                         outputJSON,
 				OutputFilePathOnly:                 outputFilePathOnly,
@@ -119,6 +121,7 @@ A max depth of 0 will open up an archive on the filesystem but not any nested ar
 Even when disabled results which match other criteria will still report the presence of JndiLookup if relevant.`)
 	cmd.Flags().BoolVar(&disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
 	cmd.Flags().BoolVar(&disableCVE44832, "disable-cve-2021-44832-detection", false, `Disable detection of CVE-2021-44832 in versions up to 2.17.0`)
+	cmd.Flags().BoolVar(&disableUnknownVersions, "disable-unknown-versions", false, `Only output issues if the version of log4j can be determined (note that this will cause certain detection mechanisms to be skipped)`)
 	cmd.Flags().BoolVar(&outputJSON, "json", false, "If true, output will be in JSON format")
 	cmd.Flags().BoolVar(&outputFilePathOnly, "file-path-only", false, "If true, output will consist of only paths to the files in which CVEs are detected")
 	cmd.Flags().BoolVar(&outputSummary, "summary", true, "If true, outputs a summary of all operations once program completes")

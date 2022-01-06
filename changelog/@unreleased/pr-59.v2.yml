@@ -1,0 +1,9 @@
+type: improvement
+improvement:
+  description: |-
+    Add "--disable-unknown-versions" flag
+
+    Adds flag for "crawl" operation that does not output any CVEs
+    for which the version cannot be determined.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/59
