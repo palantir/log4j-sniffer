@@ -15,6 +15,7 @@
 package crawl_test
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -60,4 +61,33 @@ func TestJndiLookupOnly(t *testing.T) {
 		r.Collect(context.Background(), "", stubDirEntry{}, crawl.JndiLookupClassPackageAndName, nil)
 		assert.EqualValues(t, 0, r.Count())
 	})
+}
+
+func TestDefaultOutput(t *testing.T) {
+	buf := &bytes.Buffer{}
+	r := crawl.Reporter{
+		OutputWriter: buf,
+	}
+	r.Collect(context.Background(), "test-name.jar", stubDirEntry{name: "test-name"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
+	assert.Equal(t, "[MATCH] CVE-2021-44228, CVE-2021-44832, CVE-2021-45046, CVE-2021-45105 detected in file test-name.jar. log4j versions: 2.15.0. Reasons: jar name matched\n", buf.String())
+}
+
+func TestJSONOutput(t *testing.T) {
+	buf := &bytes.Buffer{}
+	r := crawl.Reporter{
+		OutputWriter: buf,
+		OutputJSON:   true,
+	}
+	r.Collect(context.Background(), "test-name.jar", stubDirEntry{name: "test-name"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
+	assert.Equal(t, "{\"message\":\"CVE-2021-44228, CVE-2021-44832, CVE-2021-45046, CVE-2021-45105 detected\",\"filePath\":\"test-name.jar\",\"cvesDetected\":[\"CVE-2021-44228\",\"CVE-2021-44832\",\"CVE-2021-45046\",\"CVE-2021-45105\"],\"findings\":[\"jarName\"],\"log4jVersions\":[\"2.15.0\"]}\n", buf.String())
+}
+
+func TestFilePathOnlyOutput(t *testing.T) {
+	buf := &bytes.Buffer{}
+	r := crawl.Reporter{
+		OutputWriter:       buf,
+		OutputFilePathOnly: true,
+	}
+	r.Collect(context.Background(), "test-name.jar", stubDirEntry{name: "test-name"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
+	assert.Equal(t, "test-name.jar\n", buf.String())
 }

@@ -60,6 +60,8 @@ type Config struct {
 	Ignores []*regexp.Regexp
 	// If true, causes all output to be in JSON format (one JSON object per line).
 	OutputJSON bool
+	// If true, only prints the file path of files for which the CVE is detected (one per line).
+	OutputFilePathOnly bool
 	// If true, prints summary output after completion.
 	OutputSummary bool
 }
@@ -108,10 +110,11 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		IgnoreDirs:  config.Ignores,
 	}
 	reporter := crawl.Reporter{
-		OutputJSON:      config.OutputJSON,
-		OutputWriter:    stdout,
-		DisableCVE45105: config.DisableCVE45105,
-		DisableCVE44832: config.DisableCVE44832,
+		OutputJSON:         config.OutputJSON,
+		OutputFilePathOnly: config.OutputFilePathOnly,
+		OutputWriter:       stdout,
+		DisableCVE45105:    config.DisableCVE45105,
+		DisableCVE44832:    config.DisableCVE44832,
 	}
 
 	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, reporter.Collect)

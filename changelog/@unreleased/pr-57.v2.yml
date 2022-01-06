@@ -1,0 +1,8 @@
+type: feature
+feature:
+  description: |-
+    Adds "--file-path-only" flag that prints only paths of files with CVEs
+
+    Fixes #55
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/57
