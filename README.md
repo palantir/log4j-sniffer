@@ -247,8 +247,10 @@ Flags:
       --disable-detailed-findings                               Do not print out detailed finding information when not outputting in JSON.
       --disable-flagging-jndi-lookup                            Do not report results that only match on the presence of a JndiLookup class.
                                                                 Even when disabled results which match other criteria will still report the presence of JndiLookup if relevant.
+      --disable-unknown-versions                                Only output issues if the version of log4j can be determined (note that this will cause certain detection mechanisms to be skipped)
       --enable-obfuscation-detection                            Enable applying partial bytecode matching to Jars that appear to be obfuscated. (default true)
       --enable-partial-matching-on-all-classes                  Enable partial bytecode matching to all class files found.
+      --file-path-only                                          If true, output will consist of only paths to the files in which CVEs are detected
   -h, --help                                                    help for crawl
       --ignore-dir strings                                      Specify directory pattern to ignore. Use multiple times to supply multiple patterns.
                                                                 Patterns should be relative to the provided root.
@@ -256,13 +258,13 @@ Flags:
       --json                                                    If true, output will be in JSON format
       --maximum-average-obfuscated-class-name-length uint32     The maximum average class name length for classes within a Jar to be considered obfuscated. (default 3)
       --maximum-average-obfuscated-package-name-length uint32   The maximum average package name length for packages within a Jar to be considered obfuscated. (default 3)
-      --nested-archive-max-depth uint                           The maximum depth to recurse into nested archives. 
+      --nested-archive-max-depth uint                           The maximum depth to recurse into nested archives.
                                                                 A max depth of 0 will open up an archive on the filesystem but not any nested archives.
       --nested-archive-max-size uint                            The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.
                                                                 This limit is made a per-depth level.
-                                                                The overall limit to nested archive size unarchived should be controlled 
+                                                                The overall limit to nested archive size unarchived should be controlled
                                                                 by both the nested-archive-max-size and nested-archive-max-depth. (default 5242880)
-      --per-archive-timeout duration                            If this duration is exceeded when inspecting an archive, 
+      --per-archive-timeout duration                            If this duration is exceeded when inspecting an archive,
                                                                 an error will be logged and the crawler will move onto the next file. (default 15m0s)
       --summary                                                 If true, outputs a summary of all operations once program completes (default true)
 ```
