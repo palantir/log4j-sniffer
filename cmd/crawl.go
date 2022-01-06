@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"time"
@@ -41,6 +42,7 @@ func crawlCmd() *cobra.Command {
 		disableCVE44832                    bool
 		disableFlaggingJndiLookup          bool
 		outputJSON                         bool
+		outputFilePathOnly                 bool
 		outputSummary                      bool
 	)
 
@@ -70,6 +72,10 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				obfuscatedClassNameAverageLength, obfuscatedPackageNameAverageLength = math.MaxInt32, math.MaxInt32
 			}
 
+			if outputJSON && outputFilePathOnly {
+				return fmt.Errorf("--file-path-only cannot be used with --json")
+			}
+
 			_, err := crawler.Crawl(cmd.Context(), crawler.Config{
 				Root:                               args[0],
 				ArchiveListTimeout:                 perArchiveTimeout,
@@ -79,12 +85,13 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				ArchivesCrawledPerSecond:           archivesCrawledPerSecond,
 				ObfuscatedClassNameAverageLength:   obfuscatedClassNameAverageLength,
 				ObfuscatedPackageNameAverageLength: obfuscatedPackageNameAverageLength,
-				PrintDetailedOutput:                !disableDetailedFindings && !outputJSON,
+				PrintDetailedOutput:                !disableDetailedFindings && !outputJSON && !outputFilePathOnly,
 				DisableFlaggingJndiLookup:          disableFlaggingJndiLookup,
 				DisableCVE45105:                    disableCVE45105,
 				DisableCVE44832:                    disableCVE44832,
 				Ignores:                            ignores,
 				OutputJSON:                         outputJSON,
+				OutputFilePathOnly:                 outputFilePathOnly,
 				OutputSummary:                      outputSummary,
 			}, cmd.OutOrStdout(), cmd.OutOrStderr())
 			return err
@@ -113,6 +120,7 @@ Even when disabled results which match other criteria will still report the pres
 	cmd.Flags().BoolVar(&disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
 	cmd.Flags().BoolVar(&disableCVE44832, "disable-cve-2021-44832-detection", false, `Disable detection of CVE-2021-44832 in versions up to 2.17.0`)
 	cmd.Flags().BoolVar(&outputJSON, "json", false, "If true, output will be in JSON format")
+	cmd.Flags().BoolVar(&outputFilePathOnly, "file-path-only", false, "If true, output will consist of only paths to the files in which CVEs are detected")
 	cmd.Flags().BoolVar(&outputSummary, "summary", true, "If true, outputs a summary of all operations once program completes")
 	return &cmd
 }

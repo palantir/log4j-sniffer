@@ -33,6 +33,9 @@ type Reporter struct {
 	OutputWriter io.Writer
 	// True if reported output should be JSON, false otherwise
 	OutputJSON bool
+	// True if the reported output should consist of only the path to the file with the CVE, false otherwise. Only has
+	// an effect if OutputJSON is false.
+	OutputFilePathOnly bool
 	// Disables results only matching JndiLookup classes
 	DisableFlaggingJndiLookup bool
 	// Disables detection of CVE-2021-45105
@@ -210,6 +213,7 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		findingNames = append(findingNames, "classBytecodePartialMatch")
 	}
 
+	var outputToWrite string
 	if r.OutputJSON {
 		cveInfo := JavaCVEInstance{
 			Message:       cveMessage,
@@ -220,10 +224,13 @@ func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, resu
 		}
 		// should not fail
 		jsonBytes, _ := json.Marshal(cveInfo)
-		_, _ = fmt.Fprintln(r.OutputWriter, string(jsonBytes))
+		outputToWrite = string(jsonBytes)
+	} else if r.OutputFilePathOnly {
+		outputToWrite = path
 	} else {
-		_, _ = fmt.Fprintln(r.OutputWriter, color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(readableReasons, ", ")))
+		outputToWrite = color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
 	}
+	_, _ = fmt.Fprintln(r.OutputWriter, outputToWrite)
 }
 
 func (r *Reporter) matchedCVEs(versions []string) []string {
