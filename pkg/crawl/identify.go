@@ -28,6 +28,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/java"
+	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
 )
 
@@ -123,7 +124,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	versions = make(Versions)
 	lowercaseFilename := strings.ToLower(d.Name())
 
-	// TODO(glynternet): support checking obfusctating at further nested levels.
+	// TODO(glynternet): support checking obfuscation at further nested levels.
 	var obfuscated bool
 	var log4jMatch bool
 	if strings.HasSuffix(lowercaseFilename, ".jar") {
@@ -172,7 +173,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	}()
 	inZip, inZipVs, err := i.findArchiveVulnerabilities(ctx, 0, walker, obfuscated)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, errors.Wrapf(err, "failed to walk archive %s", file.Name())
 	}
 	for v := range inZipVs {
 		versions[v] = struct{}{}
@@ -223,9 +224,6 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 					err = cErr
 				}
 			}()
-
-			i.printErrorFinding("Error scanning zip file: %v", err)
-			i.printInfoFinding("Found finding in what appeared to be an obfuscated jar at %s", path)
 
 			finding, innerVersions, err := i.findArchiveVulnerabilities(ctx, depth+1, walker, obfuscated)
 			if err != nil {
