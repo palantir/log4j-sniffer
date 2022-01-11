@@ -36,16 +36,18 @@ type Crawler struct {
 
 type Stats struct {
 	// Total number of files scanned.
-	FilesScanned int64 `json:"filesScanned"`
+	FilesScanned uint64 `json:"filesScanned"`
 	// Number of paths that were not considered due to "permission denied" errors
-	PermissionDeniedCount int64 `json:"permissionDeniedErrors"`
+	PermissionDeniedCount uint64 `json:"permissionDeniedErrors"`
 	// Number of paths that were attempted to be processed but encountered errors.
-	PathErrorCount int64 `json:"pathErrors"`
+	PathErrorCount uint64 `json:"pathErrors"`
+	// Number of paths that were skipped due to config/size limits
+	PathSkippedCount uint64 `json:"pathsSkipped"`
 }
 
 // MatchFunc is used to match a file for processing.
 // If returning a positive finding, a file will be passed onto the ProcessFunc.
-type MatchFunc func(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error)
+type MatchFunc func(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, uint64, error)
 
 // ProcessFunc processes the given matched file.
 type ProcessFunc func(ctx context.Context, path string, d fs.DirEntry, result Finding, version Versions)
@@ -89,7 +91,8 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 			return nil
 		}
 		stats.FilesScanned++
-		matched, version, err := match(ctx, path, d)
+		matched, version, skipCount, err := match(ctx, path, d)
+		stats.PathSkippedCount += skipCount
 		if err != nil {
 			stats.PathErrorCount++
 			if c.ErrorWriter != nil {

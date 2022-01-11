@@ -51,10 +51,10 @@ func TestCrawler_Crawl(t *testing.T) {
 				regexp.MustCompile(filepath.Join(root, `foo`)),
 				regexp.MustCompile(filepath.Join(root, `baz`)),
 			},
-		}.Crawl(context.Background(), root, func(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, error) {
+		}.Crawl(context.Background(), root, func(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, uint64, error) {
 			matchPathInputs = append(matchPathInputs, path)
 			matchDirEntryInputs = append(matchDirEntryInputs, d.Name())
-			return JarName, nil, nil
+			return JarName, nil, 0, nil
 		}, func(ctx context.Context, path string, d fs.DirEntry, result Finding, version Versions) {
 			processInputs = append(processInputs, path)
 			processDirEntryInputs = append(processDirEntryInputs, d.Name())
@@ -73,9 +73,9 @@ func TestCrawler_Crawl(t *testing.T) {
 		cancel()
 		_, err := Crawler{
 			Limiter: ratelimit.NewUnlimited(),
-		}.Crawl(ctx, t.TempDir(), func(context.Context, string, fs.DirEntry) (Finding, Versions, error) {
+		}.Crawl(ctx, t.TempDir(), func(context.Context, string, fs.DirEntry) (Finding, Versions, uint64, error) {
 			countMatch++
-			return JarName, nil, nil
+			return JarName, nil, 0, nil
 		}, func(context.Context, string, fs.DirEntry, Finding, Versions) {
 			countProcess++
 		})
@@ -91,9 +91,9 @@ func TestCrawler_Crawl(t *testing.T) {
 		_, err := Crawler{
 			Limiter: ratelimit.NewUnlimited(),
 		}.Crawl(context.Background(), root,
-			func(ctx context.Context, path string, entry fs.DirEntry) (Finding, Versions, error) {
+			func(ctx context.Context, path string, entry fs.DirEntry) (Finding, Versions, uint64, error) {
 				matchInputs = append(matchInputs, path)
-				return NothingDetected, nil, errors.New("")
+				return NothingDetected, nil, 0, errors.New("")
 			}, func(context.Context, string, fs.DirEntry, Finding, Versions) {
 				countProcess++
 			})
@@ -109,9 +109,9 @@ func TestCrawler_Crawl(t *testing.T) {
 		_, err := Crawler{
 			Limiter: ratelimit.NewUnlimited(),
 		}.Crawl(context.Background(), root,
-			func(ctx context.Context, path string, entry fs.DirEntry) (Finding, Versions, error) {
+			func(ctx context.Context, path string, entry fs.DirEntry) (Finding, Versions, uint64, error) {
 				matchInputs = append(matchInputs, path)
-				return NothingDetected, nil, nil
+				return NothingDetected, nil, 0, nil
 			}, func(context.Context, string, fs.DirEntry, Finding, Versions) {
 				countProcess++
 			})
@@ -127,8 +127,8 @@ func TestCrawler_Crawl(t *testing.T) {
 		_, err := Crawler{
 			Limiter: ratelimit.NewUnlimited(),
 		}.Crawl(ctx, root,
-			func(context.Context, string, fs.DirEntry) (Finding, Versions, error) {
-				return JarName, nil, nil
+			func(context.Context, string, fs.DirEntry) (Finding, Versions, uint64, error) {
+				return JarName, nil, 0, nil
 			}, func(innerCtx context.Context, path string, entry fs.DirEntry, result Finding, version Versions) {
 				processInputs = append(processInputs, path)
 				assert.Equal(t, ctx, innerCtx)

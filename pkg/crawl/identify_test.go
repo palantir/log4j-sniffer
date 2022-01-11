@@ -59,7 +59,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			ArchiveWalkTimeout: time.Millisecond,
 			Limiter:            ratelimit.NewUnlimited(),
 		}
-		_, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{
+		_, _, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{
 			name: "bar",
 		})
 		assert.Error(t, err)
@@ -80,7 +80,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			Limiter:            ratelimit.NewUnlimited(),
 			OpenFile:           func(s string) (*os.File, error) { return nil, nil },
 		}
-		_, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{
+		_, _, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{
 			name: "sdlkfjsldkjfs.tar.gz",
 		})
 		assert.Equal(t, expectedErr, err)
@@ -114,7 +114,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			OpenFile:           tempEmptyFile(t),
 		}
 
-		_, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		_, _, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
 		require.NoError(t, err)
 		assert.Equal(t, 1, fileWalkCalls)
 		assert.Equal(t, 0, readerWalkCalls)
@@ -149,7 +149,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			OpenFile:           tempEmptyFile(t),
 		}
 
-		_, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		_, _, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
 		require.NoError(t, err)
 		assert.Equal(t, 1, fileWalkCalls)
 		assert.Equal(t, 3, readerWalkCalls)
@@ -220,7 +220,7 @@ func TestIdentifyFromFileName(t *testing.T) {
 				ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, false },
 			}
 
-			result, version, err := identifier.Identify(context.Background(), "/path/on/disk", stubDirEntry{
+			result, version, _, err := identifier.Identify(context.Background(), "/path/on/disk", stubDirEntry{
 				name: tc.in,
 			})
 			require.NoError(t, err)
@@ -331,7 +331,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 				ArchiveWalkTimeout: time.Second,
 				Limiter:            ratelimit.NewUnlimited(),
 			}
-			result, version, err := identifier.Identify(context.Background(), "/path/on/disk/", stubDirEntry{
+			result, version, _, err := identifier.Identify(context.Background(), "/path/on/disk/", stubDirEntry{
 				name: tc.filename,
 			})
 			require.NoError(t, err)
