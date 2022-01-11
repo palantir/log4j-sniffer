@@ -154,6 +154,19 @@ func TestLog4jIdentifier(t *testing.T) {
 		assert.Equal(t, 1, fileWalkCalls)
 		assert.Equal(t, 3, readerWalkCalls)
 	})
+
+	t.Run("reports unsupported archive types", func(t *testing.T) {
+		identifier := crawl.Log4jIdentifier{
+			ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
+			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
+				return nil, -1, false
+			},
+		}
+		_, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		// Archive types are currently rendered as int, as this is the underlying type of FormatType.
+		// This error should only occur from a regression, so we needn't be too fussed about it right not.
+		require.EqualError(t, err, "archive type unsupported: 0")
+	})
 }
 
 func TestIdentifyFromFileName(t *testing.T) {

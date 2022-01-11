@@ -211,13 +211,13 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 		archiveType, ok := i.ParseArchiveFormat(path)
 		if ok && depth < i.ArchiveMaxDepth {
 			getWalker, maxSize, ok := i.ArchiveWalkers(archiveType)
+			if !ok {
+				return false, fmt.Errorf("archive format unsupported: %d", archiveType)
+			}
+
 			if maxSize > -1 && size >= maxSize {
 				i.printInfoFinding("Skipping nested archive above configured maximum size at %s", path)
 			} else {
-				if !ok {
-					return false, fmt.Errorf("archive format unsupported: %d", archiveType)
-				}
-
 				walker, close, archiveErr := getWalker.FromReader(contents)
 				if archiveErr != nil {
 					return false, archiveErr
