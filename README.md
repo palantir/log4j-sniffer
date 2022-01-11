@@ -146,7 +146,7 @@ The findings array reports the following possible values:
 - jarNameMatched: the file scanned was a .jar file called `log4j-core-<version>.jar`
 - jarNameInsideArchiveMatched: there was a .jar file called `log4j-core-<version>.jar` inside the archive
 - classFileMd5Matched: there was a class file called `JndiManager` that matched the md5 hash of a known version
-- bytecodeInstructionMd5Matched: the bytecode of a class file called `JndiManager` exactly matched a known version, see the [Bytecode matching](#bytecode-matching) section for more details
+- classBytecodeInstructionMd5: the bytecode of a class file called `JndiManager` exactly matched a known version, see the [Bytecode matching](#bytecode-matching) section for more details
 - jarFileObfuscated: the jar the match was found in appeared to be obfuscated
 - classBytecodePartialMatch: the bytecode of a class file called `JndiManager`, or a class within an obfuscated jar, partially matched the bytecode of a known version, see the [Bytecode partial matching](#bytecode-partial-matching) section for more details
 
