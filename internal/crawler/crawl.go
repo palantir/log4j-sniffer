@@ -89,7 +89,7 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		Limiter:                            limiterFromConfig(config.ArchivesCrawledPerSecond),
 		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
 		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
-		ArchiveMaxSize:                     config.ArchiveMaxSize,
+		ArchiveMaxSize:                     int64(config.ArchiveMaxSize),
 		OpenFile:                           os.Open,
 		ParseArchiveFormat:                 archive.ParseArchiveFormatFromFile,
 		ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, bool) {

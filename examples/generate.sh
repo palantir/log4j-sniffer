@@ -35,6 +35,20 @@ cd ../
 
 echo "Done"
 
+echo "Creating nested_very_deep with a bad log4j jar inside two levels of tgz"
+
+mkdir -p nested_very_deep
+rm -f nested_very_deep/*
+
+cd inside_a_dist
+tar -czvf ../nested_very_deep/nested_twice.tar.gz wrapped_log4j.tar.gz
+cd ../nested_very_deep
+tar -czvf nested_thrice.tar.gz nested_twice.tar.gz
+rm nested_twice.tar.gz
+cd ../
+
+echo "Done"
+
 echo "Creating a par with log4j in the lib directory"
 
 mkdir -p inside_a_par
