@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Build binaries for scanning Linux-arm64
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/66
