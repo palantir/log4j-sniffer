@@ -1,0 +1,7 @@
+type: fix
+fix:
+  description: A small logging bug has been fixed where for nested archives, an error
+    log line would be emitted for all results, regardless of whether there was an
+    error or not.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/62
