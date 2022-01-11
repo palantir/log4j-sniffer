@@ -61,7 +61,7 @@ Output for vulnerable files looks as follows:
 [INFO] Found JndiLookup class in the log4j package at org/apache/logging/log4j/core/lookup/JndiLookup.class
 [MATCH] CVE-2021-44228, CVE-2021-45046, CVE-2021-45105, CVE-2021-44832 detected in file examples/single_bad_version/log4j-core-2.14.1.jar. log4j versions: 2.14.0-2.14.1, 2.14.1. Reasons: JndiLookup class and package name matched, jar name matched, JndiManager class and package name matched, class file MD5 matched
 Files affected by CVE-2021-44228 or CVE-2021-45046 or CVE-2021-45105 or CVE-2021-44832 detected: 1 file(s)
-1 total files scanned, skipped 0 paths due to permission denied errors, encountered 0 errors processing paths
+1 total files scanned, skipped identifying 0 files due to config, skipped 0 paths due to permission denied errors, encountered 0 errors processing paths
 ```
 
 Getting started
@@ -129,7 +129,7 @@ Here is an example of the output with `--json`:
 
 ```
 {"message":"CVE-2021-44832, CVE-2021-44228, CVE-2021-45046, CVE-2021-45105 detected","filePath":"examples/single_bad_version/log4j-core-2.14.1.jar","cvesDetected":["CVE-2021-44832","CVE-2021-44228","CVE-2021-45046","CVE-2021-45105"],"findings":["jndiLookupClassPackageAndName","jarName","jndiManagerClassPackageAndName","classFileMd5"],"log4jVersions":["2.14.0-2.14.1","2.14.1"]}
-{"filesScanned":1,"permissionDeniedErrors":0,"pathErrors":0,"numImpactedFiles":1}
+{"filesScanned":1,"permissionDeniedErrors":0,"pathErrors":0,"pathsSkipped":0,"numImpactedFiles":1}
 ```
 
 The JSON fields have the following meaning:
@@ -149,6 +149,13 @@ The findings array reports the following possible values:
 - classBytecodeInstructionMd5: the bytecode of a class file called `JndiManager` exactly matched a known version, see the [Bytecode matching](#bytecode-matching) section for more details
 - jarFileObfuscated: the jar the match was found in appeared to be obfuscated
 - classBytecodePartialMatch: the bytecode of a class file called `JndiManager`, or a class within an obfuscated jar, partially matched the bytecode of a known version, see the [Bytecode partial matching](#bytecode-partial-matching) section for more details
+
+The summary outlines:
+- filesScanned: the total number of files crawled
+- permissionDeniedErrors: the number of directories or files that could not be read due to permissions
+- pathErrors: the number of paths where an unexpected error occurred while trying to identify bad log4j versions
+- pathsSkipped: the numbers of paths skipped from full identification of bad log4j versions due to the config options set
+- numImpactedFiles: the total number of results previously output
 
 Specifying `--summary=false` makes it such that the program does not output a summary line at the end. In this case,
 the program will only print output if vulnerabilities are found.
