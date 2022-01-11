@@ -155,7 +155,7 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 			} else {
 				output = color.GreenString("No files affected by %s detected", cveInfo)
 			}
-			output += color.CyanString("\n%d total files scanned, skipped %d paths due to permission denied errors, encountered %d errors processing paths", crawlStats.FilesScanned, crawlStats.PermissionDeniedCount, crawlStats.PathErrorCount)
+			output += color.CyanString("\n%d total files scanned, skipped identifying %d files due to config, skipped %d paths due to permission denied errors, encountered %d errors processing paths", crawlStats.FilesScanned, crawlStats.PathSkippedCount, crawlStats.PermissionDeniedCount, crawlStats.PathErrorCount)
 		}
 		_, _ = fmt.Fprintln(stdout, output)
 	}

@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Print summary of skipped paths due to config
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/65
