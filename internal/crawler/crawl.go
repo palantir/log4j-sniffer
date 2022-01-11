@@ -92,18 +92,18 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		ArchiveMaxSize:                     int64(config.ArchiveMaxSize),
 		OpenFile:                           os.Open,
 		ParseArchiveFormat:                 archive.ParseArchiveFormatFromFile,
-		ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, bool) {
+		ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
 			switch formatType {
 			case archive.ZipArchive:
-				return archive.ZipArchiveWalkers(int(config.ArchiveMaxSize)), true
+				return archive.ZipArchiveWalkers(int(config.ArchiveMaxSize)), int64(config.ArchiveMaxSize), true
 			case archive.TarArchive:
-				return archive.TarArchiveWalkers(), true
+				return archive.TarArchiveWalkers(), -1, true
 			case archive.TarGzArchive:
-				return archive.TarGzWalkers(), true
+				return archive.TarGzWalkers(), -1, true
 			case archive.TarBz2Archive:
-				return archive.TarBz2Walkers(), true
+				return archive.TarBz2Walkers(), -1, true
 			}
-			return nil, false
+			return nil, -1, false
 		},
 	}
 	crawler := crawl.Crawler{
