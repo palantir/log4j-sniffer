@@ -15,10 +15,10 @@
 package archive
 
 import (
-	"errors"
 	"testing"
 	"testing/iotest"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,6 +26,6 @@ func TestZipReaderFromReader(t *testing.T) {
 	t.Run("errors on ReadAll error", func(t *testing.T) {
 		expectedErr := errors.New("expected")
 		_, err := ZipReaderFromReader(iotest.ErrReader(expectedErr), 0)
-		assert.Equal(t, expectedErr, err)
+		assert.True(t, errors.Is(err, expectedErr))
 	})
 }

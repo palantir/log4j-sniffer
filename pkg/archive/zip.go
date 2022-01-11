@@ -20,17 +20,18 @@ import (
 	"io"
 
 	"github.com/palantir/log4j-sniffer/pkg/buffer"
+	"github.com/pkg/errors"
 )
 
 // ZipReaderFromReader creates a new *zip.Reader from the given io.Reader, r.
 // The full contents of r are read into memory to be able to create an io.ReaderAt
 // and know the size of the buffer for the zip.NewReader function.
-// limit is the maximum number of bytes to read to craete the zip.Reader.
+// limit is the maximum number of bytes to read to create the zip.Reader.
 func ZipReaderFromReader(r io.Reader, limit int) (*zip.Reader, error) {
 	buf := buffer.NewSizeLimitedBuffer(limit)
 	_, err := io.Copy(&buf, r)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to read nested zip file")
 	}
 	reader := bytes.NewReader(buf.Bytes())
 	return zip.NewReader(reader, reader.Size())

@@ -35,12 +35,12 @@ import (
 
 func TestLog4jIdentifier(t *testing.T) {
 	t.Run("implements timeout", func(t *testing.T) {
-		ientifier := crawl.Log4jIdentifier{
+		identifier := crawl.Log4jIdentifier{
 			ParseArchiveFormat: func(s string) (archive.FormatType, bool) {
 				assert.Equal(t, "bar", s)
 				return 99, true
 			},
-			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, bool) {
+			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
 				assert.Equal(t, archive.FormatType(99), formatType)
 				return archive.WalkerProviderFromFuncs(func(f *os.File) (archive.WalkFn, func() error, error) {
 					return func(ctx context.Context, walkFn archive.FileWalkFn) error {
@@ -53,13 +53,13 @@ func TestLog4jIdentifier(t *testing.T) {
 						}
 						return nil
 					}, noopCloser, nil
-				}, nil), true
+				}, nil), -1, true
 			},
 			OpenFile:           tempEmptyFile(t),
 			ArchiveWalkTimeout: time.Millisecond,
 			Limiter:            ratelimit.NewUnlimited(),
 		}
-		_, _, err := ientifier.Identify(context.Background(), "foo", stubDirEntry{
+		_, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{
 			name: "bar",
 		})
 		assert.Error(t, err)
@@ -70,11 +70,11 @@ func TestLog4jIdentifier(t *testing.T) {
 		expectedErr := errors.New("err")
 		identifier := crawl.Log4jIdentifier{
 			ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
-			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, bool) {
+			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
 				return archive.WalkerProviderFromFuncs(func(f *os.File) (archive.WalkFn, func() error, error) {
 					return func(ctx context.Context, walkFn archive.FileWalkFn) error { return nil },
 						func() error { return expectedErr }, nil
-				}, nil), true
+				}, nil), -1, true
 			},
 			ArchiveWalkTimeout: time.Second,
 			Limiter:            ratelimit.NewUnlimited(),
@@ -91,7 +91,7 @@ func TestLog4jIdentifier(t *testing.T) {
 		var readerWalkCalls int
 		identifier := crawl.Log4jIdentifier{
 			ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
-			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, bool) {
+			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
 				return archive.WalkerProviderFromFuncs(
 					func(f *os.File) (archive.WalkFn, func() error, error) {
 						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
@@ -106,7 +106,7 @@ func TestLog4jIdentifier(t *testing.T) {
 							_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
 							return nil
 						}, noopCloser, nil
-					}), true
+					}), -1, true
 			},
 			ArchiveWalkTimeout: time.Second,
 			ArchiveMaxSize:     1024,
@@ -125,7 +125,7 @@ func TestLog4jIdentifier(t *testing.T) {
 		var readerWalkCalls int
 		identifier := crawl.Log4jIdentifier{
 			ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
-			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, bool) {
+			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
 				return archive.WalkerProviderFromFuncs(
 					func(f *os.File) (archive.WalkFn, func() error, error) {
 						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
@@ -140,7 +140,7 @@ func TestLog4jIdentifier(t *testing.T) {
 							_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
 							return nil
 						}, noopCloser, nil
-					}), true
+					}), -1, true
 			},
 			ArchiveWalkTimeout: time.Second,
 			ArchiveMaxSize:     1024,
@@ -302,7 +302,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			identifier := crawl.Log4jIdentifier{
 				ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
-				ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, bool) {
+				ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
 					return archive.WalkerProviderFromFuncs(func(f *os.File) (archive.WalkFn, func() error, error) {
 						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
 							for _, path := range tc.filesInArchive {
@@ -312,7 +312,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 							}
 							return nil
 						}, noopCloser, nil
-					}, nil), true
+					}, nil), -1, true
 				},
 				OpenFile:           tempEmptyFile(t),
 				ArchiveWalkTimeout: time.Second,

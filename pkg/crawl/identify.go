@@ -105,9 +105,9 @@ type Log4jIdentifier struct {
 	OpenFile                           func(string) (*os.File, error)
 	ArchiveWalkTimeout                 time.Duration
 	ArchiveMaxDepth                    uint
-	ArchiveMaxSize                     uint
+	ArchiveMaxSize                     int64
 	ParseArchiveFormat                 func(string) (archive.FormatType, bool)
-	ArchiveWalkers                     func(archive.FormatType) (archive.WalkerProvider, bool)
+	ArchiveWalkers                     func(archive.FormatType) (archive.WalkerProvider, int64, bool)
 }
 
 // Identify identifies vulnerable files.
@@ -147,7 +147,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		return result, versions, nil
 	}
 
-	getWalker, ok := i.ArchiveWalkers(archiveType)
+	getWalker, _, ok := i.ArchiveWalkers(archiveType)
 	if !ok {
 		// TODO(glynternet): Support human-friendly names of archives in errors
 		return NothingDetected, nil, fmt.Errorf("archive type unsupported: %d", archiveType)
@@ -210,28 +210,32 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 	return func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 		archiveType, ok := i.ParseArchiveFormat(path)
 		if ok && depth < i.ArchiveMaxDepth {
-			getWalker, ok := i.ArchiveWalkers(archiveType)
-			if !ok {
-				return false, fmt.Errorf("archive format unsupported: %d", archiveType)
-			}
-
-			walker, close, archiveErr := getWalker.FromReader(contents)
-			if archiveErr != nil {
-				return false, archiveErr
-			}
-			defer func() {
-				if cErr := close(); err == nil {
-					err = cErr
+			getWalker, maxSize, ok := i.ArchiveWalkers(archiveType)
+			if maxSize > -1 && size >= maxSize {
+				i.printInfoFinding("Skipping nested archive above configured maximum size at %s", path)
+			} else {
+				if !ok {
+					return false, fmt.Errorf("archive format unsupported: %d", archiveType)
 				}
-			}()
 
-			finding, innerVersions, err := i.findArchiveVulnerabilities(ctx, depth+1, walker, obfuscated)
-			if err != nil {
-				return false, err
-			}
-			*result |= finding
-			for vv := range innerVersions {
-				versions[vv] = struct{}{}
+				walker, close, archiveErr := getWalker.FromReader(contents)
+				if archiveErr != nil {
+					return false, archiveErr
+				}
+				defer func() {
+					if cErr := close(); err == nil {
+						err = cErr
+					}
+				}()
+
+				finding, innerVersions, err := i.findArchiveVulnerabilities(ctx, depth+1, walker, obfuscated)
+				if err != nil {
+					return false, err
+				}
+				*result |= finding
+				for vv := range innerVersions {
+					versions[vv] = struct{}{}
+				}
 			}
 		}
 		finding, versionInFile, versionMatch := i.lookForMatchInFileInZip(path, size, contents, obfuscated)

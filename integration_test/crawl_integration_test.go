@@ -40,6 +40,7 @@ func TestBadVersions(t *testing.T) {
 		{name: "multiple bad versions", directory: "../examples/multiple_bad_versions", count: 13, finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
 		{name: "inside a dist", directory: "../examples/inside_a_dist", count: 4, finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
 		{name: "inside a par", directory: "../examples/inside_a_par", count: 1, finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
+		{name: "nested twice in tars", directory: "../examples/nested_very_deep", count: 1, finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
 		{name: "fat jar", directory: "../examples/fat_jar", count: 1, finding: crawl.JndiLookupClassPackageAndName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
 		{name: "light shading", directory: "../examples/light_shading", count: 1, finding: crawl.JndiLookupClassName | crawl.JndiManagerClassName | crawl.ClassBytecodeInstructionMd5},
 		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
@@ -47,7 +48,7 @@ func TestBadVersions(t *testing.T) {
 		{name: "obfuscation", directory: "../examples/obfuscated", count: 1, finding: crawl.JarFileObfuscated | crawl.ClassBytecodePartialMatch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := exec.Command(cli, "crawl", tc.directory, `--nested-archive-max-depth`, `2`)
+			cmd := exec.Command(cli, "crawl", tc.directory, `--nested-archive-max-depth`, `3`)
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
 			got := string(output)

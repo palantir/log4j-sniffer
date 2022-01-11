@@ -1,0 +1,5 @@
+type: fix
+fix:
+  description: Do not exit with an error if maximum archive size exceeded
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/64
