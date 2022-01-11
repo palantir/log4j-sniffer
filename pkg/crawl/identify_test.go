@@ -162,7 +162,7 @@ func TestLog4jIdentifier(t *testing.T) {
 				return nil, -1, false
 			},
 		}
-		_, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		_, _, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
 		// Archive types are currently rendered as int, as this is the underlying type of FormatType.
 		// This error should only occur from a regression, so we needn't be too fussed about it right not.
 		require.EqualError(t, err, "archive type unsupported: 0")
