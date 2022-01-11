@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,19 +55,20 @@ func TestLog4jIdentifier(t *testing.T) {
 					}, noopCloser, nil
 				}, nil), true
 			},
-			OpenFile:           func(s string) (*os.File, error) { return nil, nil },
+			OpenFile:           tempEmptyFile(t),
 			ArchiveWalkTimeout: time.Millisecond,
 			Limiter:            ratelimit.NewUnlimited(),
 		}
 		_, _, err := ientifier.Identify(context.Background(), "foo", stubDirEntry{
 			name: "bar",
 		})
-		assert.EqualError(t, err, "context was cancelled")
+		assert.Error(t, err)
+		assert.True(t, strings.HasSuffix(err.Error(), ": context was cancelled"))
 	})
 
 	t.Run("closes and returns close error", func(t *testing.T) {
 		expectedErr := errors.New("err")
-		ientifier := crawl.Log4jIdentifier{
+		identifier := crawl.Log4jIdentifier{
 			ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
 			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, bool) {
 				return archive.WalkerProviderFromFuncs(func(f *os.File) (archive.WalkFn, func() error, error) {
@@ -78,7 +80,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			Limiter:            ratelimit.NewUnlimited(),
 			OpenFile:           func(s string) (*os.File, error) { return nil, nil },
 		}
-		_, _, err := ientifier.Identify(context.Background(), "foo", stubDirEntry{
+		_, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{
 			name: "sdlkfjsldkjfs.tar.gz",
 		})
 		assert.Equal(t, expectedErr, err)
