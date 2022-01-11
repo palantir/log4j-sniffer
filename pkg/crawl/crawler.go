@@ -47,6 +47,8 @@ type Stats struct {
 
 // MatchFunc is used to match a file for processing.
 // If returning a positive finding, a file will be passed onto the ProcessFunc.
+// Returns the finding, if present, along with the version matching as well as the number of
+// files skipped and any error encountered.
 type MatchFunc func(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, uint64, error)
 
 // ProcessFunc processes the given matched file.
