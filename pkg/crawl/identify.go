@@ -105,9 +105,7 @@ type Log4jIdentifier struct {
 	OpenFile                           func(string) (*os.File, error)
 	ArchiveWalkTimeout                 time.Duration
 	ArchiveMaxDepth                    uint
-	ArchiveMaxSize                     int64
-	ParseArchiveFormat                 func(string) (archive.FormatType, bool)
-	ArchiveWalkers                     func(archive.FormatType) (archive.WalkerProvider, int64, bool)
+	ArchiveWalkers                     func(string) (archive.WalkerProvider, int64, bool)
 }
 
 // Identify identifies vulnerable files.
@@ -121,6 +119,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		ctx = ctxWithTimeout
 	}
 
+	result = NothingDetected
 	versions = make(Versions)
 	lowercaseFilename := strings.ToLower(d.Name())
 
@@ -142,15 +141,9 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 		log4jMatch = match
 	}
 
-	archiveType, ok := i.ParseArchiveFormat(lowercaseFilename)
+	getWalker, _, ok := i.ArchiveWalkers(lowercaseFilename)
 	if !ok {
 		return result, versions, 0, nil
-	}
-
-	getWalker, _, ok := i.ArchiveWalkers(archiveType)
-	if !ok {
-		// TODO(glynternet): Support human-friendly names of archives in errors
-		return NothingDetected, nil, 0, fmt.Errorf("archive type unsupported: %d", archiveType)
 	}
 	file, openErr := i.OpenFile(path)
 	if openErr != nil {
@@ -209,15 +202,14 @@ func (i *Log4jIdentifier) findArchiveVulnerabilities(ctx context.Context, depth 
 
 func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, skipped *uint64, obfuscated bool) archive.FileWalkFn {
 	return func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
-		archiveType, ok := i.ParseArchiveFormat(path)
-		if ok && depth < i.ArchiveMaxDepth && size < i.ArchiveMaxSize {
-			getWalker, maxSize, ok := i.ArchiveWalkers(archiveType)
-			if !ok {
-				return false, fmt.Errorf("archive format unsupported: %d", archiveType)
-			}
-
+		getWalker, maxSize, ok := i.ArchiveWalkers(path)
+		if ok {
 			if maxSize > -1 && size >= maxSize {
+				*skipped = *skipped + 1
 				i.printInfoFinding("Skipping nested archive above configured maximum size at %s", path)
+			} else if depth >= i.ArchiveMaxDepth {
+				*skipped = *skipped + 1
+				i.printInfoFinding("Skipping nested archive nested beyond configured maximum level at %s", path)
 			} else {
 				walker, close, archiveErr := getWalker.FromReader(contents)
 				if archiveErr != nil {
@@ -239,13 +231,8 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 					versions[vv] = struct{}{}
 				}
 			}
-		} else if ok && size >= i.ArchiveMaxSize {
-			*skipped = *skipped + 1
-			i.printInfoFinding("Skipping nested archive above configured maximum size at %s", path)
-		} else if ok && depth >= i.ArchiveMaxDepth {
-			*skipped = *skipped + 1
-			i.printInfoFinding("Skipping nested archive nested beyond configured maximum level at %s", path)
 		}
+
 		finding, versionInFile, versionMatch := i.lookForMatchInFileInZip(path, size, contents, obfuscated)
 		if finding == NothingDetected {
 			return true, nil

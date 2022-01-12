@@ -25,7 +25,7 @@ import (
 func TestZipReaderFromReader(t *testing.T) {
 	t.Run("errors on ReadAll error", func(t *testing.T) {
 		expectedErr := errors.New("expected")
-		_, err := ZipReaderFromReader(iotest.ErrReader(expectedErr), 0)
+		_, err := ZipReaderFromReader(iotest.ErrReader(expectedErr))
 		assert.True(t, errors.Is(err, expectedErr))
 	})
 }

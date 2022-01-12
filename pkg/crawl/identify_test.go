@@ -36,12 +36,8 @@ import (
 func TestLog4jIdentifier(t *testing.T) {
 	t.Run("implements timeout", func(t *testing.T) {
 		identifier := crawl.Log4jIdentifier{
-			ParseArchiveFormat: func(s string) (archive.FormatType, bool) {
-				assert.Equal(t, "bar", s)
-				return 99, true
-			},
-			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
-				assert.Equal(t, archive.FormatType(99), formatType)
+			ArchiveWalkers: func(path string) (archive.WalkerProvider, int64, bool) {
+				assert.Equal(t, "bar", path)
 				return archive.WalkerProviderFromFuncs(func(f *os.File) (archive.WalkFn, func() error, error) {
 					return func(ctx context.Context, walkFn archive.FileWalkFn) error {
 						time.Sleep(50 * time.Millisecond)
@@ -69,8 +65,7 @@ func TestLog4jIdentifier(t *testing.T) {
 	t.Run("closes and returns close error", func(t *testing.T) {
 		expectedErr := errors.New("err")
 		identifier := crawl.Log4jIdentifier{
-			ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
-			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
+			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
 				return archive.WalkerProviderFromFuncs(func(f *os.File) (archive.WalkFn, func() error, error) {
 					return func(ctx context.Context, walkFn archive.FileWalkFn) error { return nil },
 						func() error { return expectedErr }, nil
@@ -78,7 +73,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			},
 			ArchiveWalkTimeout: time.Second,
 			Limiter:            ratelimit.NewUnlimited(),
-			OpenFile:           func(s string) (*os.File, error) { return nil, nil },
+			OpenFile:           func(string) (*os.File, error) { return nil, nil },
 		}
 		_, _, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{
 			name: "sdlkfjsldkjfs.tar.gz",
@@ -90,8 +85,7 @@ func TestLog4jIdentifier(t *testing.T) {
 		var fileWalkCalls int
 		var readerWalkCalls int
 		identifier := crawl.Log4jIdentifier{
-			ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
-			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
+			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
 				return archive.WalkerProviderFromFuncs(
 					func(f *os.File) (archive.WalkFn, func() error, error) {
 						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
@@ -109,7 +103,6 @@ func TestLog4jIdentifier(t *testing.T) {
 					}), -1, true
 			},
 			ArchiveWalkTimeout: time.Second,
-			ArchiveMaxSize:     1024,
 			Limiter:            ratelimit.NewUnlimited(),
 			OpenFile:           tempEmptyFile(t),
 		}
@@ -124,8 +117,7 @@ func TestLog4jIdentifier(t *testing.T) {
 		var fileWalkCalls int
 		var readerWalkCalls int
 		identifier := crawl.Log4jIdentifier{
-			ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
-			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
+			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
 				return archive.WalkerProviderFromFuncs(
 					func(f *os.File) (archive.WalkFn, func() error, error) {
 						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
@@ -143,7 +135,6 @@ func TestLog4jIdentifier(t *testing.T) {
 					}), -1, true
 			},
 			ArchiveWalkTimeout: time.Second,
-			ArchiveMaxSize:     1024,
 			ArchiveMaxDepth:    3,
 			Limiter:            ratelimit.NewUnlimited(),
 			OpenFile:           tempEmptyFile(t),
@@ -153,19 +144,6 @@ func TestLog4jIdentifier(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, fileWalkCalls)
 		assert.Equal(t, 3, readerWalkCalls)
-	})
-
-	t.Run("reports unsupported archive types", func(t *testing.T) {
-		identifier := crawl.Log4jIdentifier{
-			ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
-			ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
-				return nil, -1, false
-			},
-		}
-		_, _, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
-		// Archive types are currently rendered as int, as this is the underlying type of FormatType.
-		// This error should only occur from a regression, so we needn't be too fussed about it right not.
-		require.EqualError(t, err, "archive type unsupported: 0")
 	})
 }
 
@@ -217,7 +195,9 @@ func TestIdentifyFromFileName(t *testing.T) {
 			identifier := crawl.Log4jIdentifier{
 				ArchiveWalkTimeout: time.Second,
 				Limiter:            ratelimit.NewUnlimited(),
-				ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, false },
+				ArchiveWalkers: func(s string) (archive.WalkerProvider, int64, bool) {
+					return nil, 0, false
+				},
 			}
 
 			result, version, _, err := identifier.Identify(context.Background(), "/path/on/disk", stubDirEntry{
@@ -314,8 +294,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
 			identifier := crawl.Log4jIdentifier{
-				ParseArchiveFormat: func(s string) (archive.FormatType, bool) { return 0, true },
-				ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
+				ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
 					return archive.WalkerProviderFromFuncs(func(f *os.File) (archive.WalkFn, func() error, error) {
 						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
 							for _, path := range tc.filesInArchive {
