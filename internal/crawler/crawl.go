@@ -89,22 +89,8 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		Limiter:                            limiterFromConfig(config.ArchivesCrawledPerSecond),
 		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
 		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
-		ArchiveMaxSize:                     int64(config.ArchiveMaxSize),
 		OpenFile:                           os.Open,
-		ParseArchiveFormat:                 archive.ParseArchiveFormatFromFile,
-		ArchiveWalkers: func(formatType archive.FormatType) (archive.WalkerProvider, int64, bool) {
-			switch formatType {
-			case archive.ZipArchive:
-				return archive.ZipArchiveWalkers(int(config.ArchiveMaxSize)), int64(config.ArchiveMaxSize), true
-			case archive.TarArchive:
-				return archive.TarArchiveWalkers(), -1, true
-			case archive.TarGzArchive:
-				return archive.TarGzWalkers(), -1, true
-			case archive.TarBz2Archive:
-				return archive.TarBz2Walkers(), -1, true
-			}
-			return nil, -1, false
-		},
+		ArchiveWalkers:                     archive.Walkers(int64(config.ArchiveMaxSize)),
 	}
 	crawler := crawl.Crawler{
 		Limiter:     limiterFromConfig(config.DirectoriesCrawledPerSecond),

@@ -21,7 +21,40 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 )
+
+// Walkers creates a function that will return a WalkerProvider for a file path if there is one supported.
+// maxInMemoryArchiveSize configures the maximum buffer size to create for archive that are required to be
+// read into memory before being able to walk through them.
+// The int64 returned from the function will return -1 if there is no limit for size that archive walker,
+// otherwise returning the maximum archive size that should be used when using the WalkerProvider.FromReader
+// method.
+func Walkers(maxInMemoryArchiveSize int64) func(path string) (WalkerProvider, int64, bool) {
+	return func(path string) (WalkerProvider, int64, bool) {
+		_, filename := filepath.Split(path)
+		fileSplit := strings.Split(filename, ".")
+		if len(fileSplit) < 2 {
+			return nil, 0, false
+		}
+
+		// only search for a depth of two extension dots
+		for i := len(fileSplit) - 1; i >= len(fileSplit)-2; i-- {
+			switch strings.Join(fileSplit[i:], ".") {
+			case "ear", "jar", "par", "war", "zip":
+				return ZipArchiveWalkers(), maxInMemoryArchiveSize, true
+			case "tar":
+				return TarArchiveWalkers(), -1, true
+			case "tar.gz", "tgz":
+				return TarGzWalkers(), -1, true
+			case "tar.bz2", "tbz2":
+				return TarBz2Walkers(), -1, true
+			}
+		}
+		return nil, 0, false
+	}
+}
 
 // WalkerProvider creates WalkFn and closing function from certain resources.
 type WalkerProvider interface {
@@ -70,8 +103,7 @@ func (w walkerProvider) FromReader(r io.Reader) (WalkFn, func() error, error) {
 
 // ZipArchiveWalkers creates a WalkerProvider for zipped file content.
 // maxReadLimit is the maximum amount of data to read from a reader when FromReader is called.
-// If the reader content is larger than maxReadLimit an error will be returned.
-func ZipArchiveWalkers(maxReadLimit int) WalkerProvider {
+func ZipArchiveWalkers() WalkerProvider {
 	return walkerProvider{
 		fromFile: func(f *os.File) (WalkFn, func() error, error) {
 			stat, err := f.Stat()
@@ -82,7 +114,7 @@ func ZipArchiveWalkers(maxReadLimit int) WalkerProvider {
 			return zipArchiveWalker(reader), func() error { return nil }, err
 		},
 		fromReader: func(r io.Reader) (WalkFn, func() error, error) {
-			reader, err := ZipReaderFromReader(r, maxReadLimit)
+			reader, err := ZipReaderFromReader(r)
 			if err != nil {
 				return nil, nil, err
 			}

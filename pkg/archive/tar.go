@@ -18,33 +18,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"io"
-	"strings"
-)
-
-const (
-	UnsupportedArchive FormatType = iota
-	TarArchive
-	TarGzArchive
-	TarBz2Archive
-	ZipArchive
-)
-
-// FormatType specifies the type of archive format the identifier should expect.
-type FormatType int
-
-var (
-	extensions = map[string]FormatType{
-		"ear":     ZipArchive,
-		"jar":     ZipArchive,
-		"par":     ZipArchive,
-		"war":     ZipArchive,
-		"zip":     ZipArchive,
-		"tar":     TarArchive,
-		"tar.gz":  TarGzArchive,
-		"tgz":     TarGzArchive,
-		"tar.bz2": TarBz2Archive,
-		"tbz2":    TarBz2Archive,
-	}
 )
 
 // TarGzipReader creates a reader for gzipped tar content.
@@ -55,19 +28,4 @@ func TarGzipReader(r io.Reader) (*tar.Reader, func() error, error) {
 		return nil, nil, err
 	}
 	return tar.NewReader(gzipReader), gzipReader.Close, nil
-}
-
-func ParseArchiveFormatFromFile(filename string) (FormatType, bool) {
-	fileSplit := strings.Split(filename, ".")
-	if len(fileSplit) < 2 {
-		return UnsupportedArchive, false
-	}
-
-	// only search for a depth of two extension dots
-	for i := len(fileSplit) - 1; i >= len(fileSplit)-2; i-- {
-		if archive, ok := extensions[strings.Join(fileSplit[i:], ".")]; ok {
-			return archive, true
-		}
-	}
-	return UnsupportedArchive, false
 }
