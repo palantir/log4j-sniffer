@@ -90,7 +90,7 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		Limiter:                            limiterFromConfig(config.ArchivesCrawledPerSecond),
 		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
 		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
-		OpenFile:                           func(name string) (file *os.File, err error) { return directio.OpenFile(name, os.O_RDONLY, 0) },
+		OpenFile:                           func(name string) (file *os.File, err error) { return directio.OpenFile(name, os.O_RDONLY, 0666) },
 		ArchiveWalkers:                     archive.Walkers(int64(config.ArchiveMaxSize)),
 	}
 	crawler := crawl.Crawler{
