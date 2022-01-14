@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"regexp"
 	"sort"
 	"strconv"
@@ -38,9 +37,9 @@ type Reporter struct {
 	OutputFilePathOnly bool
 	// Disables results only matching JndiLookup classes
 	DisableFlaggingJndiLookup bool
-	// Disables detection of CVE-2021-45105
+	// Disables reporting of CVE-2021-45105
 	DisableCVE45105 bool
-	// Disables detection of CVE-2021-44832
+	// Disables reporting of CVE-2021-44832
 	DisableCVE44832 bool
 	// Disables flagging issues where version of log4j is not known
 	DisableFlaggingUnknownVersions bool
@@ -154,7 +153,7 @@ var cveVersions = []AffectedVersion{
 }
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
-func (r *Reporter) Collect(ctx context.Context, path string, d fs.DirEntry, result Finding, versionSet Versions) {
+func (r *Reporter) Collect(ctx context.Context, path string, result Finding, versionSet Versions) {
 	versions := sortVersions(versionSet)
 	if r.DisableFlaggingUnknownVersions && (len(versions) == 0 || len(versions) == 1 && versions[0] == UnknownVersion) {
 		return
