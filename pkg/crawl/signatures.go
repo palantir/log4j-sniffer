@@ -356,7 +356,8 @@ func BytecodeMatchesPartialSignatures(methodBytecodes [][]byte) (string, bool) {
 			}
 		}
 		for _, version := range exactMatch.Versions {
-			exactVersionMatched[version] = matchIndex != -1
+			currentValue, present := exactVersionMatched[version]
+			exactVersionMatched[version] = (!present || currentValue) && matchIndex != -1
 		}
 		if matchIndex != -1 {
 			matchedIndexes[matchIndex] = true
