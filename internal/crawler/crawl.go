@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/ncw/directio"
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"go.uber.org/ratelimit"
@@ -89,7 +90,7 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		Limiter:                            limiterFromConfig(config.ArchivesCrawledPerSecond),
 		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
 		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
-		OpenFile:                           os.Open,
+		OpenFile:                           func(name string) (file *os.File, err error) { return directio.OpenFile(name, os.O_RDONLY, 0) },
 		ArchiveWalkers:                     archive.Walkers(int64(config.ArchiveMaxSize)),
 	}
 	crawler := crawl.Crawler{
