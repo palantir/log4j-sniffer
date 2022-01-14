@@ -16,14 +16,12 @@ package crawler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"regexp"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"go.uber.org/ratelimit"
@@ -50,32 +48,13 @@ type Config struct {
 	ObfuscatedPackageNameAverageLength uint32
 	// If true, print out detailed information on each finding as it is found
 	PrintDetailedOutput bool
-	// If true, doesn't flag on Jars which only contain JndiLookup classes and do not meet any other criteria for Log4j presence.
-	DisableFlaggingJndiLookup bool
-	// If true, disables detection of CVE-2021-45105
-	DisableCVE45105 bool
-	// If true, disables detection of CVE-2021-44832
-	DisableCVE44832 bool
-	// If true, does not report CVE unless the version of log4j can be determined
-	DisableUnknownVersions bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.
 	Ignores []*regexp.Regexp
-	// If true, causes all output to be in JSON format (one JSON object per line).
-	OutputJSON bool
-	// If true, only prints the file path of files for which the CVE is detected (one per line).
-	OutputFilePathOnly bool
-	// If true, prints summary output after completion.
-	OutputSummary bool
-}
-
-type SummaryJSON struct {
-	crawl.Stats
-	NumImpactedFiles int64 `json:"numImpactedFiles"`
 }
 
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
 // provided configuration. Returns the number of issues that were found.
-func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64, error) {
+func Crawl(ctx context.Context, config Config, process crawl.ProcessFunc, stdout, stderr io.Writer) (crawl.Stats, error) {
 	var outputWriter io.Writer
 	if config.PrintDetailedOutput {
 		outputWriter = stdout
@@ -97,55 +76,16 @@ func Crawl(ctx context.Context, config Config, stdout, stderr io.Writer) (int64,
 		ErrorWriter: stderr,
 		IgnoreDirs:  config.Ignores,
 	}
-	reporter := crawl.Reporter{
-		OutputJSON:                     config.OutputJSON,
-		OutputFilePathOnly:             config.OutputFilePathOnly,
-		OutputWriter:                   stdout,
-		DisableCVE45105:                config.DisableCVE45105,
-		DisableCVE44832:                config.DisableCVE44832,
-		DisableFlaggingJndiLookup:      config.DisableFlaggingJndiLookup,
-		DisableFlaggingUnknownVersions: config.DisableUnknownVersions,
-	}
 
-	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, reporter.Collect)
+	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, process)
 	if err != nil {
 		if stderr != nil {
 			_, _ = fmt.Fprintf(stderr, "Error crawling: %v\n", err)
 		}
-		return 0, err
+		return crawl.Stats{}, err
 	}
 
-	count := reporter.Count()
-	if config.OutputSummary {
-		cveInfo := "CVE-2021-44228 or CVE-2021-45046"
-		if !config.DisableCVE45105 {
-			cveInfo += " or CVE-2021-45105"
-		}
-		if !config.DisableCVE44832 {
-			cveInfo += " or CVE-2021-44832"
-		}
-
-		var output string
-		if config.OutputJSON {
-			jsonBytes, err := json.Marshal(SummaryJSON{
-				Stats:            crawlStats,
-				NumImpactedFiles: count,
-			})
-			if err != nil {
-				return 0, err
-			}
-			output = string(jsonBytes)
-		} else {
-			if count > 0 {
-				output = color.RedString("Files affected by %s detected: %d file(s)", cveInfo, count)
-			} else {
-				output = color.GreenString("No files affected by %s detected", cveInfo)
-			}
-			output += color.CyanString("\n%d total files scanned, skipped identifying %d files due to config, skipped %d paths due to permission denied errors, encountered %d errors processing paths", crawlStats.FilesScanned, crawlStats.PathSkippedCount, crawlStats.PermissionDeniedCount, crawlStats.PathErrorCount)
-		}
-		_, _ = fmt.Fprintln(stdout, output)
-	}
-	return count, nil
+	return crawlStats, nil
 }
 
 func limiterFromConfig(limit int) ratelimit.Limiter {

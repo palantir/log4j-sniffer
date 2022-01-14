@@ -15,11 +15,10 @@
 package crawler
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"io"
-	"strings"
+	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
@@ -28,184 +27,270 @@ import (
 )
 
 func TestCrawl(t *testing.T) {
-	t.Run("returns non-nil error and 0 issues on failed crawl", func(t *testing.T) {
-		numIssues, err := Crawl(context.Background(), Config{
+	t.Run("returns non-nil error and empty result on failed crawl", func(t *testing.T) {
+		out, err := Crawl(context.Background(), Config{
 			Root: "non-existent-root",
-		}, io.Discard, io.Discard)
+		}, nil, io.Discard, io.Discard)
 		require.Error(t, err)
 
-		assert.Equal(t, int64(0), numIssues)
+		assert.Equal(t, crawl.Stats{}, out)
 	})
 
 	t.Run("returns nil error and 0 issues on successful crawl with no issues", func(t *testing.T) {
 		numIssues, err := Crawl(context.Background(), Config{
 			Root: t.TempDir(),
-		}, io.Discard, io.Discard)
+		}, nil, io.Discard, io.Discard)
 
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), numIssues)
+		assert.Equal(t, crawl.Stats{}, numIssues)
 	})
 }
 
-func TestCrawlGoodVersion(t *testing.T) {
-	buf := &bytes.Buffer{}
-	numIssues, err := Crawl(context.Background(), Config{
-		Root:       "../../examples/good_version",
-		OutputJSON: true,
-	}, buf, io.Discard)
-	require.NoError(t, err)
-
-	assert.Equal(t, int64(0), numIssues)
-	assert.Equal(t, "", buf.String())
-}
-
-func TestCrawlBadVersions(t *testing.T) {
-	for _, currCase := range []struct {
-		name      string
-		directory string
-		count     int64
-		findings  []pathFinding
-	}{
-		{
-			name:      "single bad version",
-			directory: "../../examples/single_bad_version",
-			count:     1,
-			findings: []pathFinding{{
-				path:    "../../examples/single_bad_version/log4j-core-2.14.1.jar",
-				finding: crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
-			}},
-		}, {
-			name:      "multiple bad versions",
-			directory: "../../examples/multiple_bad_versions",
-			count:     13,
-			findings: multipleBadPathsExampleFindings(
-				"2.10.0",
-				"2.11.0",
-				"2.11.1",
-				"2.11.2",
-				"2.12.0",
-				"2.12.1",
-				"2.13.0",
-				"2.13.1",
-				"2.13.2",
-				"2.13.3",
-				"2.14.0",
-				"2.14.1",
-				"2.15.0",
-				"2.16.0",
-			),
-		},
-		{
-			name:      "inside a dist",
-			directory: "../../examples/inside_a_dist",
-			count:     4,
-			findings: []pathFinding{{
-				path:    "../../examples/inside_a_dist/wrapped_log4j.tar",
-				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
-			}, {
-				path:    "../../examples/inside_a_dist/wrapped_log4j.tar.bz2",
-				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
-			}, {
-				path:    "../../examples/inside_a_dist/wrapped_log4j.tar.gz",
-				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
-			}, {
-				path:    "../../examples/inside_a_dist/wrapped_log4j.zip",
-				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
-			}},
-		},
-		{
-			name:      "inside a par",
-			directory: "../../examples/inside_a_par",
-			count:     1,
-			findings: []pathFinding{{
-				path:    "../../examples/inside_a_par/wrapped_in_a_par.par",
-				finding: crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
-			}},
-		},
-		{
-			name:      "fat jar",
-			directory: "../../examples/fat_jar",
-			count:     1, findings: []pathFinding{{
-				path:    "../../examples/fat_jar/fat_jar.jar",
-				finding: crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
-			}},
-		},
-		{
-			name:      "archived fat jar",
-			directory: "../../examples/archived_fat_jar",
-			count:     1, findings: []pathFinding{{
-				path:    "../../examples/archived_fat_jar/archived_fat_jar.tar.gz",
-				finding: crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
-			}},
-		},
-		{
-			name:      "light shading",
-			directory: "../../examples/light_shading",
-			count:     1,
-			findings: []pathFinding{{
-				path:    "../../examples/light_shading/shadow-all.jar",
-				finding: crawl.JndiManagerClassName,
-			}},
-		},
-		{
-			name:      "obfuscated",
-			directory: "../../examples/obfuscated",
-			count:     1,
-			findings: []pathFinding{{
-				path:    "../../examples/obfuscated/2.14.1-aaaagb.jar",
-				finding: crawl.JndiManagerClassName,
-			}},
-		},
-	} {
-		t.Run(currCase.name, func(t *testing.T) {
-			buf := &bytes.Buffer{}
-			var stderr bytes.Buffer
-			numIssues, err := Crawl(context.Background(), Config{
-				Root:                               currCase.directory,
-				OutputJSON:                         true,
-				ArchiveMaxDepth:                    5,
-				ArchiveMaxSize:                     1024 * 1024 * 10,
-				ObfuscatedClassNameAverageLength:   3,
-				ObfuscatedPackageNameAverageLength: 3,
-			}, buf, &stderr)
-			require.NoError(t, err, stderr.String())
-			assert.Equal(t, currCase.count, numIssues, stderr.String())
-
-			for i, line := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-				var cveInstance crawl.JavaCVEInstance
-				err = json.Unmarshal([]byte(line), &cveInstance)
-				require.NoError(t, err)
-				assert.Equal(t, currCase.findings[i].path, cveInstance.FilePath)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.JarName > 0, findingsContains("jarName", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.JarNameInsideArchive > 0, findingsContains("jarNameInsideArchive", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.JndiManagerClassPackageAndName > 0, findingsContains("jndiManagerClassPackageAndName", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
-				assert.Equalf(t, currCase.findings[i].finding&crawl.ClassFileMd5 > 0, findingsContains("classFileMd5", cveInstance.Findings), "unexpected finding for path: %s", currCase.findings[i].path)
-			}
-		})
+func TestCrawlExamplesFindings(t *testing.T) {
+	type versionedFindings struct {
+		finding  crawl.Finding
+		versions crawl.Versions
 	}
-}
 
-func findingsContains(s string, findings []string) bool {
-	for _, finding := range findings {
-		if finding == s {
-			return true
+	expected := map[string]versionedFindings{
+		"archived_fat_jar/archived_fat_jar.tar.gz": {
+			finding:  crawl.JndiLookupClassPackageAndName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{"2.14.0-2.14.1": {}},
+		},
+		"cve-2021-44832-versions/log4j-core-2.12.3.jar": {
+			finding:  crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{"2.12.3": {}},
+		},
+		"cve-2021-44832-versions/log4j-core-2.17.0.jar": {
+			finding:  crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{"2.17.0": {}},
+		},
+		"cve-2021-44832-versions/log4j-core-2.3.1.jar": {
+			finding:  crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{"2.3.1": {}},
+		},
+		"cve-2021-45105-versions/log4j-core-2.12.2.jar": {
+			finding:  crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{"2.12.2": {}},
+		},
+		"cve-2021-45105-versions/log4j-core-2.16.0.jar": {
+			finding:  crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{"2.16.0": {}},
+		},
+		"fat_jar/fat_jar.jar": {
+			finding:  crawl.JndiLookupClassPackageAndName | crawl.JndiManagerClassPackageAndName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{"2.14.0-2.14.1": {}},
+		},
+		"inside_a_dist/wrapped_log4j.tar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.0-2.14.1": {},
+				"2.14.1":        {},
+			},
+		},
+		"inside_a_dist/wrapped_log4j.tar.bz2": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.0-2.14.1": {},
+				"2.14.1":        {},
+			},
+		},
+		"inside_a_dist/wrapped_log4j.tar.gz": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.0-2.14.1": {},
+				"2.14.1":        {},
+			},
+		},
+		"inside_a_dist/wrapped_log4j.zip": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.0-2.14.1": {},
+				"2.14.1":        {},
+			},
+		},
+		"inside_a_par/wrapped_in_a_par.par": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.0-2.14.1": {},
+				"2.14.1":        {},
+			},
+		},
+		"light_shading/shadow-all.jar": {
+			finding:  crawl.JndiLookupClassName | crawl.JndiManagerClassName | crawl.ClassBytecodeInstructionMd5,
+			versions: map[string]struct{}{"2.12.0-2.14.1": {}},
+		},
+		"multiple_bad_versions/log4j-core-2.10.0.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.10.0":       {},
+				"2.9.0-2.11.2": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.11.0.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.11.0":       {},
+				"2.9.0-2.11.2": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.11.1.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.11.1":       {},
+				"2.9.0-2.11.2": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.11.2.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.11.2":       {},
+				"2.9.0-2.11.2": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.12.0.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.12.0":        {},
+				"2.12.0-2.12.1": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.12.1.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.12.1":        {},
+				"2.12.0-2.12.1": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.13.0.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.13.0":        {},
+				"2.13.0-2.13.3": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.13.1.jar": {
+			versions: map[string]struct{}{
+				"2.13.1":        {},
+				"2.13.0-2.13.3": {},
+			},
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+		},
+		"multiple_bad_versions/log4j-core-2.13.2.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.13.2":        {},
+				"2.13.0-2.13.3": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.13.3.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.13.3":        {},
+				"2.13.0-2.13.3": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.14.0.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.0":        {},
+				"2.14.0-2.14.1": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.14.1.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.1":        {},
+				"2.14.0-2.14.1": {},
+			},
+		},
+		"multiple_bad_versions/log4j-core-2.15.0.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.15.0": {},
+			},
+		},
+		"nested_very_deep/nested_thrice.tar.gz": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.1":        {},
+				"2.14.0-2.14.1": {},
+			},
+		},
+		"obfuscated/2.14.1-aaaagb.jar": {
+			finding: crawl.JarFileObfuscated | crawl.ClassBytecodePartialMatch,
+			versions: map[string]struct{}{
+				"2.9.0-2.14.1": {},
+			},
+		},
+		"par_in_a_dist/wrapped_par_in_a_dist.zip": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.0-2.14.1": {},
+				"2.14.1":        {},
+			},
+		},
+		"single_bad_version/log4j-core-2.14.1.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.0-2.14.1": {},
+				"2.14.1":        {},
+			},
+		},
+	}
+
+	findings := make(map[string]versionedFindings)
+	examplesDir := "../../examples"
+
+	summary, err := Crawl(context.Background(), Config{
+		Root:                               examplesDir,
+		ArchiveMaxDepth:                    5,
+		ArchiveMaxSize:                     1024 * 1024 * 10,
+		ObfuscatedClassNameAverageLength:   3,
+		ObfuscatedPackageNameAverageLength: 3,
+		PrintDetailedOutput:                true,
+	}, func(ctx context.Context, path string, result crawl.Finding, versions crawl.Versions) {
+		findings[path] = versionedFindings{
+			finding:  result,
+			versions: versions,
+		}
+	}, io.Discard, io.Discard)
+
+	require.NoError(t, err)
+	assert.Equal(t, crawl.Stats{
+		FilesScanned: 44,
+	}, summary)
+
+	var foundPaths []string
+	for path := range findings {
+		foundPaths = append(foundPaths, path)
+	}
+	// sort for deterministic test output
+	sort.Strings(foundPaths)
+	for _, path := range foundPaths {
+		relative, err := filepath.Rel(examplesDir, path)
+		require.NoError(t, err)
+		if _, isExpected := expected[relative]; !isExpected {
+			assert.Failf(t, "Unexpected finding", "path: %s, finding: %s, versions: v", relative, findings[path].finding.String(), findings[path].versions)
 		}
 	}
-	return false
-}
 
-type pathFinding struct {
-	path    string
-	finding crawl.Finding
-}
+	var expectedPaths []string
+	for path := range expected {
+		expectedPaths = append(expectedPaths, path)
+	}
+	// sort for deterministic test output
+	sort.Strings(expectedPaths)
+	for _, path := range expectedPaths {
+		finding, found := findings[filepath.Join(examplesDir, path)]
+		if !found {
+			assert.Failf(t, "Expected finding not present", "path: %s, finding: %s, versions: %v", path, expected[path].finding.String(), expected[path].versions)
+			continue
+		}
 
-func multipleBadPathsExampleFindings(versions ...string) []pathFinding {
-	var out []pathFinding
-	for _, version := range versions {
-		out = append(out, pathFinding{
-			path:    "../../examples/multiple_bad_versions/log4j-core-" + version + ".jar",
-			finding: crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+		t.Run(path, func(t *testing.T) {
+			assert.Equal(t, expected[path].finding.String(), finding.finding.String(), "Unexpected finding")
+			assert.Equal(t, expected[path].versions, finding.versions, "Unexpected versions")
 		})
 	}
-	return out
 }

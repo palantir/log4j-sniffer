@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/palantir/godel/v2/pkg/products"
@@ -149,4 +150,24 @@ func TestDisableJNDILookupFlag(t *testing.T) {
 			assert.NotContains(t, cve.Findings, "jndiLookupClassName")
 		})
 	}
+}
+
+func TestSummaryContainsExpectedFields(t *testing.T) {
+	cli, err := products.Bin("log4j-sniffer")
+	require.NoError(t, err)
+
+	cmd := exec.Command(cli, "crawl", "../examples", "--summary", "--json")
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
+	lines := strings.Split(string(output), "\n")
+	summaryLine := lines[len(lines)-2]
+	var summary map[string]int
+	require.NoError(t, json.Unmarshal([]byte(summaryLine), &summary))
+	assert.Equal(t, map[string]int{
+		"filesScanned":           44,
+		"permissionDeniedErrors": 0,
+		"pathErrors":             0,
+		"numImpactedFiles":       27,
+		"pathsSkipped":           8,
+	}, summary)
 }
