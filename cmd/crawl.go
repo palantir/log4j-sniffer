@@ -23,6 +23,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/palantir/log4j-sniffer/internal/crawler"
+	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -31,6 +32,7 @@ import (
 func crawlCmd() *cobra.Command {
 	var (
 		ignoreDirs                         []string
+		archiveOpenMode                    string
 		perArchiveTimeout                  time.Duration
 		nestedArchiveMaxDepth              uint
 		nestedArchiveMaxSize               uint
@@ -80,6 +82,16 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				return fmt.Errorf("--file-path-only cannot be used with --json")
 			}
 
+			var mode archive.FileOpenMode
+			switch archiveOpenMode {
+			case "standard":
+				mode = archive.StandardOpen
+			case "directio":
+				mode = archive.DirectIOOpen
+			default:
+				return fmt.Errorf(`unsupported --archive-open-mode: %s. Supported values are "standard" and "directio"`, archiveOpenMode)
+			}
+
 			reporter := crawl.Reporter{
 				OutputJSON:                     outputJSON,
 				OutputFilePathOnly:             outputFilePathOnly,
@@ -92,6 +104,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 
 			crawlSum, err := crawler.Crawl(cmd.Context(), crawler.Config{
 				Root:                               args[0],
+				ArchiveOpenMode:                    mode,
 				ArchiveListTimeout:                 perArchiveTimeout,
 				ArchiveMaxDepth:                    nestedArchiveMaxDepth,
 				ArchiveMaxSize:                     nestedArchiveMaxSize,
@@ -146,6 +159,11 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 	cmd.Flags().StringSliceVar(&ignoreDirs, "ignore-dir", nil, `Specify directory pattern to ignore. Use multiple times to supply multiple patterns.
 Patterns should be relative to the provided root.
 e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"`)
+	cmd.Flags().StringVar(&archiveOpenMode, "archive-open-mode", "standard", `Supported values:
+  standard - standard file opening will be used. This may cause the filesystem cache to be populated with reads from the archive opens.
+  directio - direct I/O will be used when opening archives that require sequential reading of their content without being able to skip to file tables at known locations within the file.
+             For example, "directio" can have an effect on the way that tar-based archives are read but will have no effect on zip-based archives.
+             Using "directio" will cause the filesystem cache to be skipped where possible. "directio" is not supported on tmpfs filesystems and will cause tmpfs archive files to report an error.`)
 	cmd.Flags().DurationVar(&perArchiveTimeout, "per-archive-timeout", 15*time.Minute, `If this duration is exceeded when inspecting an archive, 
 an error will be logged and the crawler will move onto the next file.`)
 	cmd.Flags().UintVar(&nestedArchiveMaxSize, "nested-archive-max-size", 5*1024*1024, `The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.

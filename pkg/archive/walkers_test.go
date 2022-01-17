@@ -17,7 +17,6 @@ package archive
 import (
 	"context"
 	"io"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -52,7 +51,7 @@ func TestSupportedExtensions(t *testing.T) {
 		{filename: "", ok: false, maxSize: -1},
 	}
 	for _, tt := range tests {
-		walkers := Walkers(99)
+		walkers := Walkers(99, StandardOpen)
 		t.Run(tt.filename, func(t *testing.T) {
 			_, maxSize, ok := walkers(tt.filename)
 			assert.Equal(t, ok, tt.ok)
@@ -80,24 +79,31 @@ func TestWalkersCanWalk(t *testing.T) {
 		extension: []string{".tar.bz2", ".tbz2"},
 		example:   "inside_a_dist/wrapped_log4j.tar.bz2",
 	}} {
-		walkers := Walkers(0)
 		for _, extension := range tt.extension {
-			t.Run(extension, func(t *testing.T) {
+			walkers := Walkers(0, StandardOpen)
+			t.Run("standard open file mode-"+extension, func(t *testing.T) {
 				getWalker, _, ok := walkers(extension)
 				require.True(t, ok)
-				f, err := os.Open(filepath.Join("../../examples", tt.example))
-				require.NoError(t, err)
-				defer func() {
-					assert.NoError(t, f.Close())
-				}()
-				walk, close, err := getWalker.FromFile(f)
-				require.NoError(t, err)
-				require.NoError(t, walk(context.Background(), func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
-					return true, nil
-				}))
-				require.NoError(t, close())
+				assertCanWalkExample(t, getWalker, tt.example)
+			})
+		}
+		for _, extension := range tt.extension {
+			walkers := Walkers(0, DirectIOOpen)
+			t.Run("direct i/o open file mode-"+extension, func(t *testing.T) {
+				getWalker, _, ok := walkers(extension)
+				require.True(t, ok)
+				assertCanWalkExample(t, getWalker, tt.example)
 			})
 		}
 	}
+}
 
+func assertCanWalkExample(t *testing.T, getWalker WalkerProvider, example string) {
+	t.Helper()
+	walk, close, err := getWalker.FromFile(filepath.Join("../../examples", example))
+	require.NoError(t, err)
+	require.NoError(t, walk(context.Background(), func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+		return true, nil
+	}))
+	require.NoError(t, close())
 }

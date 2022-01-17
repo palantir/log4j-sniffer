@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"time"
 
@@ -50,6 +49,8 @@ type Config struct {
 	PrintDetailedOutput bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.
 	Ignores []*regexp.Regexp
+	// ArchiveOpenMode prescribes the crawler to use either direct-io or standard file opening.
+	ArchiveOpenMode archive.FileOpenMode
 }
 
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
@@ -68,8 +69,7 @@ func Crawl(ctx context.Context, config Config, process crawl.ProcessFunc, stdout
 		Limiter:                            limiterFromConfig(config.ArchivesCrawledPerSecond),
 		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
 		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
-		OpenFile:                           os.Open,
-		ArchiveWalkers:                     archive.Walkers(int64(config.ArchiveMaxSize)),
+		ArchiveWalkers:                     archive.Walkers(int64(config.ArchiveMaxSize), config.ArchiveOpenMode),
 	}
 	crawler := crawl.Crawler{
 		Limiter:     limiterFromConfig(config.DirectoriesCrawledPerSecond),

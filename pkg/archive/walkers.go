@@ -31,7 +31,13 @@ import (
 // The int64 returned from the function will return -1 if there is no limit for size that archive walker,
 // otherwise returning the maximum archive size that should be used when using the WalkerProvider.FromReader
 // method.
-func Walkers(maxInMemoryArchiveSize int64) func(path string) (WalkerProvider, int64, bool) {
+// The given FileOpenMode will determine whether a file used standard file opening or direct I/O. Standard file opening
+// may put pressure on the filesystem cache under certain circumstances, resulting in extra work for the filesystem
+// due to cache eviction. Direct I/O may be enabled which will skip the filesystem cache for operating systems that
+// support it. With Direct I/O enabled, it will only be used for archives where reading through the stream is required
+// to find file headers rather than for archives where a file table can be located and skipped to at a known place.
+// e.g. Direct I/O may be used for tar-based archives, but will not be used for zip-based archives.
+func Walkers(maxInMemoryArchiveSize int64, fileOpenMode FileOpenMode) func(path string) (WalkerProvider, int64, bool) {
 	return func(path string) (WalkerProvider, int64, bool) {
 		_, filename := filepath.Split(path)
 		fileSplit := strings.Split(filename, ".")
@@ -45,11 +51,11 @@ func Walkers(maxInMemoryArchiveSize int64) func(path string) (WalkerProvider, in
 			case "ear", "jar", "par", "war", "zip":
 				return ZipArchiveWalkers(), maxInMemoryArchiveSize, true
 			case "tar":
-				return TarArchiveWalkers(), -1, true
+				return TarArchiveWalkers(fileOpenMode), -1, true
 			case "tar.gz", "tgz":
-				return TarGzWalkers(), -1, true
+				return TarGzWalkers(fileOpenMode), -1, true
 			case "tar.bz2", "tbz2":
-				return TarBz2Walkers(), -1, true
+				return TarBz2Walkers(fileOpenMode), -1, true
 			}
 		}
 		return nil, 0, false
@@ -58,12 +64,12 @@ func Walkers(maxInMemoryArchiveSize int64) func(path string) (WalkerProvider, in
 
 // WalkerProvider creates WalkFn and closing function from certain resources.
 type WalkerProvider interface {
-	FromFile(*os.File) (WalkFn, func() error, error)
+	FromFile(string) (WalkFn, func() error, error)
 	FromReader(io.Reader) (WalkFn, func() error, error)
 }
 
 // FileWalkerProviderFunc creates a WalkFn and closing function from a file.
-type FileWalkerProviderFunc func(f *os.File) (WalkFn, func() error, error)
+type FileWalkerProviderFunc func(path string) (WalkFn, func() error, error)
 
 // ReaderWalkerProviderFunc creates a WalkFn and closing function from a reader.
 type ReaderWalkerProviderFunc func(r io.Reader) (WalkFn, func() error, error)
@@ -76,25 +82,29 @@ func WalkerProviderFromFuncs(file FileWalkerProviderFunc, reader ReaderWalkerPro
 	}
 }
 
-// WalkerFromReaderWalkerProvider creates a WalkerProvider where the same function is used for both
+// WalkerFromReaderWalkerProvider creates IntermediateBufferReader WalkerProvider where the same function is used for both
 // the FromFile and FromReader methods.
 // For the FromFile, the file pointer is passed directly to reader.
-func WalkerFromReaderWalkerProvider(reader ReaderWalkerProviderFunc) WalkerProvider {
+func WalkerFromReaderWalkerProvider(mode FileOpenMode, getWalkFn ReaderWalkerProviderFunc) WalkerProvider {
+	var fromFile FileWalkerProviderFunc
+	if mode == DirectIOOpen {
+		fromFile = directIOOpenFileWalker(getWalkFn)
+	} else {
+		fromFile = standardOpenFileWalker(getWalkFn)
+	}
 	return walkerProvider{
-		fromFile: func(f *os.File) (WalkFn, func() error, error) {
-			return reader(f)
-		},
-		fromReader: reader,
+		fromFile:   fromFile,
+		fromReader: getWalkFn,
 	}
 }
 
 type walkerProvider struct {
-	fromFile   func(f *os.File) (WalkFn, func() error, error)
-	fromReader func(r io.Reader) (WalkFn, func() error, error)
+	fromFile   FileWalkerProviderFunc
+	fromReader ReaderWalkerProviderFunc
 }
 
-func (w walkerProvider) FromFile(f *os.File) (WalkFn, func() error, error) {
-	return w.fromFile(f)
+func (w walkerProvider) FromFile(path string) (WalkFn, func() error, error) {
+	return w.fromFile(path)
 }
 
 func (w walkerProvider) FromReader(r io.Reader) (WalkFn, func() error, error) {
@@ -105,7 +115,11 @@ func (w walkerProvider) FromReader(r io.Reader) (WalkFn, func() error, error) {
 // maxReadLimit is the maximum amount of data to read from a reader when FromReader is called.
 func ZipArchiveWalkers() WalkerProvider {
 	return walkerProvider{
-		fromFile: func(f *os.File) (WalkFn, func() error, error) {
+		fromFile: func(path string) (WalkFn, func() error, error) {
+			f, err := os.Open(path)
+			if err != nil {
+				return nil, nil, err
+			}
 			stat, err := f.Stat()
 			if err != nil {
 				return nil, nil, err
@@ -146,9 +160,9 @@ func zipArchiveWalker(r *zip.Reader) WalkFn {
 }
 
 // TarGzWalkers creates a WalkerProvider for gzipped tar content.
-func TarGzWalkers() WalkerProvider {
-	return WalkerFromReaderWalkerProvider(func(f io.Reader) (WalkFn, func() error, error) {
-		reader, close, err := TarGzipReader(f)
+func TarGzWalkers(mode FileOpenMode) WalkerProvider {
+	return WalkerFromReaderWalkerProvider(mode, func(r io.Reader) (WalkFn, func() error, error) {
+		reader, close, err := TarGzipReader(r)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -157,15 +171,15 @@ func TarGzWalkers() WalkerProvider {
 }
 
 // TarBz2Walkers creates a WalkerProvider for bz2 zipped tar content.
-func TarBz2Walkers() WalkerProvider {
-	return WalkerFromReaderWalkerProvider(func(r io.Reader) (WalkFn, func() error, error) {
+func TarBz2Walkers(mode FileOpenMode) WalkerProvider {
+	return WalkerFromReaderWalkerProvider(mode, func(r io.Reader) (WalkFn, func() error, error) {
 		return tarArchiveWalker(tar.NewReader(bzip2.NewReader(r))), func() error { return nil }, nil
 	})
 }
 
 // TarArchiveWalkers creates a WalkerProvider for tar content.
-func TarArchiveWalkers() WalkerProvider {
-	return WalkerFromReaderWalkerProvider(func(r io.Reader) (WalkFn, func() error, error) {
+func TarArchiveWalkers(mode FileOpenMode) WalkerProvider {
+	return WalkerFromReaderWalkerProvider(mode, func(r io.Reader) (WalkFn, func() error, error) {
 		return tarArchiveWalker(tar.NewReader(r)), func() error { return nil }, nil
 	})
 }

@@ -38,7 +38,7 @@ func TestLog4jIdentifier(t *testing.T) {
 		identifier := crawl.Log4jIdentifier{
 			ArchiveWalkers: func(path string) (archive.WalkerProvider, int64, bool) {
 				assert.Equal(t, "bar", path)
-				return archive.WalkerProviderFromFuncs(func(f *os.File) (archive.WalkFn, func() error, error) {
+				return archive.WalkerProviderFromFuncs(func(string) (archive.WalkFn, func() error, error) {
 					return func(ctx context.Context, walkFn archive.FileWalkFn) error {
 						time.Sleep(50 * time.Millisecond)
 						select {
@@ -51,7 +51,6 @@ func TestLog4jIdentifier(t *testing.T) {
 					}, noopCloser, nil
 				}, nil), -1, true
 			},
-			OpenFile:           tempEmptyFile(t),
 			ArchiveWalkTimeout: time.Millisecond,
 			Limiter:            ratelimit.NewUnlimited(),
 		}
@@ -66,14 +65,13 @@ func TestLog4jIdentifier(t *testing.T) {
 		expectedErr := errors.New("err")
 		identifier := crawl.Log4jIdentifier{
 			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
-				return archive.WalkerProviderFromFuncs(func(f *os.File) (archive.WalkFn, func() error, error) {
+				return archive.WalkerProviderFromFuncs(func(string) (archive.WalkFn, func() error, error) {
 					return func(ctx context.Context, walkFn archive.FileWalkFn) error { return nil },
 						func() error { return expectedErr }, nil
 				}, nil), -1, true
 			},
 			ArchiveWalkTimeout: time.Second,
 			Limiter:            ratelimit.NewUnlimited(),
-			OpenFile:           func(string) (*os.File, error) { return nil, nil },
 		}
 		_, _, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{
 			name: "sdlkfjsldkjfs.tar.gz",
@@ -87,7 +85,7 @@ func TestLog4jIdentifier(t *testing.T) {
 		identifier := crawl.Log4jIdentifier{
 			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
 				return archive.WalkerProviderFromFuncs(
-					func(f *os.File) (archive.WalkFn, func() error, error) {
+					func(string) (archive.WalkFn, func() error, error) {
 						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
 							fileWalkCalls++
 							_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
@@ -104,7 +102,6 @@ func TestLog4jIdentifier(t *testing.T) {
 			},
 			ArchiveWalkTimeout: time.Second,
 			Limiter:            ratelimit.NewUnlimited(),
-			OpenFile:           tempEmptyFile(t),
 		}
 
 		_, _, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
@@ -119,7 +116,7 @@ func TestLog4jIdentifier(t *testing.T) {
 		identifier := crawl.Log4jIdentifier{
 			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
 				return archive.WalkerProviderFromFuncs(
-					func(f *os.File) (archive.WalkFn, func() error, error) {
+					func(string) (archive.WalkFn, func() error, error) {
 						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
 							fileWalkCalls++
 							_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
@@ -137,7 +134,6 @@ func TestLog4jIdentifier(t *testing.T) {
 			ArchiveWalkTimeout: time.Second,
 			ArchiveMaxDepth:    3,
 			Limiter:            ratelimit.NewUnlimited(),
-			OpenFile:           tempEmptyFile(t),
 		}
 
 		_, _, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
@@ -295,7 +291,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			identifier := crawl.Log4jIdentifier{
 				ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
-					return archive.WalkerProviderFromFuncs(func(f *os.File) (archive.WalkFn, func() error, error) {
+					return archive.WalkerProviderFromFuncs(func(string) (archive.WalkFn, func() error, error) {
 						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
 							for _, path := range tc.filesInArchive {
 								if _, err := walkFn(ctx, path, 0, bytes.NewReader(emptyZipContent(t))); err != nil {
@@ -306,7 +302,6 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 						}, noopCloser, nil
 					}, nil), -1, true
 				},
-				OpenFile:           tempEmptyFile(t),
 				ArchiveWalkTimeout: time.Second,
 				Limiter:            ratelimit.NewUnlimited(),
 			}
@@ -321,12 +316,6 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 				assert.Equal(t, crawl.Versions{tc.version: {}}, version)
 			}
 		})
-	}
-}
-
-func tempEmptyFile(t *testing.T) func(s string) (*os.File, error) {
-	return func(s string) (*os.File, error) {
-		return os.Open(mustWriteTempFile(t, "foo", nil))
 	}
 }
 

@@ -247,6 +247,11 @@ Usage:
   log4j-sniffer crawl <root> [flags]
 
 Flags:
+      --archive-open-mode string                                Supported values:
+                                                                  standard - standard file opening will be used. This may cause the filesystem cache to be populated with reads from the archive opens.
+                                                                  directio - direct I/O will be used when opening archives that require sequential reading of their content without being able to skip to file tables at known locations within the file.
+                                                                             For example, "directio" can have an effect on the way that tar-based archives are read but will have no effect on zip-based archives.
+                                                                             Using "directio" will cause the filesystem cache to be skipped where possible. "directio" is not supported on tmpfs filesystems and will cause tmpfs archive files to report an error. (default "standard")
       --archives-per-second-rate-limit int                      The maximum number of archives to scan per second. 0 for unlimited.
       --directories-per-second-rate-limit int                   The maximum number of directories to crawl per second. 0 for unlimited.
       --disable-cve-2021-44832-detection                        Disable detection of CVE-2021-44832 in versions up to 2.17.0

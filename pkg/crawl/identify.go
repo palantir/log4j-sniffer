@@ -145,17 +145,8 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	if !ok {
 		return result, versions, 0, nil
 	}
-	file, openErr := i.OpenFile(path)
-	if openErr != nil {
-		return NothingDetected, nil, 0, openErr
-	}
-	defer func() {
-		if cErr := file.Close(); err == nil && cErr != nil {
-			err = cErr
-		}
-	}()
 
-	walker, close, tErr := getWalker.FromFile(file)
+	walker, close, tErr := getWalker.FromFile(path)
 	if tErr != nil {
 		return NothingDetected, nil, 0, tErr
 	}
@@ -166,7 +157,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	}()
 	inZip, inZipVs, skipped, err := i.findArchiveVulnerabilities(ctx, 0, walker, obfuscated)
 	if err != nil {
-		return 0, nil, 0, errors.Wrapf(err, "failed to walk archive %s", file.Name())
+		return 0, nil, 0, errors.Wrapf(err, "failed to walk archive %s", path)
 	}
 	for v := range inZipVs {
 		versions[v] = struct{}{}
