@@ -54,8 +54,16 @@ func TestIntermediateBufferReader_ReadingAllContentFromReader(t *testing.T) {
 		content:                "012",
 		intermediateBufferSize: 7,
 	}, {
+		name:                   "content length 1 byte less than buffer size",
+		content:                "012345",
+		intermediateBufferSize: 7,
+	}, {
 		name:                   "content equal to size",
 		content:                "0123456",
+		intermediateBufferSize: 7,
+	}, {
+		name:                   "content length 1 byte greater than buffer size",
+		content:                "01234567",
 		intermediateBufferSize: 7,
 	}, {
 		name:                   "content larger than buffer size",
