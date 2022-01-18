@@ -15,12 +15,15 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"regexp"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/palantir/log4j-sniffer/internal/crawler"
+	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -77,7 +80,17 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				return fmt.Errorf("--file-path-only cannot be used with --json")
 			}
 
-			_, err := crawler.Crawl(cmd.Context(), crawler.Config{
+			reporter := crawl.Reporter{
+				OutputJSON:                     outputJSON,
+				OutputFilePathOnly:             outputFilePathOnly,
+				OutputWriter:                   cmd.OutOrStdout(),
+				DisableCVE45105:                disableCVE45105,
+				DisableCVE44832:                disableCVE44832,
+				DisableFlaggingJndiLookup:      disableFlaggingJndiLookup,
+				DisableFlaggingUnknownVersions: disableUnknownVersions,
+			}
+
+			crawlSum, err := crawler.Crawl(cmd.Context(), crawler.Config{
 				Root:                               args[0],
 				ArchiveListTimeout:                 perArchiveTimeout,
 				ArchiveMaxDepth:                    nestedArchiveMaxDepth,
@@ -87,15 +100,46 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				ObfuscatedClassNameAverageLength:   obfuscatedClassNameAverageLength,
 				ObfuscatedPackageNameAverageLength: obfuscatedPackageNameAverageLength,
 				PrintDetailedOutput:                !disableDetailedFindings && !outputJSON && !outputFilePathOnly,
-				DisableFlaggingJndiLookup:          disableFlaggingJndiLookup,
-				DisableCVE45105:                    disableCVE45105,
-				DisableCVE44832:                    disableCVE44832,
-				DisableUnknownVersions:             disableUnknownVersions,
 				Ignores:                            ignores,
-				OutputJSON:                         outputJSON,
-				OutputFilePathOnly:                 outputFilePathOnly,
-				OutputSummary:                      outputSummary,
-			}, cmd.OutOrStdout(), cmd.OutOrStderr())
+			}, reporter.Collect, cmd.OutOrStdout(), cmd.OutOrStderr())
+			if err != nil {
+				return err
+			}
+
+			if outputSummary {
+				var output string
+				if outputJSON {
+					jsonBytes, err := json.Marshal(struct {
+						crawl.Stats
+						NumImpactedFiles int64 `json:"numImpactedFiles"`
+					}{
+						Stats:            crawlSum,
+						NumImpactedFiles: reporter.Count(),
+					})
+					if err != nil {
+						return err
+					}
+					output = string(jsonBytes)
+				} else {
+					var cveInfo string
+					cveInfo = "CVE-2021-44228 or CVE-2021-45046"
+					if !disableCVE45105 {
+						cveInfo += " or CVE-2021-45105"
+					}
+					if !disableCVE44832 {
+						cveInfo += " or CVE-2021-44832"
+					}
+					count := reporter.Count()
+					if count > 0 {
+						output = color.RedString("Files affected by %s detected: %d file(s)", cveInfo, count)
+					} else {
+						output = color.GreenString("No files affected by %s detected", cveInfo)
+					}
+					output += color.CyanString("\n%d total files scanned, skipped identifying %d files due to config, skipped %d paths due to permission denied errors, encountered %d errors processing paths",
+						crawlSum.FilesScanned, crawlSum.PathSkippedCount, crawlSum.PermissionDeniedCount, crawlSum.PathErrorCount)
+				}
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), output)
+			}
 			return err
 		},
 	}
