@@ -29,6 +29,9 @@ const (
 	StandardOpen FileOpenMode = false
 	// DirectIOOpen opens files using flags that allow for direct i/o, skipping filesystem cache.
 	DirectIOOpen FileOpenMode = true
+
+	// directIOIntermediateBufferSize is the intermediate buffer size used when using DirectIOOpen FileOpenMode.
+	directIOIntermediateBufferSize = 8 * directio.BlockSize
 )
 
 func standardOpenFileWalker(getWalkFn ReaderWalkerProviderFunc) func(path string) (WalkFn, func() error, error) {
@@ -78,7 +81,7 @@ func directIOOpenFileWalker(reader ReaderWalkerProviderFunc) func(path string) (
 			walkFn, closeWalker, err = reader(&buffer.IntermediateBufferReader{
 				Reader:      f,
 				ContentSize: stat.Size(),
-				Buffer:      directio.AlignedBlock(32768),
+				Buffer:      directio.AlignedBlock(directIOIntermediateBufferSize),
 			})
 		}
 		if err != nil {
