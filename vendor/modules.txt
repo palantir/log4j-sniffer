@@ -11,6 +11,9 @@ github.com/inconshreveable/mousetrap
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.14
 github.com/mattn/go-isatty
+# github.com/ncw/directio v1.0.5
+## explicit
+github.com/ncw/directio
 # github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
 ## explicit
 # github.com/nmiyake/pkg/errorstringer v1.1.0

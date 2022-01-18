@@ -171,3 +171,13 @@ func TestSummaryContainsExpectedFields(t *testing.T) {
 		"pathsSkipped":           8,
 	}, summary)
 }
+
+func TestArchiveOpenModeValueError(t *testing.T) {
+	cli, err := products.Bin("log4j-sniffer")
+	require.NoError(t, err)
+
+	cmd := exec.Command(cli, "crawl", ".", "--archive-open-mode", "nope")
+	output, err := cmd.CombinedOutput()
+	require.Error(t, err)
+	assert.Contains(t, string(output), "unsupported --archive-open-mode: nope")
+}

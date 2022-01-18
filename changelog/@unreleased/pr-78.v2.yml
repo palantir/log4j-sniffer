@@ -1,0 +1,18 @@
+type: improvement
+improvement:
+  description: |-
+    A flag has been added to choose the behaviour of file opening used when opening archives on disk.
+    The flag, `--archive-open-mode`, has supported values of "standard" and "directio", defaulting to "standard" when no value is supplied.
+
+    Standard open mode will open files and read their content in the
+    same way as before this PR, where the filesystem cache may be used.
+    This has caused issues on some hosts, where the use of log4j-sniffer
+    has resulted in many filesystem cache evictions during use.
+
+    Direct i/o mode will use the O_DIRECT flag when opening archives on
+    disk on linux systems, using similar primitives on other operating
+    systems that allow for reading of the files to skip the cache.
+
+    Closes: https://github.com/palantir/log4j-sniffer/issues/77
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/78
