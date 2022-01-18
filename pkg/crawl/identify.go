@@ -176,11 +176,9 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	if log4jMatch && len(versions) == 0 {
 		return NothingDetected, nil, skipped, nil
 	}
-	if inZip != NothingDetected && !obfuscated {
-		result |= inZip
-	} else if inZip != NothingDetected {
+	if inZip != NothingDetected && obfuscated {
+		result |= JarFileObfuscated
 		i.printInfoFinding("Found finding in what appeared to be an obfuscated jar at %s", path)
-		result |= JarFileObfuscated | inZip
 	}
 	result |= inZip
 	if result != NothingDetected && len(versions) == 0 {
@@ -274,10 +272,10 @@ func (i *Log4jIdentifier) checkForObfuscation(path string) (obfuscated bool, err
 	}()
 
 	averageSizes := java.AveragePackageAndClassLength(r.File)
-	if 0 < averageSizes.PackageName && averageSizes.PackageName < i.ObfuscatedPackageNameAverageLength && 0 < averageSizes.ClassName && averageSizes.ClassName < i.ObfuscatedClassNameAverageLength {
-		return true, nil
-	}
-	return false, nil
+	return 0 < averageSizes.PackageName &&
+		averageSizes.PackageName < i.ObfuscatedPackageNameAverageLength &&
+		0 < averageSizes.ClassName &&
+		averageSizes.ClassName < i.ObfuscatedClassNameAverageLength, nil
 }
 
 func (i *Log4jIdentifier) lookForMatchInFileInZip(path string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {

@@ -52,7 +52,7 @@ type Stats struct {
 type MatchFunc func(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, uint64, error)
 
 // ProcessFunc processes the given matched file.
-type ProcessFunc func(ctx context.Context, path string, d fs.DirEntry, result Finding, version Versions)
+type ProcessFunc func(ctx context.Context, path string, result Finding, version Versions)
 
 // Crawl crawls the provided root directory. Each file is passed to the provided match function, which returns true if
 // the path should be processed by the provided process function. On encountering a directory, the path will be compared
@@ -105,7 +105,7 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 		if matched == NothingDetected {
 			return nil
 		}
-		process(ctx, path, d, matched, version)
+		process(ctx, path, matched, version)
 		return err
 	})
 	return stats, err

@@ -33,7 +33,6 @@ func TestCrawler_Crawl(t *testing.T) {
 		var matchPathInputs []string
 		var matchDirEntryInputs []string
 		var processInputs []string
-		var processDirEntryInputs []string
 		root := makeTestFS(t, []string{
 			"foo",
 			"bar",
@@ -55,15 +54,13 @@ func TestCrawler_Crawl(t *testing.T) {
 			matchPathInputs = append(matchPathInputs, path)
 			matchDirEntryInputs = append(matchDirEntryInputs, d.Name())
 			return JarName, nil, 0, nil
-		}, func(ctx context.Context, path string, d fs.DirEntry, result Finding, version Versions) {
+		}, func(ctx context.Context, path string, result Finding, version Versions) {
 			processInputs = append(processInputs, path)
-			processDirEntryInputs = append(processDirEntryInputs, d.Name())
 		})
 		require.NoError(t, err)
 		assert.Equal(t, []string{filepath.Join(root, "qux/qux")}, matchPathInputs)
 		assert.Equal(t, []string{"qux"}, matchDirEntryInputs)
 		assert.Equal(t, []string{filepath.Join(root, "qux/qux")}, processInputs)
-		assert.Equal(t, []string{"qux"}, processDirEntryInputs)
 	})
 
 	t.Run("returns without processing if context is done", func(t *testing.T) {
@@ -76,7 +73,7 @@ func TestCrawler_Crawl(t *testing.T) {
 		}.Crawl(ctx, t.TempDir(), func(context.Context, string, fs.DirEntry) (Finding, Versions, uint64, error) {
 			countMatch++
 			return JarName, nil, 0, nil
-		}, func(context.Context, string, fs.DirEntry, Finding, Versions) {
+		}, func(context.Context, string, Finding, Versions) {
 			countProcess++
 		})
 		require.Equal(t, ctx.Err(), err)
@@ -94,7 +91,7 @@ func TestCrawler_Crawl(t *testing.T) {
 			func(ctx context.Context, path string, entry fs.DirEntry) (Finding, Versions, uint64, error) {
 				matchInputs = append(matchInputs, path)
 				return NothingDetected, nil, 0, errors.New("")
-			}, func(context.Context, string, fs.DirEntry, Finding, Versions) {
+			}, func(context.Context, string, Finding, Versions) {
 				countProcess++
 			})
 		require.NoError(t, err)
@@ -112,7 +109,7 @@ func TestCrawler_Crawl(t *testing.T) {
 			func(ctx context.Context, path string, entry fs.DirEntry) (Finding, Versions, uint64, error) {
 				matchInputs = append(matchInputs, path)
 				return NothingDetected, nil, 0, nil
-			}, func(context.Context, string, fs.DirEntry, Finding, Versions) {
+			}, func(context.Context, string, Finding, Versions) {
 				countProcess++
 			})
 		require.NoError(t, err)
@@ -129,7 +126,7 @@ func TestCrawler_Crawl(t *testing.T) {
 		}.Crawl(ctx, root,
 			func(context.Context, string, fs.DirEntry) (Finding, Versions, uint64, error) {
 				return JarName, nil, 0, nil
-			}, func(innerCtx context.Context, path string, entry fs.DirEntry, result Finding, version Versions) {
+			}, func(innerCtx context.Context, path string, result Finding, version Versions) {
 				processInputs = append(processInputs, path)
 				assert.Equal(t, ctx, innerCtx)
 			})
