@@ -27,6 +27,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	examplesDir = "../../examples"
+)
+
 func TestCrawl(t *testing.T) {
 	t.Run("returns non-nil error and empty result on failed crawl", func(t *testing.T) {
 		out, err := Crawl(context.Background(), Config{
@@ -48,13 +52,8 @@ func TestCrawl(t *testing.T) {
 }
 
 func TestCrawlExamplesFindings(t *testing.T) {
-	type versionedFindings struct {
-		finding  crawl.Finding
-		versions crawl.Versions
-	}
-
 	expected := map[string]versionedFindings{
-		"archived_fat_jar/archived_fat_jar.tar.gz": {
+		"archived_fat_jar/archived_fat_jar.tar.gz!fat_jar.jar": {
 			finding:  crawl.JndiLookupClassPackageAndName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			versions: map[string]struct{}{"2.14.0-2.14.1": {}},
 		},
@@ -82,35 +81,35 @@ func TestCrawlExamplesFindings(t *testing.T) {
 			finding:  crawl.JndiLookupClassPackageAndName | crawl.JndiManagerClassPackageAndName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			versions: map[string]struct{}{"2.14.0-2.14.1": {}},
 		},
-		"inside_a_dist/wrapped_log4j.tar": {
+		"inside_a_dist/wrapped_log4j.tar!log4j-core-2.14.1.jar": {
 			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			versions: map[string]struct{}{
 				"2.14.0-2.14.1": {},
 				"2.14.1":        {},
 			},
 		},
-		"inside_a_dist/wrapped_log4j.tar.bz2": {
+		"inside_a_dist/wrapped_log4j.tar.bz2!log4j-core-2.14.1.jar": {
 			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			versions: map[string]struct{}{
 				"2.14.0-2.14.1": {},
 				"2.14.1":        {},
 			},
 		},
-		"inside_a_dist/wrapped_log4j.tar.gz": {
+		"inside_a_dist/wrapped_log4j.tar.gz!log4j-core-2.14.1.jar": {
 			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			versions: map[string]struct{}{
 				"2.14.0-2.14.1": {},
 				"2.14.1":        {},
 			},
 		},
-		"inside_a_dist/wrapped_log4j.zip": {
+		"inside_a_dist/wrapped_log4j.zip!log4j-core-2.14.1.jar": {
 			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			versions: map[string]struct{}{
 				"2.14.0-2.14.1": {},
 				"2.14.1":        {},
 			},
 		},
-		"inside_a_par/wrapped_in_a_par.par": {
+		"inside_a_par/wrapped_in_a_par.par!lib/log4j-core-2.14.1.jar": {
 			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			versions: map[string]struct{}{
 				"2.14.0-2.14.1": {},
@@ -211,7 +210,20 @@ func TestCrawlExamplesFindings(t *testing.T) {
 				"2.15.0": {},
 			},
 		},
-		"nested_very_deep/nested_thrice.tar.gz": {
+		"multiple_bad_versions_in_single_archive/multiple_bad_versions_in_single_archive.tar.gz!log4j-core-2.14.0.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.14.0":        {},
+				"2.14.0-2.14.1": {},
+			},
+		},
+		"multiple_bad_versions_in_single_archive/multiple_bad_versions_in_single_archive.tar.gz!log4j-core-2.15.0.jar": {
+			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
+			versions: map[string]struct{}{
+				"2.15.0": {},
+			},
+		},
+		"nested_very_deep/nested_thrice.tar.gz!nested_twice.tar.gz!wrapped_log4j.tar.gz!log4j-core-2.14.1.jar": {
 			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			versions: map[string]struct{}{
 				"2.14.1":        {},
@@ -224,7 +236,7 @@ func TestCrawlExamplesFindings(t *testing.T) {
 				"2.9.0-2.14.1": {},
 			},
 		},
-		"par_in_a_dist/wrapped_par_in_a_dist.zip": {
+		"par_in_a_dist/wrapped_par_in_a_dist.zip!wrapped_in_a_par.par!lib/log4j-core-2.14.1.jar": {
 			finding: crawl.JndiLookupClassPackageAndName | crawl.JarNameInsideArchive | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5,
 			versions: map[string]struct{}{
 				"2.14.0-2.14.1": {},
@@ -247,7 +259,6 @@ func TestCrawlExamplesFindings(t *testing.T) {
 	}
 
 	findings := make(map[string]versionedFindings)
-	examplesDir := "../../examples"
 
 	summary, err := Crawl(context.Background(), Config{
 		Root:                               examplesDir,
@@ -266,7 +277,7 @@ func TestCrawlExamplesFindings(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, crawl.Stats{
-		FilesScanned: 36,
+		FilesScanned: 37,
 	}, summary)
 
 	var foundPaths []string
@@ -279,7 +290,7 @@ func TestCrawlExamplesFindings(t *testing.T) {
 		relative, err := filepath.Rel(examplesDir, path)
 		require.NoError(t, err)
 		if _, isExpected := expected[relative]; !isExpected {
-			assert.Failf(t, "Unexpected finding", "path: %s, finding: %s, versions: v", relative, findings[path].finding.String(), findings[path].versions)
+			assert.Failf(t, "Unexpected finding", "path: %s, finding: %s, versions: %v", relative, findings[path].finding.String(), findings[path].versions)
 		}
 	}
 
@@ -301,4 +312,39 @@ func TestCrawlExamplesFindings(t *testing.T) {
 			assert.Equal(t, expected[path].versions, finding.versions, "Unexpected versions")
 		})
 	}
+}
+
+func TestCrawlFindsJarNameWithoutWalking(t *testing.T) {
+	findings := make(map[string]versionedFindings)
+	summary, err := Crawl(context.Background(), Config{
+		Root:                               filepath.Join(examplesDir, "nested_very_deep/nested_thrice.tar.gz"),
+		ArchiveMaxDepth:                    2,
+		ArchiveMaxSize:                     1024 * 1024 * 10,
+		ObfuscatedClassNameAverageLength:   3,
+		ObfuscatedPackageNameAverageLength: 3,
+		PrintDetailedOutput:                true,
+	}, func(ctx context.Context, path string, result crawl.Finding, versions crawl.Versions) {
+		findings[path] = versionedFindings{
+			finding:  result,
+			versions: versions,
+		}
+	}, io.Discard, io.Discard)
+	require.NoError(t, err)
+	assert.Equal(t, crawl.Stats{
+		FilesScanned:          1,
+		PermissionDeniedCount: 0,
+		PathErrorCount:        0,
+		PathSkippedCount:      0,
+	}, summary)
+	assert.Equal(t, map[string]versionedFindings{
+		"../../examples/nested_very_deep/nested_thrice.tar.gz!nested_twice.tar.gz!wrapped_log4j.tar.gz!log4j-core-2.14.1.jar": {
+			finding:  crawl.JarNameInsideArchive,
+			versions: map[string]struct{}{"2.14.1": {}},
+		},
+	}, findings)
+}
+
+type versionedFindings struct {
+	finding  crawl.Finding
+	versions crawl.Versions
 }

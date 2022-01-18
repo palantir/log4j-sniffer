@@ -45,34 +45,28 @@ type Stats struct {
 	PathSkippedCount uint64 `json:"pathsSkipped"`
 }
 
-// MatchFunc is used to match a file for processing.
-// If returning a positive finding, a file will be passed onto the ProcessFunc.
-// Returns the finding, if present, along with the version matching as well as the number of
-// files skipped and any error encountered.
-type MatchFunc func(ctx context.Context, path, filename string) (Finding, Versions, uint64, error)
-
-// ProcessFunc processes the given matched file.
-type ProcessFunc func(ctx context.Context, path string, result Finding, version Versions)
+// ProcessFunc is called on all files encountered when crawling the a filesystem.
+type ProcessFunc func(ctx context.Context, path string, filename string) (uint64, error)
 
 // Crawl crawls the provided root directory. Each file is passed to the provided match function, which returns true if
 // the path should be processed by the provided process function. On encountering a directory, the path will be compared
 // against all IgnoreDirs configured in the Crawler. If any pattern matches, the directory (and all files nested inside
 // the directory) will be ignored.
-func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, process ProcessFunc) (Stats, error) {
+func (c Crawler) Crawl(ctx context.Context, root string, process ProcessFunc) (Stats, error) {
 	stats := Stats{}
 	rootFile, err := os.Lstat(root)
 	if err != nil {
 		return stats, err
 	}
 	if rootFile.IsDir() {
-		err = c.processDir(ctx, &stats, root, match, process)
+		err = c.processDir(ctx, &stats, root, process)
 	} else {
-		err = c.processFile(ctx, &stats, root, rootFile.Name(), match, process)
+		err = c.processFile(ctx, &stats, root, rootFile.Name(), process)
 	}
 	return stats, err
 }
 
-func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, match MatchFunc, process ProcessFunc) error {
+func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, process ProcessFunc) error {
 	dirInfo, err := os.Open(path)
 	if err == nil {
 		defer func() {
@@ -121,13 +115,13 @@ func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, matc
 					continue
 				}
 				c.Limiter.Take()
-				if err = c.processDir(ctx, stats, nestedPath, match, process); err != nil {
+				if err = c.processDir(ctx, stats, nestedPath, process); err != nil {
 					return err
 				}
 			} else if !entry.Type().IsRegular() {
 				continue
 			} else {
-				if err = c.processFile(ctx, stats, nestedPath, entry.Name(), match, process); err != nil {
+				if err = c.processFile(ctx, stats, nestedPath, entry.Name(), process); err != nil {
 					return err
 				}
 			}
@@ -136,22 +130,17 @@ func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, matc
 	return nil
 }
 
-func (c Crawler) processFile(ctx context.Context, stats *Stats, path, name string, match MatchFunc, process ProcessFunc) error {
+func (c Crawler) processFile(ctx context.Context, stats *Stats, path, name string, process ProcessFunc) error {
 	stats.FilesScanned++
-	matched, version, skipCount, err := match(ctx, path, name)
+	skipCount, err := process(ctx, path, name)
 	stats.PathSkippedCount += skipCount
 	if err != nil {
 		stats.PathErrorCount++
 		if c.ErrorWriter != nil {
 			_, _ = fmt.Fprintf(c.ErrorWriter, "Error processing path %s: %v\n", path, err)
 		}
-		return nil
 	}
-	if matched == NothingDetected {
-		return nil
-	}
-	process(ctx, path, matched, version)
-	return err
+	return nil
 }
 
 func (c Crawler) includeDir(path string) bool {

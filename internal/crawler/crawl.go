@@ -57,7 +57,7 @@ type Config struct {
 
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
 // provided configuration. Returns the number of issues that were found.
-func Crawl(ctx context.Context, config Config, process crawl.ProcessFunc, stdout, stderr io.Writer) (crawl.Stats, error) {
+func Crawl(ctx context.Context, config Config, process crawl.HandleFindingFunc, stdout, stderr io.Writer) (crawl.Stats, error) {
 	var outputWriter io.Writer
 	if config.PrintDetailedOutput {
 		outputWriter = stdout
@@ -73,6 +73,7 @@ func Crawl(ctx context.Context, config Config, process crawl.ProcessFunc, stdout
 		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
 		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
 		ArchiveWalkers:                     archive.Walkers(int64(config.ArchiveMaxSize), config.ArchiveOpenMode),
+		HandleFinding:                      process,
 	}
 	crawler := crawl.Crawler{
 		Limiter:                     limiterFromConfig(config.DirectoriesCrawledPerSecond),
@@ -81,7 +82,7 @@ func Crawl(ctx context.Context, config Config, process crawl.ProcessFunc, stdout
 		DirectoryEntriesPerListCall: 100,
 	}
 
-	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, process)
+	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify)
 	if err != nil {
 		if stderr != nil {
 			_, _ = fmt.Fprintf(stderr, "Error crawling: %v\n", err)

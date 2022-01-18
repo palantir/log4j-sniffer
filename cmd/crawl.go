@@ -126,10 +126,10 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				if outputJSON {
 					jsonBytes, err := json.Marshal(struct {
 						crawl.Stats
-						NumImpactedFiles int64 `json:"numImpactedFiles"`
+						Findings int64 `json:"findings"`
 					}{
-						Stats:            crawlSum,
-						NumImpactedFiles: reporter.Count(),
+						Stats:    crawlSum,
+						Findings: reporter.Count(),
 					})
 					if err != nil {
 						return err
