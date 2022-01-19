@@ -262,6 +262,7 @@ Flags:
       --disable-unknown-versions                                Only output issues if the version of log4j can be determined (note that this will cause certain detection mechanisms to be skipped)
       --enable-obfuscation-detection                            Enable applying partial bytecode matching to Jars that appear to be obfuscated. (default true)
       --enable-partial-matching-on-all-classes                  Enable partial bytecode matching to all class files found.
+      --enable-trace-logging                                    Enables trace logging whilst crawling. disable-detailed-findings must be set to false (the default value) for this flag to have an effect
       --file-path-only                                          If true, output will consist of only paths to the files in which CVEs are detected
   -h, --help                                                    help for crawl
       --ignore-dir strings                                      Specify directory pattern to ignore. Use multiple times to supply multiple patterns.

@@ -96,6 +96,7 @@ type Identifier interface {
 
 // Log4jIdentifier identifies files that are vulnerable to Log4J-related CVEs.
 type Log4jIdentifier struct {
+	EnableTraceLogging                 bool
 	ErrorWriter                        io.Writer
 	DetailedOutputWriter               io.Writer
 	Limiter                            ratelimit.Limiter
@@ -113,6 +114,7 @@ type Log4jIdentifier struct {
 // - vulnerable log4j jar files.
 // - zipped files containing vulnerable log4j files, using the provided ZipFileLister.
 func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEntry) (result Finding, versions Versions, skipped uint64, err error) {
+	i.printTraceMessage("Identifying file %s", path)
 	if i.ArchiveWalkTimeout > 0 {
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, i.ArchiveWalkTimeout)
 		defer cancel()
@@ -224,6 +226,7 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 
 		filename := filenameFromPathInsideArchive(path)
 		if strings.HasSuffix(filename, ".class") || strings.HasPrefix(filename, "JndiManager.") {
+			i.printTraceMessage("Looking for class file match %s", path)
 			finding, versionInFile, versionMatch := i.lookForClassFileMatch(path, filename, size, contents, obfuscated)
 			if finding == NothingDetected {
 				return true, nil
@@ -321,6 +324,12 @@ func (i *Log4jIdentifier) printDetailedHashFinding(path string, finding Finding)
 		i.printInfoFinding("Found JndiManager class that had identical bytecode instruction as a known version at %s", path)
 	} else if finding&ClassBytecodePartialMatch > 0 {
 		i.printInfoFinding("Found JndiManager class that partially matched the bytecode of a known version at %s", path)
+	}
+}
+
+func (i *Log4jIdentifier) printTraceMessage(message, location string) {
+	if i.DetailedOutputWriter != nil && i.EnableTraceLogging {
+		_, _ = fmt.Fprintln(i.DetailedOutputWriter, fmt.Sprintf("[TRACE] "+message, location))
 	}
 }
 

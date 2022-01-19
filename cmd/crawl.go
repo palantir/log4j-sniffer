@@ -42,6 +42,7 @@ func crawlCmd() *cobra.Command {
 		obfuscatedClassNameAverageLength   uint32
 		obfuscatedPackageNameAverageLength uint32
 		enablePartialMatchingOnAllClasses  bool
+		enableTraceLogging                 bool
 		disableDetailedFindings            bool
 		disableCVE45105                    bool
 		disableCVE44832                    bool
@@ -113,6 +114,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				ObfuscatedClassNameAverageLength:   obfuscatedClassNameAverageLength,
 				ObfuscatedPackageNameAverageLength: obfuscatedPackageNameAverageLength,
 				PrintDetailedOutput:                !disableDetailedFindings && !outputJSON && !outputFilePathOnly,
+				EnableTraceLogging:                 enableTraceLogging,
 				Ignores:                            ignores,
 			}, reporter.Collect, cmd.OutOrStdout(), cmd.OutOrStderr())
 			if err != nil {
@@ -178,6 +180,7 @@ A max depth of 0 will open up an archive on the filesystem but not any nested ar
 	cmd.Flags().BoolVar(&enablePartialMatchingOnAllClasses, "enable-partial-matching-on-all-classes", false, `Enable partial bytecode matching to all class files found.`)
 	cmd.Flags().Uint32Var(&obfuscatedClassNameAverageLength, "maximum-average-obfuscated-class-name-length", 3, `The maximum average class name length for classes within a Jar to be considered obfuscated.`)
 	cmd.Flags().Uint32Var(&obfuscatedPackageNameAverageLength, "maximum-average-obfuscated-package-name-length", 3, `The maximum average package name length for packages within a Jar to be considered obfuscated.`)
+	cmd.Flags().BoolVar(&enableTraceLogging, "enable-trace-logging", false, `Enables trace logging whilst crawling. disable-detailed-findings must be set to false (the default value) for this flag to have an effect`)
 	cmd.Flags().BoolVar(&disableDetailedFindings, "disable-detailed-findings", false, "Do not print out detailed finding information when not outputting in JSON.")
 	cmd.Flags().BoolVar(&disableFlaggingJndiLookup, "disable-flagging-jndi-lookup", false, `Do not report results that only match on the presence of a JndiLookup class.
 Even when disabled results which match other criteria will still report the presence of JndiLookup if relevant.`)

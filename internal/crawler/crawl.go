@@ -51,6 +51,8 @@ type Config struct {
 	Ignores []*regexp.Regexp
 	// ArchiveOpenMode prescribes the crawler to use either direct-io or standard file opening.
 	ArchiveOpenMode archive.FileOpenMode
+	// EnableTraceLogging enables trace level logging.
+	EnableTraceLogging bool
 }
 
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
@@ -62,6 +64,7 @@ func Crawl(ctx context.Context, config Config, process crawl.ProcessFunc, stdout
 	}
 	identifier := crawl.Log4jIdentifier{
 		ErrorWriter:                        stderr,
+		EnableTraceLogging:                 config.EnableTraceLogging,
 		DetailedOutputWriter:               outputWriter,
 		IdentifyObfuscation:                config.ObfuscatedClassNameAverageLength > 0 && config.ObfuscatedPackageNameAverageLength > 0,
 		ObfuscatedClassNameAverageLength:   float32(config.ObfuscatedClassNameAverageLength),
