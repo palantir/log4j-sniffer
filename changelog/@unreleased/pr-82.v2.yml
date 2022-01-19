@@ -1,5 +1,6 @@
 type: improvement
 improvement:
-  description: Optionally trace log path when crawling
+  description: Optionally trace log path when crawling using the `--enable-trace-logging`
+    flag.
   links:
   - https://github.com/palantir/log4j-sniffer/pull/82
