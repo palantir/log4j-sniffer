@@ -222,8 +222,9 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 			}
 		}
 
-		if strings.HasSuffix(path, ".class") {
-			finding, versionInFile, versionMatch := i.lookForClassFileMatch(path, size, contents, obfuscated)
+		filename := filenameFromPathInsideArchive(path)
+		if strings.HasSuffix(filename, ".class") || strings.HasPrefix(filename, "JndiManager.") {
+			finding, versionInFile, versionMatch := i.lookForClassFileMatch(path, filename, size, contents, obfuscated)
 			if finding == NothingDetected {
 				return true, nil
 			}
@@ -278,7 +279,7 @@ func (i *Log4jIdentifier) checkForObfuscation(path string) (obfuscated bool, err
 		averageSizes.ClassName < i.ObfuscatedClassNameAverageLength, nil
 }
 
-func (i *Log4jIdentifier) lookForClassFileMatch(path string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
+func (i *Log4jIdentifier) lookForClassFileMatch(path, filename string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if hashMatch {
@@ -293,7 +294,7 @@ func (i *Log4jIdentifier) lookForClassFileMatch(path string, size int64, content
 		return JndiLookupClassPackageAndName, "", false
 	}
 
-	hashClass := strings.HasSuffix(path, "JndiManager.class") || obfuscated
+	hashClass := strings.HasSuffix(path, "JndiManager.class") || strings.HasPrefix(filename, "JndiManager.") || obfuscated
 	if hashClass {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if strings.HasSuffix(path, "JndiManager.class") {
@@ -336,11 +337,16 @@ func (i *Log4jIdentifier) printErrorFinding(message string, err error) {
 }
 
 func pathMatchesLog4JVersion(path string) (string, bool) {
+	filename := filenameFromPathInsideArchive(path)
+	return fileNameMatchesLog4jVersion(filename)
+}
+
+func filenameFromPathInsideArchive(path string) string {
 	filename, finalSlashIndex := path, strings.LastIndex(path, "/")
 	if finalSlashIndex > -1 {
 		filename = path[finalSlashIndex+1:]
 	}
-	return fileNameMatchesLog4jVersion(filename)
+	return filename
 }
 
 func fileNameMatchesLog4jVersion(filename string) (string, bool) {

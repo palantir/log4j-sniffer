@@ -1,0 +1,6 @@
+type: improvement
+improvement:
+  description: Any file called JndiManager, regardless of extension, will be checked
+    for hash matches against known versions
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/80

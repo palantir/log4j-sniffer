@@ -21,6 +21,20 @@ cp -f $bad_version single_bad_version/
 
 echo "Done"
 
+echo "Creating a jar with renamed file extensions"
+
+mkdir -p renamed_jar_class_file_extensions/classes/
+unzip -p $bad_version org/apache/logging/log4j/core/net/JndiManager.class > renamed_jar_class_file_extensions/classes/JndiManager.classrenamed
+cd renamed_jar_class_file_extensions
+echo "MalformedClassContents" > JndiManager.notaclass
+zip -v renamed-log4j-class.jar -r classes
+zip -v not-a-finding.jar JndiManager.notaclass
+rm -r classes
+rm JndiManager.notaclass
+cd ../
+
+echo "Done"
+
 echo "Creating inside_a_dist with a bad log4j jar inside uncompressed and compressed archives"
 
 mkdir -p inside_a_dist
