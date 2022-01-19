@@ -222,7 +222,7 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 			}
 		}
 
-		filename := filenameFromPath(path)
+		filename := filenameFromPathInsideArchive(path)
 		if strings.HasSuffix(filename, ".class") || strings.HasPrefix(filename, "JndiManager.") {
 			finding, versionInFile, versionMatch := i.lookForClassFileMatch(path, filename, size, contents, obfuscated)
 			if finding == NothingDetected {
@@ -337,11 +337,11 @@ func (i *Log4jIdentifier) printErrorFinding(message string, err error) {
 }
 
 func pathMatchesLog4JVersion(path string) (string, bool) {
-	filename := filenameFromPath(path)
+	filename := filenameFromPathInsideArchive(path)
 	return fileNameMatchesLog4jVersion(filename)
 }
 
-func filenameFromPath(path string) string {
+func filenameFromPathInsideArchive(path string) string {
 	filename, finalSlashIndex := path, strings.LastIndex(path, "/")
 	if finalSlashIndex > -1 {
 		filename = path[finalSlashIndex+1:]
