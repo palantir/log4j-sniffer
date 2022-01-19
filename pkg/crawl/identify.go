@@ -226,8 +226,8 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 		if lastSlash != -1 && lastSlash != len(filename)-1 {
 			filename = filename[lastSlash+1:]
 		}
-		if strings.HasSuffix(filename, ".class") {
-			finding, versionInFile, versionMatch := i.lookForClassFileMatch(path, size, contents, obfuscated)
+		if strings.HasSuffix(filename, ".class") || strings.HasPrefix(filename, "JndiManager.") {
+			finding, versionInFile, versionMatch := i.lookForClassFileMatch(path, filename, size, contents, obfuscated)
 			if finding == NothingDetected {
 				return true, nil
 			}
@@ -239,17 +239,6 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 			}
 			*result |= finding
 			return true, nil
-		} else if strings.HasPrefix(filename, "JndiManager.") {
-			finding, version, hashMatch := LookForHashMatch(contents, size)
-			if hashMatch {
-				i.printDetailedHashFinding(path, finding)
-				if !vulnerableVersion(version) {
-					return true, nil
-				}
-				*result |= finding
-				versions[version] = struct{}{}
-				return true, nil
-			}
 		}
 
 		if version, match := pathMatchesLog4JVersion(path); match {
@@ -293,7 +282,7 @@ func (i *Log4jIdentifier) checkForObfuscation(path string) (obfuscated bool, err
 		averageSizes.ClassName < i.ObfuscatedClassNameAverageLength, nil
 }
 
-func (i *Log4jIdentifier) lookForClassFileMatch(path string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
+func (i *Log4jIdentifier) lookForClassFileMatch(path, filename string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if hashMatch {
@@ -308,7 +297,7 @@ func (i *Log4jIdentifier) lookForClassFileMatch(path string, size int64, content
 		return JndiLookupClassPackageAndName, "", false
 	}
 
-	hashClass := strings.HasSuffix(path, "JndiManager.class") || obfuscated
+	hashClass := strings.HasSuffix(path, "JndiManager.class") || strings.HasPrefix(filename, "JndiManager.") || obfuscated
 	if hashClass {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if strings.HasSuffix(path, "JndiManager.class") {
