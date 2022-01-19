@@ -240,7 +240,7 @@ func TestCrawlExamplesFindings(t *testing.T) {
 		"renamed_jar_class_file_extensions/renamed-log4j-class.jar": {
 			finding: crawl.ClassFileMd5,
 			versions: map[string]struct{}{
-				"2.12.0-2.14.1": {},
+				"2.14.0-2.14.1": {},
 			},
 		},
 	}
@@ -264,7 +264,7 @@ func TestCrawlExamplesFindings(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, crawl.Stats{
-		FilesScanned: 44,
+		FilesScanned: 48,
 	}, summary)
 
 	var foundPaths []string
