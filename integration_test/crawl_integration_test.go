@@ -47,6 +47,7 @@ func TestBadVersions(t *testing.T) {
 		{name: "cve-2021-45105 versions", directory: "../examples/cve-2021-45105-versions", count: 2, finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
 		{name: "cve-2021-44832 versions", directory: "../examples/cve-2021-44832-versions", count: 3, finding: crawl.JndiLookupClassPackageAndName | crawl.JarName | crawl.JndiManagerClassPackageAndName | crawl.ClassFileMd5},
 		{name: "obfuscation", directory: "../examples/obfuscated", count: 1, finding: crawl.JarFileObfuscated | crawl.ClassBytecodePartialMatch},
+		{name: "renamed classes", directory: "../examples/renamed_jar_class_file_extensions", count: 1, finding: crawl.ClassFileMd5},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.Command(cli, "crawl", tc.directory, `--nested-archive-max-depth`, `3`)
@@ -164,10 +165,10 @@ func TestSummaryContainsExpectedFields(t *testing.T) {
 	var summary map[string]int
 	require.NoError(t, json.Unmarshal([]byte(summaryLine), &summary))
 	assert.Equal(t, map[string]int{
-		"filesScanned":           44,
+		"filesScanned":           46,
 		"permissionDeniedErrors": 0,
 		"pathErrors":             0,
-		"numImpactedFiles":       27,
+		"numImpactedFiles":       28,
 		"pathsSkipped":           8,
 	}, summary)
 }
