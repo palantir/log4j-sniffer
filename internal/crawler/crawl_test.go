@@ -264,7 +264,7 @@ func TestCrawlExamplesFindings(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, crawl.Stats{
-		FilesScanned: 48,
+		FilesScanned: 46,
 	}, summary)
 
 	var foundPaths []string

@@ -165,7 +165,7 @@ func TestSummaryContainsExpectedFields(t *testing.T) {
 	var summary map[string]int
 	require.NoError(t, json.Unmarshal([]byte(summaryLine), &summary))
 	assert.Equal(t, map[string]int{
-		"filesScanned":           48,
+		"filesScanned":           46,
 		"permissionDeniedErrors": 0,
 		"pathErrors":             0,
 		"numImpactedFiles":       28,
