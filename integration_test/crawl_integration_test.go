@@ -17,6 +17,7 @@ package integration_test
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os/exec"
 	"strings"
 	"testing"
@@ -57,6 +58,7 @@ func TestBadVersions(t *testing.T) {
 			assert.Contains(t, got, "Files affected by CVE-2021-44228 or CVE-2021-45046 or CVE-2021-45105 or CVE-2021-44832 detected")
 			assert.Contains(t, got, fmt.Sprintf("iles affected by CVE-2021-44228 or CVE-2021-45046 or CVE-2021-45105 or CVE-2021-44832 detected: %d file(s)", tc.count))
 			assert.NotContains(t, got, "No files affected by CVE-2021-44228 or CVE-2021-45046 or CVE-2021-45105 or CVE-2021-44832 detected")
+			assert.NotContains(t, got, "[TRACE]")
 
 			testMatched(t, got, tc.finding, crawl.JndiLookupClassName, "JndiLookup class name matched")
 			testMatched(t, got, tc.finding, crawl.JndiLookupClassPackageAndName, "JndiLookup class and package name matched")
@@ -181,4 +183,16 @@ func TestArchiveOpenModeValueError(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	require.Error(t, err)
 	assert.Contains(t, string(output), "unsupported --archive-open-mode: nope")
+}
+
+func TestTraceLoggingFlag(t *testing.T) {
+	cli, err := products.Bin("log4j-sniffer")
+	require.NoError(t, err)
+
+	file, err := ioutil.TempFile(t.TempDir(), "")
+	require.NoError(t, err)
+	cmd := exec.Command(cli, "crawl", "--enable-trace-logging", file.Name())
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err)
+	assert.Contains(t, string(output), "[TRACE]")
 }
