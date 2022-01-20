@@ -18,7 +18,7 @@ github.com/ncw/directio
 ## explicit
 # github.com/nmiyake/pkg/errorstringer v1.1.0
 github.com/nmiyake/pkg/errorstringer
-# github.com/palantir/godel/v2 v2.43.0
+# github.com/palantir/godel/v2 v2.45.0
 ## explicit
 github.com/palantir/godel/v2/pkg/products
 # github.com/palantir/pkg v1.0.1
