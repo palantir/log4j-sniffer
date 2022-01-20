@@ -15,7 +15,6 @@
 package crawl
 
 import (
-	"archive/zip"
 	"context"
 	"fmt"
 	"io"
@@ -27,7 +26,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/palantir/log4j-sniffer/pkg/archive"
-	"github.com/palantir/log4j-sniffer/pkg/java"
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
 )
@@ -101,8 +99,8 @@ type Log4jIdentifier struct {
 	DetailedOutputWriter               io.Writer
 	Limiter                            ratelimit.Limiter
 	IdentifyObfuscation                bool
-	ObfuscatedClassNameAverageLength   float32
-	ObfuscatedPackageNameAverageLength float32
+	ObfuscatedClassNameAverageLength   int
+	ObfuscatedPackageNameAverageLength int
 	OpenFile                           func(string) (*os.File, error)
 	ArchiveWalkTimeout                 time.Duration
 	ArchiveMaxDepth                    uint
@@ -125,12 +123,9 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	versions = make(Versions)
 	lowercaseFilename := strings.ToLower(d.Name())
 
-	// TODO(glynternet): support checking obfuscation at further nested levels.
-	var obfuscated bool
 	var log4jMatch bool
 	if strings.HasSuffix(lowercaseFilename, ".jar") {
 		var err error
-		obfuscated, err = i.checkForObfuscation(path)
 		if err != nil {
 			return NothingDetected, nil, 0, err
 		}
@@ -157,7 +152,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 			err = cErr
 		}
 	}()
-	inZip, inZipVs, skipped, err := i.findArchiveVulnerabilities(ctx, 0, walker, obfuscated)
+	inZip, inZipVs, skipped, err := i.findArchiveVulnerabilities(ctx, 0, walker)
 	if err != nil {
 		return 0, nil, 0, errors.Wrapf(err, "failed to walk archive %s", path)
 	}
@@ -169,10 +164,6 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	if log4jMatch && len(versions) == 0 {
 		return NothingDetected, nil, skipped, nil
 	}
-	if inZip != NothingDetected && obfuscated {
-		result |= JarFileObfuscated
-		i.printInfoFinding("Found finding in what appeared to be an obfuscated jar at %s", path)
-	}
 	result |= inZip
 	if result != NothingDetected && len(versions) == 0 {
 		versions[UnknownVersion] = struct{}{}
@@ -180,18 +171,18 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 	return result, versions, skipped, err
 }
 
-func (i *Log4jIdentifier) findArchiveVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn, obfuscated bool) (Finding, Versions, uint64, error) {
+func (i *Log4jIdentifier) findArchiveVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn) (Finding, Versions, uint64, error) {
 	archiveResult := NothingDetected
 	versions := make(Versions)
 	var skipped uint64 = 0
 	i.Limiter.Take()
-	if err := walk(ctx, i.vulnerabilityFileWalkFunc(depth, &archiveResult, versions, &skipped, obfuscated)); err != nil {
+	if err := walk(ctx, i.vulnerabilityFileWalkFunc(depth, &archiveResult, versions, &skipped)); err != nil {
 		return NothingDetected, nil, 0, err
 	}
 	return archiveResult, versions, skipped, nil
 }
 
-func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, skipped *uint64, obfuscated bool) archive.FileWalkFn {
+func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, skipped *uint64) archive.FileWalkFn {
 	return func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 		getWalker, maxSize, ok := i.ArchiveWalkers(path)
 		if ok {
@@ -212,7 +203,7 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 					}
 				}()
 
-				finding, innerVersions, innerSkipped, err := i.findArchiveVulnerabilities(ctx, depth+1, walker, obfuscated)
+				finding, innerVersions, innerSkipped, err := i.findArchiveVulnerabilities(ctx, depth+1, walker)
 				*skipped = *skipped + innerSkipped
 				if err != nil {
 					return false, err
@@ -227,7 +218,7 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 		filename := filenameFromPathInsideArchive(path)
 		if strings.HasSuffix(filename, ".class") || strings.HasPrefix(filename, "JndiManager.") {
 			i.printTraceMessage("Looking for class file match %s", path)
-			finding, versionInFile, versionMatch := i.lookForClassFileMatch(path, filename, size, contents, obfuscated)
+			finding, versionInFile, versionMatch := i.lookForClassFileMatch(path, filename, size, contents)
 			if finding == NothingDetected {
 				return true, nil
 			}
@@ -250,39 +241,7 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 	}
 }
 
-// checkForObfuscation applies a heuristic to determine if a class appears to have been obfuscated.
-// Obfuscation typically changes Java class names from e.g. org.apache.logging.log4j.core.net.JndiManager
-// to org.a.a.a.a.b.c and it is this sort of result we look for.
-//
-// The heuristic currently used is that both the average unique package name length and the average class name length
-// must be below the configured maximums, which default to 3.
-//
-// Thus a jar made up of all a.a.a.b.c, a.a.a.d.e etc will match, but a jar full of org.apache.Foo and com.palantir.Bar
-// will not.
-func (i *Log4jIdentifier) checkForObfuscation(path string) (obfuscated bool, err error) {
-	if !i.IdentifyObfuscation {
-		return false, nil
-	}
-
-	r, oErr := zip.OpenReader(path)
-	if oErr != nil {
-		return false, oErr
-	}
-
-	defer func() {
-		if cerr := r.Close(); err == nil {
-			err = cerr
-		}
-	}()
-
-	averageSizes := java.AveragePackageAndClassLength(r.File)
-	return 0 < averageSizes.PackageName &&
-		averageSizes.PackageName < i.ObfuscatedPackageNameAverageLength &&
-		0 < averageSizes.ClassName &&
-		averageSizes.ClassName < i.ObfuscatedClassNameAverageLength, nil
-}
-
-func (i *Log4jIdentifier) lookForClassFileMatch(path, filename string, size int64, contents io.Reader, obfuscated bool) (Finding, string, bool) {
+func (i *Log4jIdentifier) lookForClassFileMatch(path, filename string, size int64, contents io.Reader) (Finding, string, bool) {
 	if path == "org/apache/logging/log4j/core/net/JndiManager.class" {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
 		if hashMatch {
@@ -297,6 +256,7 @@ func (i *Log4jIdentifier) lookForClassFileMatch(path, filename string, size int6
 		return JndiLookupClassPackageAndName, "", false
 	}
 
+	obfuscated := i.classMeetsObfuscationThreshold(path, filename)
 	hashClass := strings.HasSuffix(path, "JndiManager.class") || strings.HasPrefix(filename, "JndiManager.") || obfuscated
 	if hashClass {
 		finding, version, hashMatch := LookForHashMatch(contents, size)
@@ -306,6 +266,9 @@ func (i *Log4jIdentifier) lookForClassFileMatch(path, filename string, size int6
 		}
 		if hashMatch {
 			i.printDetailedHashFinding(path, finding)
+			if obfuscated {
+				finding |= JarFileObfuscated
+			}
 			return finding, version, true
 		}
 		return finding, "", false
@@ -315,6 +278,21 @@ func (i *Log4jIdentifier) lookForClassFileMatch(path, filename string, size int6
 		return JndiLookupClassName, "", false
 	}
 	return NothingDetected, "", false
+}
+
+func (i *Log4jIdentifier) classMeetsObfuscationThreshold(path, filename string) bool {
+	if !i.IdentifyObfuscation || !strings.HasSuffix(filename, ".class") {
+		return false
+	}
+	if len(filename)-6 > i.ObfuscatedClassNameAverageLength {
+		return false
+	}
+	numPackages := strings.Count(path, "/")
+	if numPackages == 0 {
+		return true
+	}
+	averagePackageLength := (len(path) - len(filename)) / numPackages
+	return averagePackageLength <= i.ObfuscatedPackageNameAverageLength
 }
 
 func (i *Log4jIdentifier) printDetailedHashFinding(path string, finding Finding) {

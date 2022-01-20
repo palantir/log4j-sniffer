@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"testing"
 
@@ -250,6 +251,7 @@ func TestCrawlExamplesFindings(t *testing.T) {
 
 	summary, err := Crawl(context.Background(), Config{
 		Root:                               examplesDir,
+		Ignores:                            []*regexp.Regexp{regexp.MustCompile("java_projects/")},
 		ArchiveMaxDepth:                    5,
 		ArchiveMaxSize:                     1024 * 1024 * 10,
 		ObfuscatedClassNameAverageLength:   3,
@@ -264,7 +266,7 @@ func TestCrawlExamplesFindings(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, crawl.Stats{
-		FilesScanned: 46,
+		FilesScanned: 36,
 	}, summary)
 
 	var foundPaths []string
