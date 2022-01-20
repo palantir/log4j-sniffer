@@ -39,8 +39,8 @@ func crawlCmd() *cobra.Command {
 		directoriesCrawledPerSecond        int
 		archivesCrawledPerSecond           int
 		enableObfuscationDetection         bool
-		obfuscatedClassNameAverageLength   uint32
-		obfuscatedPackageNameAverageLength uint32
+		obfuscatedClassNameAverageLength   int
+		obfuscatedPackageNameAverageLength int
 		enablePartialMatchingOnAllClasses  bool
 		enableTraceLogging                 bool
 		disableDetailedFindings            bool
@@ -178,8 +178,8 @@ A max depth of 0 will open up an archive on the filesystem but not any nested ar
 	cmd.Flags().IntVar(&archivesCrawledPerSecond, "archives-per-second-rate-limit", 0, `The maximum number of archives to scan per second. 0 for unlimited.`)
 	cmd.Flags().BoolVar(&enableObfuscationDetection, "enable-obfuscation-detection", true, `Enable applying partial bytecode matching to Jars that appear to be obfuscated.`)
 	cmd.Flags().BoolVar(&enablePartialMatchingOnAllClasses, "enable-partial-matching-on-all-classes", false, `Enable partial bytecode matching to all class files found.`)
-	cmd.Flags().Uint32Var(&obfuscatedClassNameAverageLength, "maximum-average-obfuscated-class-name-length", 3, `The maximum average class name length for classes within a Jar to be considered obfuscated.`)
-	cmd.Flags().Uint32Var(&obfuscatedPackageNameAverageLength, "maximum-average-obfuscated-package-name-length", 3, `The maximum average package name length for packages within a Jar to be considered obfuscated.`)
+	cmd.Flags().IntVar(&obfuscatedClassNameAverageLength, "maximum-average-obfuscated-class-name-length", 3, `The maximum class name length for a class to be considered obfuscated.`)
+	cmd.Flags().IntVar(&obfuscatedPackageNameAverageLength, "maximum-average-obfuscated-package-name-length", 3, `The maximum average package name length a class to be considered obfuscated.`)
 	cmd.Flags().BoolVar(&enableTraceLogging, "enable-trace-logging", false, `Enables trace logging whilst crawling. disable-detailed-findings must be set to false (the default value) for this flag to have an effect`)
 	cmd.Flags().BoolVar(&disableDetailedFindings, "disable-detailed-findings", false, "Do not print out detailed finding information when not outputting in JSON.")
 	cmd.Flags().BoolVar(&disableFlaggingJndiLookup, "disable-flagging-jndi-lookup", false, `Do not report results that only match on the presence of a JndiLookup class.

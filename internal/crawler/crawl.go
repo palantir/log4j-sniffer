@@ -42,9 +42,9 @@ type Config struct {
 	// Maximum number of archives to scan per second, or 0 for no limit.
 	ArchivesCrawledPerSecond int
 	// The maximum average class name length for a jar to be considered obfuscated.
-	ObfuscatedClassNameAverageLength uint32
+	ObfuscatedClassNameAverageLength int
 	// The maximum average package name length for a jar to be considered obfuscated.
-	ObfuscatedPackageNameAverageLength uint32
+	ObfuscatedPackageNameAverageLength int
 	// If true, print out detailed information on each finding as it is found
 	PrintDetailedOutput bool
 	// Ignores specifies the regular expressions used to determine which directories to omit.
@@ -67,8 +67,8 @@ func Crawl(ctx context.Context, config Config, process crawl.ProcessFunc, stdout
 		EnableTraceLogging:                 config.EnableTraceLogging,
 		DetailedOutputWriter:               outputWriter,
 		IdentifyObfuscation:                config.ObfuscatedClassNameAverageLength > 0 && config.ObfuscatedPackageNameAverageLength > 0,
-		ObfuscatedClassNameAverageLength:   float32(config.ObfuscatedClassNameAverageLength),
-		ObfuscatedPackageNameAverageLength: float32(config.ObfuscatedPackageNameAverageLength),
+		ObfuscatedClassNameAverageLength:   config.ObfuscatedClassNameAverageLength,
+		ObfuscatedPackageNameAverageLength: config.ObfuscatedPackageNameAverageLength,
 		Limiter:                            limiterFromConfig(config.ArchivesCrawledPerSecond),
 		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
 		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
