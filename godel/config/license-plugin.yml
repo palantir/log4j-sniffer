@@ -12,11 +12,33 @@ header: |
   // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   // See the License for the specific language governing permissions and
   // limitations under the License.
-#custom-headers:
-#  - name: go-rsa
-#    header: |
-#      // Copyright 2010 The Go Authors. All rights reserved.
-#      // Use of this source code is governed by a BSD-style
-#      // license that can be found in the LICENSE file.
-#    paths:
-#      - encryption/go_rsa_oaep_port.go
+custom-headers:
+  - name: go-rsa-2010
+    header: |
+      // Copyright 2010 The Go Authors. All rights reserved.
+      // Use of this source code is governed by a BSD-style
+      // license that can be found in the LICENSE file.
+      //
+      // Copyright (c) {{YEAR}} Palantir Technologies. All rights reserved.
+      //
+      // Use of this source code is governed by a BSD-style
+      // license that can be found in the LICENSE file.
+    paths:
+      - pkg/archive/zip/reader.go
+      - pkg/archive/zip/reader_test.go
+      - pkg/archive/zip/register.go
+      - pkg/archive/zip/register_test.go
+      - pkg/archive/zip/struct.go
+  - name: go-rsa-2011
+    header: |
+      // Copyright 2011 The Go Authors. All rights reserved.
+      // Use of this source code is governed by a BSD-style
+      // license that can be found in the LICENSE file.
+      //
+      // Copyright (c) {{YEAR}} Palantir Technologies. All rights reserved.
+      //
+      // Use of this source code is governed by a BSD-style
+      // license that can be found in the LICENSE file.
+    paths:
+      - pkg/archive/zip/writer.go
+      - pkg/archive/zip/zip_test.go
