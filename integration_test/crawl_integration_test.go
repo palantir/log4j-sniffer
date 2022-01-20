@@ -159,7 +159,7 @@ func TestSummaryContainsExpectedFields(t *testing.T) {
 	cli, err := products.Bin("log4j-sniffer")
 	require.NoError(t, err)
 
-	cmd := exec.Command(cli, "crawl", "../examples", "--summary", "--json")
+	cmd := exec.Command(cli, "crawl", "../examples", "--ignore-dir", "java_projects/", "--summary", "--json")
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "command %v failed with output:\n%s", cmd.Args, string(output))
 	lines := strings.Split(string(output), "\n")
@@ -167,7 +167,7 @@ func TestSummaryContainsExpectedFields(t *testing.T) {
 	var summary map[string]int
 	require.NoError(t, json.Unmarshal([]byte(summaryLine), &summary))
 	assert.Equal(t, map[string]int{
-		"filesScanned":           46,
+		"filesScanned":           36,
 		"permissionDeniedErrors": 0,
 		"pathErrors":             0,
 		"numImpactedFiles":       28,
