@@ -1,3 +1,17 @@
+// Copyright (c) 2022 Palantir Technologies. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -13,9 +27,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 )
@@ -29,7 +41,6 @@ var (
 // A Reader serves content from a ZIP archive.
 type Reader struct {
 	r             io.ReaderAt
-	File          []*File
 	Comment       string
 	decompressors map[uint16]Decompressor
 
@@ -57,54 +68,50 @@ type File struct {
 	descErr      error // error reading the data descriptor during init
 }
 
-// OpenReader will open the Zip file specified by name and return a ReadCloser.
-func OpenReader(name string) (*ReadCloser, error) {
+// WalkFn is called for every file in a zip.
+// The file passed to is can be used during the duration of a callback and should
+// not be held onto for use after the walk has been completed.
+// WalkFn should return a bool for whether the walk of the zip should continue or not,
+// along with an error for whether the walk for the given file was successful.
+// If an error or false are returned, the walk will no longer proceed to subsequent files.
+type WalkFn func(*File) (bool, error)
+
+// WalkZipFile will open the Zip file specified by name and walk the contents of it,
+// passing each *File encountered to the given WalkFn.
+func WalkZipFile(name string, walkFn WalkFn) error {
 	f, err := os.Open(name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	fi, err := f.Stat()
 	if err != nil {
-		f.Close()
-		return nil, err
+		_ = f.Close()
+		return err
 	}
 	r := new(ReadCloser)
-	if err := r.init(f, fi.Size()); err != nil {
-		f.Close()
-		return nil, err
+	if err := r.walk(f, fi.Size(), walkFn); err != nil {
+		_ = f.Close()
+		return err
 	}
 	r.f = f
-	return r, nil
+	return r.Close()
 }
 
-// NewReader returns a new Reader reading from r, which is assumed to
-// have the given size in bytes.
-func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
+// WalkZipReaderAt will use the given ReaderAt, which is assumed to have the given size in bytes,
+// walking the contents of it and passing each *File encountered to the given WalkFn.
+func WalkZipReaderAt(r io.ReaderAt, size int64, walkFn WalkFn) error {
 	if size < 0 {
-		return nil, errors.New("zip: size cannot be negative")
+		return errors.New("zip: size cannot be negative")
 	}
-	zr := new(Reader)
-	if err := zr.init(r, size); err != nil {
-		return nil, err
-	}
-	return zr, nil
+	return (&Reader{}).walk(r, size, walkFn)
 }
 
-func (z *Reader) init(r io.ReaderAt, size int64) error {
+func (z *Reader) walk(r io.ReaderAt, size int64, handleFile WalkFn) error {
 	end, err := readDirectoryEnd(r, size)
 	if err != nil {
 		return err
 	}
 	z.r = r
-	// Since the number of directory records is not validated, it is not
-	// safe to preallocate z.File without first checking that the specified
-	// number of files is reasonable, since a malformed archive may
-	// indicate it contains up to 1 << 128 - 1 files. Since each file has a
-	// header which will be _at least_ 30 bytes we can safely preallocate
-	// if (data size / 30) >= end.directoryRecords.
-	if end.directorySize < uint64(size) && (uint64(size)-end.directorySize)/30 >= end.directoryRecords {
-		z.File = make([]*File, 0, end.directoryRecords)
-	}
 	z.Comment = end.comment
 	rs := io.NewSectionReader(r, 0, size)
 	if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
@@ -115,7 +122,8 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	// The count of files inside a zip is truncated to fit in a uint16.
 	// Gloss over this by reading headers until we encounter
 	// a bad one, and then only report an ErrFormat or UnexpectedEOF if
-	// the file count modulo 65536 is incorrect.
+	// the handleFile count modulo 65536 is incorrect.
+	var numFiles uint64
 	for {
 		f := &File{zip: z, zipr: r}
 		err = readDirectoryHeader(f, buf)
@@ -125,10 +133,12 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		if err != nil {
 			return err
 		}
-		f.readDataDescriptor()
-		z.File = append(z.File, f)
+		numFiles++
+		if proceed, err := handleFile(f); err != nil || !proceed {
+			return err
+		}
 	}
-	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
+	if numFiles != end.directoryRecords { // only compare 16 bits here
 		// Return the readDirectoryHeader error if we read
 		// the wrong number of directory entries.
 		return err
@@ -179,6 +189,9 @@ func (f *File) Open() (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	f.readDataDescriptor(bodyOffset)
+
 	size := int64(f.CompressedSize64)
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
 	dcomp := f.zip.decompressor(f.Method)
@@ -205,14 +218,8 @@ func (f *File) OpenRaw() (io.Reader, error) {
 	return r, nil
 }
 
-func (f *File) readDataDescriptor() {
+func (f *File) readDataDescriptor(bodyOffset int64) {
 	if !f.hasDataDescriptor() {
-		return
-	}
-
-	bodyOffset, err := f.findBodyOffset()
-	if err != nil {
-		f.descErr = err
 		return
 	}
 
@@ -429,8 +436,8 @@ parseExtras:
 
 				const ticksPerSecond = 1e7    // Windows timestamp resolution
 				ts := int64(attrBuf.uint64()) // ModTime since Windows epoch
-				secs := int64(ts / ticksPerSecond)
-				nsecs := (1e9 / ticksPerSecond) * int64(ts%ticksPerSecond)
+				secs := ts / ticksPerSecond
+				nsecs := (1e9 / ticksPerSecond) * (ts % ticksPerSecond)
 				epoch := time.Date(1601, time.January, 1, 0, 0, 0, 0, time.UTC)
 				modified = time.Unix(epoch.Unix()+secs, nsecs)
 			}
@@ -697,11 +704,11 @@ type fileInfoDirEntry interface {
 	fs.DirEntry
 }
 
-func (e *fileListEntry) stat() fileInfoDirEntry {
-	if !e.isDir {
-		return headerFileInfo{&e.file.FileHeader}
+func (f *fileListEntry) stat() fileInfoDirEntry {
+	if !f.isDir {
+		return headerFileInfo{&f.file.FileHeader}
 	}
-	return e
+	return f
 }
 
 // Only used for directories.
@@ -721,87 +728,6 @@ func (f *fileListEntry) ModTime() time.Time {
 
 func (f *fileListEntry) Info() (fs.FileInfo, error) { return f, nil }
 
-// toValidName coerces name to be a valid name for fs.FS.Open.
-func toValidName(name string) string {
-	name = strings.ReplaceAll(name, `\`, `/`)
-	p := path.Clean(name)
-	if strings.HasPrefix(p, "/") {
-		p = p[len("/"):]
-	}
-	for strings.HasPrefix(p, "../") {
-		p = p[len("../"):]
-	}
-	return p
-}
-
-func (r *Reader) initFileList() {
-	r.fileListOnce.Do(func() {
-		dirs := make(map[string]bool)
-		knownDirs := make(map[string]bool)
-		for _, file := range r.File {
-			isDir := len(file.Name) > 0 && file.Name[len(file.Name)-1] == '/'
-			name := toValidName(file.Name)
-			if name == "" {
-				continue
-			}
-			for dir := path.Dir(name); dir != "."; dir = path.Dir(dir) {
-				dirs[dir] = true
-			}
-			entry := fileListEntry{
-				name:  name,
-				file:  file,
-				isDir: isDir,
-			}
-			r.fileList = append(r.fileList, entry)
-			if isDir {
-				knownDirs[name] = true
-			}
-		}
-		for dir := range dirs {
-			if !knownDirs[dir] {
-				entry := fileListEntry{
-					name:  dir,
-					file:  nil,
-					isDir: true,
-				}
-				r.fileList = append(r.fileList, entry)
-			}
-		}
-
-		sort.Slice(r.fileList, func(i, j int) bool { return fileEntryLess(r.fileList[i].name, r.fileList[j].name) })
-	})
-}
-
-func fileEntryLess(x, y string) bool {
-	xdir, xelem, _ := split(x)
-	ydir, yelem, _ := split(y)
-	return xdir < ydir || xdir == ydir && xelem < yelem
-}
-
-// Open opens the named file in the ZIP archive,
-// using the semantics of fs.FS.Open:
-// paths are always slash separated, with no
-// leading / or ../ elements.
-func (r *Reader) Open(name string) (fs.File, error) {
-	r.initFileList()
-
-	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrInvalid}
-	}
-	e := r.openLookup(name)
-	if e == nil {
-		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
-	}
-	if e.isDir {
-		return &openDir{e, r.openReadDir(name), 0}, nil
-	}
-	rc, err := e.file.Open()
-	if err != nil {
-		return nil, err
-	}
-	return rc.(fs.File), nil
-}
-
 func split(name string) (dir, elem string, isDir bool) {
 	if len(name) > 0 && name[len(name)-1] == '/' {
 		isDir = true
@@ -819,13 +745,13 @@ func split(name string) (dir, elem string, isDir bool) {
 
 var dotFile = &fileListEntry{name: "./", isDir: true}
 
-func (r *Reader) openLookup(name string) *fileListEntry {
+func (z *Reader) openLookup(name string) *fileListEntry {
 	if name == "." {
 		return dotFile
 	}
 
 	dir, elem, _ := split(name)
-	files := r.fileList
+	files := z.fileList
 	i := sort.Search(len(files), func(i int) bool {
 		idir, ielem, _ := split(files[i].name)
 		return idir > dir || idir == dir && ielem >= elem
@@ -839,8 +765,8 @@ func (r *Reader) openLookup(name string) *fileListEntry {
 	return nil
 }
 
-func (r *Reader) openReadDir(dir string) []fileListEntry {
-	files := r.fileList
+func (z *Reader) openReadDir(dir string) []fileListEntry {
+	files := z.fileList
 	i := sort.Search(len(files), func(i int) bool {
 		idir, _, _ := split(files[i].name)
 		return idir >= dir

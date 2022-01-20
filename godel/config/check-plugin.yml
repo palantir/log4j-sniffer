@@ -3,3 +3,8 @@ checks:
     filters:
     - value: should have comment or be unexported
     - value: or a comment on this block
+    - value: don't use underscores in Go names
+  deadcode:
+    exclude:
+      paths:
+        - "pkg/archive/zip/struct.go"

@@ -1,3 +1,17 @@
+// Copyright (c) 2022 Palantir Technologies. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -25,50 +39,12 @@ type Compressor func(w io.Writer) (io.WriteCloser, error)
 // one goroutine at a time.
 type Decompressor func(r io.Reader) io.ReadCloser
 
-var flateWriterPool sync.Pool
-
-func newFlateWriter(w io.Writer) io.WriteCloser {
-	fw, ok := flateWriterPool.Get().(*flate.Writer)
-	if ok {
-		fw.Reset(w)
-	} else {
-		fw, _ = flate.NewWriter(w, 5)
-	}
-	return &pooledFlateWriter{fw: fw}
-}
-
-type pooledFlateWriter struct {
-	mu sync.Mutex // guards Close and Write
-	fw *flate.Writer
-}
-
-func (w *pooledFlateWriter) Write(p []byte) (n int, err error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.fw == nil {
-		return 0, errors.New("Write after Close")
-	}
-	return w.fw.Write(p)
-}
-
-func (w *pooledFlateWriter) Close() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	var err error
-	if w.fw != nil {
-		err = w.fw.Close()
-		flateWriterPool.Put(w.fw)
-		w.fw = nil
-	}
-	return err
-}
-
 var flateReaderPool sync.Pool
 
 func newFlateReader(r io.Reader) io.ReadCloser {
 	fr, ok := flateReaderPool.Get().(io.ReadCloser)
 	if ok {
-		fr.(flate.Resetter).Reset(r, nil)
+		_ = fr.(flate.Resetter).Reset(r, nil)
 	} else {
 		fr = flate.NewReader(r)
 	}
@@ -102,40 +78,12 @@ func (r *pooledFlateReader) Close() error {
 }
 
 var (
-	compressors   sync.Map // map[uint16]Compressor
 	decompressors sync.Map // map[uint16]Decompressor
 )
 
 func init() {
-	compressors.Store(Store, Compressor(func(w io.Writer) (io.WriteCloser, error) { return &nopCloser{w}, nil }))
-	compressors.Store(Deflate, Compressor(func(w io.Writer) (io.WriteCloser, error) { return newFlateWriter(w), nil }))
-
 	decompressors.Store(Store, Decompressor(io.NopCloser))
 	decompressors.Store(Deflate, Decompressor(newFlateReader))
-}
-
-// RegisterDecompressor allows custom decompressors for a specified method ID.
-// The common methods Store and Deflate are built in.
-func RegisterDecompressor(method uint16, dcomp Decompressor) {
-	if _, dup := decompressors.LoadOrStore(method, dcomp); dup {
-		panic("decompressor already registered")
-	}
-}
-
-// RegisterCompressor registers custom compressors for a specified method ID.
-// The common methods Store and Deflate are built in.
-func RegisterCompressor(method uint16, comp Compressor) {
-	if _, dup := compressors.LoadOrStore(method, comp); dup {
-		panic("compressor already registered")
-	}
-}
-
-func compressor(method uint16) Compressor {
-	ci, ok := compressors.Load(method)
-	if !ok {
-		return nil
-	}
-	return ci.(Compressor)
 }
 
 func decompressor(method uint16) Decompressor {

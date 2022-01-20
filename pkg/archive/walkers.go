@@ -16,13 +16,15 @@ package archive
 
 import (
 	"archive/tar"
-	"archive/zip"
 	"compress/bzip2"
 	"context"
+	"fmt"
 	"io"
-	"os"
+	"math"
 	"path/filepath"
 	"strings"
+
+	"github.com/palantir/log4j-sniffer/pkg/archive/zip"
 )
 
 // Walkers creates a function that will return a WalkerProvider for a file path if there is one supported.
@@ -116,46 +118,31 @@ func (w walkerProvider) FromReader(r io.Reader) (WalkFn, func() error, error) {
 func ZipArchiveWalkers() WalkerProvider {
 	return walkerProvider{
 		fromFile: func(path string) (WalkFn, func() error, error) {
-			f, err := os.Open(path)
-			if err != nil {
-				return nil, nil, err
-			}
-			stat, err := f.Stat()
-			if err != nil {
-				return nil, nil, err
-			}
-			reader, err := zip.NewReader(f, stat.Size())
-			return zipArchiveWalker(reader), func() error { return nil }, err
+			return func(ctx context.Context, walkFn FileWalkFn) error {
+				return zip.WalkZipFile(path, zipFileWalkFn(ctx, walkFn))
+			}, noopCloser, nil
 		},
 		fromReader: func(r io.Reader) (WalkFn, func() error, error) {
-			reader, err := ZipReaderFromReader(r)
+			reader, err := BytesReaderFromReader(r)
 			if err != nil {
 				return nil, nil, err
 			}
-			return zipArchiveWalker(reader), noopCloser, nil
+			return func(ctx context.Context, walkFn FileWalkFn) error {
+				return zip.WalkZipReaderAt(reader, reader.Size(), zipFileWalkFn(ctx, walkFn))
+			}, noopCloser, nil
 		},
 	}
 }
-
-func zipArchiveWalker(r *zip.Reader) WalkFn {
-	return func(ctx context.Context, walkFn FileWalkFn) error {
-		for _, zipFile := range r.File {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-			}
-			zipReader, err := zipFile.Open()
-			if err != nil {
-				return err
-			}
-			if proceed, err := walkFn(ctx, zipFile.Name, int64(zipFile.UncompressedSize64), zipReader); err != nil {
-				return err
-			} else if !proceed {
-				break
-			}
+func zipFileWalkFn(ctx context.Context, walkFn FileWalkFn) zip.WalkFn {
+	return func(file *zip.File) (bool, error) {
+		rc, err := file.Open()
+		if err != nil {
+			return false, err
 		}
-		return nil
+		if math.MaxInt64 < file.UncompressedSize64 {
+			return false, fmt.Errorf("filesize over max supported size: %d", file.UncompressedSize64)
+		}
+		return walkFn(ctx, file.Name, int64(file.UncompressedSize64), rc)
 	}
 }
 

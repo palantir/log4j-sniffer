@@ -1,3 +1,17 @@
+// Copyright (c) 2022 Palantir Technologies. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -5,10 +19,10 @@
 package zip
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"internal/obscuretestdata"
 	"io"
 	"io/fs"
 	"os"
@@ -17,7 +31,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 )
 
@@ -188,29 +201,6 @@ var tests = []ZipTest{
 				Content:  []byte("important \r\n"),
 				Modified: time.Date(2011, 12, 8, 10, 6, 8, 0, timeZone(0)),
 				Mode:     0444,
-			},
-		},
-	},
-	{
-		// created by Go, before we wrote the "optional" data
-		// descriptor signatures (which are required by macOS).
-		// Use obscured file to avoid Apple’s notarization service
-		// rejecting the toolchain due to an inability to unzip this archive.
-		// See golang.org/issue/34986
-		Name:     "go-no-datadesc-sig.zip.base64",
-		Obscured: true,
-		File: []ZipTestFile{
-			{
-				Name:     "foo.txt",
-				Content:  []byte("foo\n"),
-				Modified: time.Date(2012, 3, 8, 16, 59, 10, 0, timeZone(-8*time.Hour)),
-				Mode:     0644,
-			},
-			{
-				Name:     "bar.txt",
-				Content:  []byte("bar\n"),
-				Modified: time.Date(2012, 3, 8, 16, 59, 12, 0, timeZone(-8*time.Hour)),
-				Mode:     0644,
 			},
 		},
 	},
@@ -498,39 +488,46 @@ func TestReader(t *testing.T) {
 }
 
 func readTestZip(t *testing.T, zt ZipTest) {
-	var z *Reader
 	var err error
 	var raw []byte
+
+	var i int
+	expectedFiles := make(map[string]ZipTestFile)
+	for _, expectedFile := range zt.File {
+		expectedFiles[expectedFile.Name] = expectedFile
+	}
+	fn := func(f *File) (bool, error) {
+		i++
+		// test read of each file
+		if len(zt.File) > 0 {
+			file, ok := expectedFiles[f.Name]
+			if !ok {
+				t.Errorf("File not expected %s", f.Name)
+			}
+			readTestFile(t, zt, file, f, raw)
+			delete(expectedFiles, f.Name)
+		}
+		return !t.Failed(), nil
+	}
 	if zt.Source != nil {
 		rat, size := zt.Source()
-		z, err = NewReader(rat, size)
 		raw = make([]byte, size)
 		if _, err := rat.ReadAt(raw, 0); err != nil {
 			t.Errorf("ReadAt error=%v", err)
 			return
 		}
+		err = WalkZipReaderAt(rat, size, fn)
 	} else {
 		path := filepath.Join("testdata", zt.Name)
-		if zt.Obscured {
-			tf, err := obscuretestdata.DecodeToTempFile(path)
-			if err != nil {
-				t.Errorf("obscuretestdata.DecodeToTempFile(%s): %v", path, err)
-				return
-			}
-			defer os.Remove(tf)
-			path = tf
-		}
-		var rc *ReadCloser
-		rc, err = OpenReader(path)
-		if err == nil {
-			defer rc.Close()
-			z = &rc.Reader
-		}
 		var err2 error
 		raw, err2 = os.ReadFile(path)
 		if err2 != nil {
 			t.Errorf("ReadFile(%s) error=%v", path, err2)
 			return
+		}
+		// what about non-nil error here?
+		err = WalkZipFile(path, fn)
+		if err == nil {
 		}
 	}
 	if err != zt.Error {
@@ -549,35 +546,12 @@ func readTestZip(t *testing.T, zt ZipTest) {
 		return
 	}
 
-	if z.Comment != zt.Comment {
-		t.Errorf("comment=%q, want %q", z.Comment, zt.Comment)
-	}
-	if len(z.File) != len(zt.File) {
-		t.Fatalf("file count=%d, want %d", len(z.File), len(zt.File))
+	if i != len(zt.File) {
+		t.Fatalf("file count=%d, want %d", i, len(zt.File))
 	}
 
-	// test read of each file
-	for i, ft := range zt.File {
-		readTestFile(t, zt, ft, z.File[i], raw)
-	}
-	if t.Failed() {
-		return
-	}
-
-	// test simultaneous reads
-	n := 0
-	done := make(chan bool)
-	for i := 0; i < 5; i++ {
-		for j, ft := range zt.File {
-			go func(j int, ft ZipTestFile) {
-				readTestFile(t, zt, ft, z.File[j], raw)
-				done <- true
-			}(j, ft)
-			n++
-		}
-	}
-	for ; n > 0; n-- {
-		<-done
+	if len(expectedFiles) != 0 {
+		t.Fatalf("expected files were not present %v", expectedFiles)
 	}
 }
 
@@ -645,7 +619,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File, raw []byte)
 		if size != ft.Size {
 			t.Errorf("%v: uncompressed size %#x, want %#x", ft.Name, size, ft.Size)
 		}
-		r.Close()
+		_ = r.Close()
 		return
 	}
 
@@ -657,7 +631,9 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File, raw []byte)
 	if err != nil {
 		return
 	}
-	r.Close()
+	if err := r.Close(); err != nil {
+		t.Errorf("error closing zip file entry reader %v", err)
+	}
 
 	if g := uint64(b.Len()); g != size {
 		t.Errorf("%v: read %v bytes but f.UncompressedSize == %v", f.Name, g, size)
@@ -698,7 +674,7 @@ func TestInvalidFiles(t *testing.T) {
 	b := make([]byte, size)
 
 	// zeroes
-	_, err := NewReader(bytes.NewReader(b), size)
+	err := WalkZipReaderAt(bytes.NewReader(b), size, nopHandler)
 	if err != ErrFormat {
 		t.Errorf("zeroes: error=%v, want %v", err, ErrFormat)
 	}
@@ -709,15 +685,15 @@ func TestInvalidFiles(t *testing.T) {
 	for i := 0; i < size-4; i += 4 {
 		copy(b[i:i+4], sig)
 	}
-	_, err = NewReader(bytes.NewReader(b), size)
+	err = WalkZipReaderAt(bytes.NewReader(b), size, nopHandler)
 	if err != ErrFormat {
 		t.Errorf("sigs: error=%v, want %v", err, ErrFormat)
 	}
 
 	// negative size
-	_, err = NewReader(bytes.NewReader([]byte("foobar")), -1)
+	err = WalkZipReaderAt(bytes.NewReader([]byte("foobar")), -1, nopHandler)
 	if err == nil {
-		t.Errorf("archive/zip.NewReader: expected error when negative size is passed")
+		t.Errorf("archive/zip.WalkZipReaderAt: expected error when negative size is passed")
 	}
 }
 
@@ -959,15 +935,22 @@ func biggestZipBytes() []byte {
 func returnBigZipBytes() (r io.ReaderAt, size int64) {
 	b := biggestZipBytes()
 	for i := 0; i < 2; i++ {
-		r, err := NewReader(bytes.NewReader(b), int64(len(b)))
-		if err != nil {
-			panic(err)
-		}
-		f, err := r.File[0].Open()
-		if err != nil {
-			panic(err)
-		}
-		b, err = io.ReadAll(f)
+		var j int
+		err := WalkZipReaderAt(bytes.NewReader(b), int64(len(b)), func(file *File) (bool, error) {
+			defer func() { j++ }()
+			if j != 0 {
+				return true, nil
+			}
+			f, err := file.Open()
+			if err != nil {
+				panic(err)
+			}
+			b, err = io.ReadAll(f)
+			if err != nil {
+				panic(err)
+			}
+			return true, nil
+		})
 		if err != nil {
 			panic(err)
 		}
@@ -997,7 +980,7 @@ func TestIssue8186(t *testing.T) {
 	}
 }
 
-// Verify we return ErrUnexpectedEOF when length is short.
+//Verify we return ErrUnexpectedEOF when length is short.
 func TestIssue10957(t *testing.T) {
 	data := []byte("PK\x03\x040000000PK\x01\x0200000" +
 		"0000000000000000000\x00" +
@@ -1014,14 +997,12 @@ func TestIssue10957(t *testing.T) {
 		"0000000000000000\v\x00\x00\x00" +
 		"\x00\x0000PK\x05\x06000000\x05\x000000" +
 		"\v\x00\x00\x00\x00\x00")
-	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i, f := range z.File {
+	var i int
+	err := WalkZipReaderAt(bytes.NewReader(data), int64(len(data)), func(f *File) (bool, error) {
+		defer func() { i++ }()
 		r, err := f.Open()
 		if err != nil {
-			continue
+			return true, nil
 		}
 		if f.UncompressedSize64 < 1e6 {
 			n, err := io.Copy(io.Discard, r)
@@ -1032,7 +1013,11 @@ func TestIssue10957(t *testing.T) {
 				t.Errorf("file %d: bad size: copied=%d; want=%d", i, n, f.UncompressedSize64)
 			}
 		}
-		r.Close()
+		_ = r.Close()
+		return true, nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -1041,16 +1026,17 @@ func TestIssue10956(t *testing.T) {
 	data := []byte("PK\x06\x06PK\x06\a0000\x00\x00\x00\x00\x00\x00\x00\x00" +
 		"0000PK\x05\x06000000000000" +
 		"0000\v\x00000\x00\x00\x00\x00\x00\x00\x000")
-	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
+
+	err := WalkZipReaderAt(bytes.NewReader(data), int64(len(data)), func(file *File) (bool, error) {
+		t.Error("WalkFn should not be called")
+		return true, nil
+	})
 	if err == nil {
 		t.Errorf("got nil error, want ErrFormat")
 	}
-	if r != nil {
-		t.Errorf("got non-nil Reader, want nil")
-	}
 }
 
-// Verify we return ErrUnexpectedEOF when reading truncated data descriptor.
+//Verify we return ErrUnexpectedEOF when reading truncated data descriptor.
 func TestIssue11146(t *testing.T) {
 	data := []byte("PK\x03\x040000000000000000" +
 		"000000\x01\x00\x00\x000\x01\x00\x00\xff\xff0000" +
@@ -1058,19 +1044,25 @@ func TestIssue11146(t *testing.T) {
 		"0000\b0\b\x00000000000000" +
 		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x000000PK\x05\x06\x00\x00" +
 		"\x00\x0000\x01\x0000008\x00\x00\x00\x00\x00")
-	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
+	var called int
+	err := WalkZipReaderAt(bytes.NewReader(data), int64(len(data)), func(file *File) (bool, error) {
+		called++
+		r, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = io.ReadAll(r)
+		if err != io.ErrUnexpectedEOF {
+			t.Errorf("File[0] error = %v; want io.ErrUnexpectedEOF", err)
+		}
+		return true, nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := z.File[0].Open()
-	if err != nil {
-		t.Fatal(err)
+	if called != 1 {
+		t.Errorf("Expected to be called 1 time but got called %d times", called)
 	}
-	_, err = io.ReadAll(r)
-	if err != io.ErrUnexpectedEOF {
-		t.Errorf("File[0] error = %v; want io.ErrUnexpectedEOF", err)
-	}
-	r.Close()
 }
 
 // Verify we do not treat non-zip64 archives as zip64
@@ -1104,69 +1096,9 @@ func TestIssue12449(t *testing.T) {
 		0x00, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 	// Read in the archive.
-	_, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
+	err := WalkZipReaderAt(bytes.NewReader(data), int64(len(data)), nopHandler)
 	if err != nil {
 		t.Errorf("Error reading the archive: %v", err)
-	}
-}
-
-func TestFS(t *testing.T) {
-	for _, test := range []struct {
-		file string
-		want []string
-	}{
-		{
-			"testdata/unix.zip",
-			[]string{"hello", "dir/bar", "readonly"},
-		},
-		{
-			"testdata/subdir.zip",
-			[]string{"a/b/c"},
-		},
-	} {
-		t.Run(test.file, func(t *testing.T) {
-			t.Parallel()
-			z, err := OpenReader(test.file)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer z.Close()
-			if err := fstest.TestFS(z, test.want...); err != nil {
-				t.Error(err)
-			}
-		})
-	}
-}
-
-func TestFSModTime(t *testing.T) {
-	t.Parallel()
-	z, err := OpenReader("testdata/subdir.zip")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer z.Close()
-
-	for _, test := range []struct {
-		name string
-		want time.Time
-	}{
-		{
-			"a",
-			time.Date(2021, 4, 19, 12, 29, 56, 0, timeZone(-7*time.Hour)).UTC(),
-		},
-		{
-			"a/b/c",
-			time.Date(2021, 4, 19, 12, 29, 59, 0, timeZone(-7*time.Hour)).UTC(),
-		},
-	} {
-		fi, err := fs.Stat(z, test.name)
-		if err != nil {
-			t.Errorf("%s: %v", test.name, err)
-			continue
-		}
-		if got := fi.ModTime(); !got.Equal(test.want) {
-			t.Errorf("%s: got modtime %v, want %v", test.name, got, test.want)
-		}
 	}
 }
 
@@ -1195,21 +1127,22 @@ func TestCVE202127919(t *testing.T) {
 		0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x39, 0x00,
 		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
-	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
+
+	var fs []*File
+	err := WalkZipReaderAt(bytes.NewReader(data), int64(len(data)), func(f *File) (bool, error) {
+		fs = append(fs, f)
+		return true, nil
+	})
 	if err != nil {
 		t.Fatalf("Error reading the archive: %v", err)
 	}
-	_, err = r.Open("test.txt")
-	if err != nil {
-		t.Errorf("Error reading file: %v", err)
-	}
-	if len(r.File) != 1 {
+	if len(fs) != 1 {
 		t.Fatalf("No entries in the file list")
 	}
-	if r.File[0].Name != "../test.txt" {
-		t.Errorf("Unexpected entry name: %s", r.File[0].Name)
+	if fs[0].Name != "../test.txt" {
+		t.Errorf("Unexpected entry name: %s", fs[0].Name)
 	}
-	if _, err := r.File[0].Open(); err != nil {
+	if _, err := fs[0].Open(); err != nil {
 		t.Errorf("Error opening file: %v", err)
 	}
 }
@@ -1368,7 +1301,7 @@ func TestCVE202133196(t *testing.T) {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0x00, 0x00,
 	}
-	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
+	err := WalkZipReaderAt(bytes.NewReader(data), int64(len(data)), nopHandler)
 	if err != ErrFormat {
 		t.Fatalf("unexpected error, got: %v, want: %v", err, ErrFormat)
 	}
@@ -1376,7 +1309,7 @@ func TestCVE202133196(t *testing.T) {
 	// Also check that an archive containing a handful of empty
 	// files doesn't cause an issue
 	b := bytes.NewBuffer(nil)
-	w := NewWriter(b)
+	w := zip.NewWriter(b)
 	for i := 0; i < 5; i++ {
 		_, err := w.Create("")
 		if err != nil {
@@ -1386,12 +1319,16 @@ func TestCVE202133196(t *testing.T) {
 	if err := w.Close(); err != nil {
 		t.Fatalf("Writer.Close failed: %s", err)
 	}
-	r, err := NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
+	var count int
+	err = WalkZipReaderAt(bytes.NewReader(b.Bytes()), int64(b.Len()), func(file *File) (bool, error) {
+		count++
+		return true, nil
+	})
 	if err != nil {
-		t.Fatalf("NewReader failed: %s", err)
+		t.Fatalf("WalkZipReaderAt failed: %s", err)
 	}
-	if len(r.File) != 5 {
-		t.Errorf("Archive has unexpected number of files, got %d, want 5", len(r.File))
+	if count != 5 {
+		t.Errorf("Archive has unexpected number of files, got %d, want 5", count)
 	}
 }
 
@@ -1407,7 +1344,7 @@ func TestCVE202139293(t *testing.T) {
 		0x00, 0x00, 0x00, 0x50, 0x4b, 0x05, 0x06, 0x00, 0x31, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff,
 		0xff, 0x50, 0xfe, 0x00, 0xff, 0x00, 0x3a, 0x00, 0x00, 0x00, 0xff,
 	}
-	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
+	err := WalkZipReaderAt(bytes.NewReader(data), int64(len(data)), nopHandler)
 	if err != ErrFormat {
 		t.Fatalf("unexpected error, got: %v, want: %v", err, ErrFormat)
 	}
@@ -1486,47 +1423,21 @@ func TestCVE202141772(t *testing.T) {
 		0x00, 0x04, 0x00, 0x04, 0x00, 0x31, 0x01, 0x00,
 		0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
-	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
-	if err != nil {
-		t.Fatalf("Error reading the archive: %v", err)
-	}
-	entryNames := []string{`/`, `//`, `\`, `/test.txt`}
 	var names []string
-	for _, f := range r.File {
+	err := WalkZipReaderAt(bytes.NewReader(data), int64(len(data)), func(f *File) (bool, error) {
 		names = append(names, f.Name)
 		if _, err := f.Open(); err != nil {
 			t.Errorf("Error opening %q: %v", f.Name, err)
 		}
-		if _, err := r.Open(f.Name); err == nil {
-			t.Errorf("Opening %q with fs.FS API succeeded", f.Name)
-		}
+		return true, nil
+	})
+	if err != nil {
+		t.Fatalf("Error reading the archive: %v", err)
 	}
+	entryNames := []string{`/`, `//`, `\`, `/test.txt`}
 	if !reflect.DeepEqual(names, entryNames) {
 		t.Errorf("Unexpected file entries: %q", names)
 	}
-	if _, err := r.Open(""); err == nil {
-		t.Errorf("Opening %q with fs.FS API succeeded", "")
-	}
-	if _, err := r.Open("test.txt"); err != nil {
-		t.Errorf("Error opening %q with fs.FS API: %v", "test.txt", err)
-	}
-	dirEntries, err := fs.ReadDir(r, ".")
-	if err != nil {
-		t.Fatalf("Error reading the root directory: %v", err)
-	}
-	if len(dirEntries) != 1 || dirEntries[0].Name() != "test.txt" {
-		t.Errorf("Unexpected directory entries")
-		for _, dirEntry := range dirEntries {
-			_, err := r.Open(dirEntry.Name())
-			t.Logf("%q (Open error: %v)", dirEntry.Name(), err)
-		}
-		t.FailNow()
-	}
-	info, err := dirEntries[0].Info()
-	if err != nil {
-		t.Fatalf("Error reading info entry: %v", err)
-	}
-	if name := info.Name(); name != "test.txt" {
-		t.Errorf("Inconsistent name in info entry: %v", name)
-	}
 }
+
+func nopHandler(*File) (bool, error) { return true, nil }

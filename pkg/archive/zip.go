@@ -15,20 +15,16 @@
 package archive
 
 import (
-	"archive/zip"
 	"bytes"
 	"io"
 )
 
-// ZipReaderFromReader creates a new *zip.Reader from the given io.Reader, r.
-// The full contents of r are read into memory to be able to create an io.ReaderAt
-// and know the size of the buffer for the zip.NewReader function.
-// limit is the maximum number of bytes to read to create the zip.Reader.
-func ZipReaderFromReader(r io.Reader) (*zip.Reader, error) {
+// BytesReaderFromReader creates a new *bytes.Reader from the given io.Reader, r.
+// The full contents of r are read into memory.
+func BytesReaderFromReader(r io.Reader) (*bytes.Reader, error) {
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {
 		return nil, err
 	}
-	reader := bytes.NewReader(buf.Bytes())
-	return zip.NewReader(reader, reader.Size())
+	return bytes.NewReader(buf.Bytes()), nil
 }
