@@ -135,6 +135,9 @@ func ZipArchiveWalkers() WalkerProvider {
 }
 func zipFileWalkFn(ctx context.Context, walkFn FileWalkFn) zip.WalkFn {
 	return func(file *zip.File) (bool, error) {
+		if file.FileInfo().IsDir() {
+			return true, nil
+		}
 		rc, err := file.Open()
 		if err != nil {
 			return false, err
