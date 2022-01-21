@@ -89,7 +89,24 @@ func (z *Reader) walk(r io.ReaderAt, size int64, handleFile WalkFn) error {
 			return err
 		}
 	}
-	if numFiles != end.directoryRecords {
+
+	// Truncate to uint16 to match upstream codebase.
+	//
+	// Possible reasoning for upstream truncation:
+	//
+	// There are two zip file formats, zip and zip64, the former only supports a limited number of files (2^16-1 worth)
+	// while the latter is unlimited.
+	//
+	// The file count in the older zip format is just a counter, an arbitrary number of records can be written to the
+	// zip central directory, exceeding the 2^16-1 maximum count.
+	// In this case the count cannot be correct for the number of files actually included in the archive.
+	// This could be seen as an error and cap the older zip format at 2^16-1 files, but there is presumably zip software
+	// out there that is happy to produce archives in violation of this.
+	//
+	// Therefore, in order to be as accepting as different zip files as possible, the comparison here is truncated to
+	// 16 bits in order to support archives where more than 2^16-1 files have been stuffed in to them without using the
+	// zip64 format.
+	if uint16(numFiles) != uint16(end.directoryRecords) { // only compare 16 bits here
 		// Return the readDirectoryHeader error if we read
 		// the wrong number of directory entries.
 		return err
