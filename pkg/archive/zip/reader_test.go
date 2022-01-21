@@ -515,10 +515,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
 			t.Errorf("ReadFile(%s) error=%v", path, err2)
 			return
 		}
-		// what about non-nil error here?
 		err = WalkZipFile(path, fn)
-		if err == nil {
-		}
 	}
 	if err != zt.Error {
 		t.Errorf("error=%v, want %v", err, zt.Error)
@@ -970,7 +967,7 @@ func TestIssue8186(t *testing.T) {
 	}
 }
 
-//Verify we return ErrUnexpectedEOF when length is short.
+// Verify we return ErrUnexpectedEOF when length is short.
 func TestIssue10957(t *testing.T) {
 	data := []byte("PK\x03\x040000000PK\x01\x0200000" +
 		"0000000000000000000\x00" +
@@ -1026,7 +1023,7 @@ func TestIssue10956(t *testing.T) {
 	}
 }
 
-//Verify we return ErrUnexpectedEOF when reading truncated data descriptor.
+// Verify we return ErrUnexpectedEOF when reading truncated data descriptor.
 func TestIssue11146(t *testing.T) {
 	data := []byte("PK\x03\x040000000000000000" +
 		"000000\x01\x00\x00\x000\x01\x00\x00\xff\xff0000" +

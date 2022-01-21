@@ -89,7 +89,7 @@ func (z *Reader) walk(r io.ReaderAt, size int64, handleFile WalkFn) error {
 			return err
 		}
 	}
-	if numFiles != end.directoryRecords { // only compare 16 bits here
+	if numFiles != end.directoryRecords {
 		// Return the readDirectoryHeader error if we read
 		// the wrong number of directory entries.
 		return err

@@ -4,6 +4,8 @@ checks:
     - value: should have comment or be unexported
     - value: or a comment on this block
     - value: don't use underscores in Go names
+  # ignore some unused warning within sets of constants
+  # for ease of tracking with upstream standard package if needed.
   deadcode:
     exclude:
       paths:
