@@ -17,7 +17,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"sort"
 	"sync"
 	"time"
 )
@@ -693,71 +692,4 @@ func split(name string) (dir, elem string, isDir bool) {
 		return ".", name, isDir
 	}
 	return name[:i], name[i+1:], isDir
-}
-
-var dotFile = &fileListEntry{name: "./", isDir: true}
-
-func (z *Reader) openLookup(name string) *fileListEntry {
-	if name == "." {
-		return dotFile
-	}
-
-	dir, elem, _ := split(name)
-	files := z.fileList
-	i := sort.Search(len(files), func(i int) bool {
-		idir, ielem, _ := split(files[i].name)
-		return idir > dir || idir == dir && ielem >= elem
-	})
-	if i < len(files) {
-		fname := files[i].name
-		if fname == name || len(fname) == len(name)+1 && fname[len(name)] == '/' && fname[:len(name)] == name {
-			return &files[i]
-		}
-	}
-	return nil
-}
-
-func (z *Reader) openReadDir(dir string) []fileListEntry {
-	files := z.fileList
-	i := sort.Search(len(files), func(i int) bool {
-		idir, _, _ := split(files[i].name)
-		return idir >= dir
-	})
-	j := sort.Search(len(files), func(j int) bool {
-		jdir, _, _ := split(files[j].name)
-		return jdir > dir
-	})
-	return files[i:j]
-}
-
-type openDir struct {
-	e      *fileListEntry
-	files  []fileListEntry
-	offset int
-}
-
-func (d *openDir) Close() error               { return nil }
-func (d *openDir) Stat() (fs.FileInfo, error) { return d.e.stat(), nil }
-
-func (d *openDir) Read([]byte) (int, error) {
-	return 0, &fs.PathError{Op: "read", Path: d.e.name, Err: errors.New("is a directory")}
-}
-
-func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
-	n := len(d.files) - d.offset
-	if count > 0 && n > count {
-		n = count
-	}
-	if n == 0 {
-		if count <= 0 {
-			return nil, nil
-		}
-		return nil, io.EOF
-	}
-	list := make([]fs.DirEntry, n)
-	for i := range list {
-		list[i] = d.files[d.offset+i].stat()
-	}
-	d.offset += n
-	return list, nil
 }
