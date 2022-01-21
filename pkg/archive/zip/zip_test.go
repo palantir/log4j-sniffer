@@ -41,9 +41,16 @@ func TestOver65kFiles(t *testing.T) {
 		t.Fatalf("Writer.Close: %v", err)
 	}
 	s := buf.String()
-	err := WalkZipReaderAt(strings.NewReader(s), int64(len(s)), func(file *File) (bool, error) { return true, nil })
+	var count int
+	err := WalkZipReaderAt(strings.NewReader(s), int64(len(s)), func(file *File) (bool, error) {
+		count++
+		return true, nil
+	})
 	if err != nil {
 		t.Fatalf("WalkZipReaderAt: %v", err)
+	}
+	if count != nFiles {
+		t.Errorf("Expected WalkFn to be called %d time but was called %d", nFiles, count)
 	}
 }
 
