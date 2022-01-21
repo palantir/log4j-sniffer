@@ -75,9 +75,10 @@ func (z *Reader) walk(r io.ReaderAt, size int64, handleFile WalkFn) error {
 	// a bad one, and then only report an ErrFormat or UnexpectedEOF if
 	// the handleFile count modulo 65536 is incorrect.
 	var numFiles uint64
+	var f File
 	for {
-		f := &File{zip: z, zipr: r}
-		err = readDirectoryHeader(f, buf)
+		f = File{zip: z, zipr: r}
+		err = readDirectoryHeader(&f, buf)
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
@@ -85,7 +86,7 @@ func (z *Reader) walk(r io.ReaderAt, size int64, handleFile WalkFn) error {
 			return err
 		}
 		numFiles++
-		if proceed, err := handleFile(f); err != nil || !proceed {
+		if proceed, err := handleFile(&f); err != nil || !proceed {
 			return err
 		}
 	}

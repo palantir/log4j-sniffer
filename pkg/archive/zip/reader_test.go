@@ -1115,9 +1115,9 @@ func TestCVE202127919(t *testing.T) {
 		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 
-	var fs []*File
+	var fs []File
 	err := WalkZipReaderAt(bytes.NewReader(data), int64(len(data)), func(f *File) (bool, error) {
-		fs = append(fs, f)
+		fs = append(fs, *f)
 		return true, nil
 	})
 	if err != nil {
