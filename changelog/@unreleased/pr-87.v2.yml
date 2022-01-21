@@ -1,7 +1,7 @@
 type: improvement
 improvement:
   description: |-
-    The zip walking logic that previously used the standard package has been replaced with a more memory optimised version implemented specifically for goals of this product.
+    The zip walking logic that previously used the standard package has been replaced with a memory optimised version implemented specifically for goals of this product.
 
     Previously the memory usage used for indexing the entries within a zip would be proportional to the number of files contained within the it. As of this release, there will be no index created and so this memory overhead has been removed.
   links:
