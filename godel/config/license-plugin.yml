@@ -29,6 +29,7 @@ custom-headers:
       - pkg/archive/zip/register.go
       - pkg/archive/zip/register_test.go
       - pkg/archive/zip/struct.go
+      - pkg/archive/zip/walk.go
   - name: go-rsa-2011
     header: |
       // Copyright 2011 The Go Authors. All rights reserved.
