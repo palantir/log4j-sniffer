@@ -81,7 +81,7 @@ func (z *Reader) walk(r io.ReaderAt, size int64, handleFile WalkFn) error {
 	var metadatLen int
 	for {
 		f = File{zip: z, zipr: r}
-		metadatLen, err = readDirectoryHeader(&f, buf, &dirHeaderBuf, metadataBuf)
+		metadatLen, err = readDirectoryHeader(&f, buf, &dirHeaderBuf, &metadataBuf)
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
@@ -296,7 +296,7 @@ func (f *File) findBodyOffset() (int64, error) {
 // readDirectoryHeader attempts to read a directory header from r.
 // It returns io.ErrUnexpectedEOF if it cannot read a complete header,
 // and ErrFormat if it doesn't find a valid header signature.
-func readDirectoryHeader(f *File, r io.Reader, buf *[46]byte, i []byte) (int, error) {
+func readDirectoryHeader(f *File, r io.Reader, buf *[46]byte, i *[]byte) (int, error) {
 	if _, err := io.ReadFull(r, buf[:]); err != nil {
 		return 0, err
 	}
@@ -322,15 +322,15 @@ func readDirectoryHeader(f *File, r io.Reader, buf *[46]byte, i []byte) (int, er
 	f.ExternalAttrs = b.uint32()
 	f.headerOffset = int64(b.uint32())
 	metadataLen := filenameLen + extraLen + commentLen
-	if len(i) < metadataLen {
-		i = make([]byte, metadataLen)
+	if len(*i) < metadataLen {
+		*i = make([]byte, metadataLen)
 	}
-	if _, err := io.ReadFull(r, (i)[:metadataLen]); err != nil {
+	if _, err := io.ReadFull(r, (*i)[:metadataLen]); err != nil {
 		return 0, err
 	}
-	f.Name = string((i)[:filenameLen])
-	f.Extra = (i)[filenameLen : filenameLen+extraLen]
-	f.Comment = string((i)[filenameLen+extraLen:])
+	f.Name = string((*i)[:filenameLen])
+	f.Extra = (*i)[filenameLen : filenameLen+extraLen]
+	f.Comment = string((*i)[filenameLen+extraLen:])
 
 	// Determine the character encoding.
 	utf8Valid1, utf8Require1 := detectUTF8(f.Name)

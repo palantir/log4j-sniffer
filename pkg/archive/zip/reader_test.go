@@ -946,8 +946,6 @@ func returnBigZipBytes() (r io.ReaderAt, size int64) {
 }
 
 func TestIssue8186(t *testing.T) {
-	var dirHeaderBuf [directoryHeaderLen]byte
-
 	// Directory headers & data found in the TOC of a JAR file.
 	dirEnts := []string{
 		"PK\x01\x02\n\x00\n\x00\x00\b\x00\x004\x9d3?\xaa\x1b\x06\xf0\x81\x02\x00\x00\x81\x02\x00\x00-\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00res/drawable-xhdpi-v4/ic_actionbar_accept.png\xfe\xca\x00\x00\x00",
@@ -960,9 +958,12 @@ func TestIssue8186(t *testing.T) {
 		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?\xe6\x98Ьo\x01\x00\x00\x84\x02\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfcH\x02\x00META-INF/CERT.SF",
 		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?\xbfP\x96b\x86\x04\x00\x00\xb2\x06\x00\x00\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xa9J\x02\x00META-INF/CERT.RSA",
 	}
+
+	var dirHeaderBuf [directoryHeaderLen]byte
+	var metadataBuffer []byte
 	for i, s := range dirEnts {
 		var f File
-		_, err := readDirectoryHeader(&f, strings.NewReader(s), &dirHeaderBuf, nil)
+		_, err := readDirectoryHeader(&f, strings.NewReader(s), &dirHeaderBuf, &metadataBuffer)
 		if err != nil {
 			t.Errorf("error reading #%d: %v", i, err)
 		}
