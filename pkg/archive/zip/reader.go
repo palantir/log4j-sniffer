@@ -81,7 +81,7 @@ func (z *Reader) walk(r io.ReaderAt, size int64, handleFile WalkFn) error {
 	var metadatLen int
 	for {
 		f = File{zip: z, zipr: r}
-		metadatLen, err = readDirectoryHeader(&f, buf, dirHeaderBuf, metadataBuf)
+		metadatLen, err = readDirectoryHeader(&f, buf, &dirHeaderBuf, metadataBuf)
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
@@ -296,7 +296,7 @@ func (f *File) findBodyOffset() (int64, error) {
 // readDirectoryHeader attempts to read a directory header from r.
 // It returns io.ErrUnexpectedEOF if it cannot read a complete header,
 // and ErrFormat if it doesn't find a valid header signature.
-func readDirectoryHeader(f *File, r io.Reader, buf [46]byte, i []byte) (int, error) {
+func readDirectoryHeader(f *File, r io.Reader, buf *[46]byte, i []byte) (int, error) {
 	if _, err := io.ReadFull(r, buf[:]); err != nil {
 		return 0, err
 	}

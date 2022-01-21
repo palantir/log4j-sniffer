@@ -962,7 +962,7 @@ func TestIssue8186(t *testing.T) {
 	}
 	for i, s := range dirEnts {
 		var f File
-		_, err := readDirectoryHeader(&f, strings.NewReader(s), dirHeaderBuf, nil)
+		_, err := readDirectoryHeader(&f, strings.NewReader(s), &dirHeaderBuf, nil)
 		if err != nil {
 			t.Errorf("error reading #%d: %v", i, err)
 		}
