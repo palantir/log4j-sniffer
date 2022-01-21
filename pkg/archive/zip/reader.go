@@ -74,17 +74,24 @@ func (z *Reader) walk(r io.ReaderAt, size int64, handleFile WalkFn) error {
 	// Gloss over this by reading headers until we encounter
 	// a bad one, and then only report an ErrFormat or UnexpectedEOF if
 	// the handleFile count modulo 65536 is incorrect.
+	var dirHeaderBuf [directoryHeaderLen]byte
 	var numFiles uint64
 	var f File
+	var metadataBuf []byte
+	var metadatLen int
 	for {
 		f = File{zip: z, zipr: r}
-		err = readDirectoryHeader(&f, buf)
+		metadatLen, err = readDirectoryHeader(&f, buf, dirHeaderBuf, metadataBuf)
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
 		if err != nil {
 			return err
 		}
+		if metadatLen > len(metadataBuf) {
+			metadataBuf = make([]byte, metadatLen)
+		}
+
 		numFiles++
 		if proceed, err := handleFile(&f); err != nil || !proceed {
 			return err
@@ -289,14 +296,13 @@ func (f *File) findBodyOffset() (int64, error) {
 // readDirectoryHeader attempts to read a directory header from r.
 // It returns io.ErrUnexpectedEOF if it cannot read a complete header,
 // and ErrFormat if it doesn't find a valid header signature.
-func readDirectoryHeader(f *File, r io.Reader) error {
-	var buf [directoryHeaderLen]byte
+func readDirectoryHeader(f *File, r io.Reader, buf [46]byte, i []byte) (int, error) {
 	if _, err := io.ReadFull(r, buf[:]); err != nil {
-		return err
+		return 0, err
 	}
 	b := readBuf(buf[:])
 	if sig := b.uint32(); sig != directoryHeaderSignature {
-		return ErrFormat
+		return 0, ErrFormat
 	}
 	f.CreatorVersion = b.uint16()
 	f.ReaderVersion = b.uint16()
@@ -315,13 +321,16 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 	b = b[4:] // skipped start disk number and internal attributes (2x uint16)
 	f.ExternalAttrs = b.uint32()
 	f.headerOffset = int64(b.uint32())
-	d := make([]byte, filenameLen+extraLen+commentLen)
-	if _, err := io.ReadFull(r, d); err != nil {
-		return err
+	metadataLen := filenameLen + extraLen + commentLen
+	if len(i) < metadataLen {
+		i = make([]byte, metadataLen)
 	}
-	f.Name = string(d[:filenameLen])
-	f.Extra = d[filenameLen : filenameLen+extraLen]
-	f.Comment = string(d[filenameLen+extraLen:])
+	if _, err := io.ReadFull(r, (i)[:metadataLen]); err != nil {
+		return 0, err
+	}
+	f.Name = string((i)[:filenameLen])
+	f.Extra = (i)[filenameLen : filenameLen+extraLen]
+	f.Comment = string((i)[filenameLen+extraLen:])
 
 	// Determine the character encoding.
 	utf8Valid1, utf8Require1 := detectUTF8(f.Name)
@@ -369,21 +378,21 @@ parseExtras:
 			if needUSize {
 				needUSize = false
 				if len(fieldBuf) < 8 {
-					return ErrFormat
+					return 0, ErrFormat
 				}
 				f.UncompressedSize64 = fieldBuf.uint64()
 			}
 			if needCSize {
 				needCSize = false
 				if len(fieldBuf) < 8 {
-					return ErrFormat
+					return 0, ErrFormat
 				}
 				f.CompressedSize64 = fieldBuf.uint64()
 			}
 			if needHeaderOffset {
 				needHeaderOffset = false
 				if len(fieldBuf) < 8 {
-					return ErrFormat
+					return 0, ErrFormat
 				}
 				f.headerOffset = int64(fieldBuf.uint64())
 			}
@@ -455,10 +464,10 @@ parseExtras:
 	_ = needUSize
 
 	if needCSize || needHeaderOffset {
-		return ErrFormat
+		return 0, ErrFormat
 	}
 
-	return nil
+	return metadataLen, nil
 }
 
 func readDataDescriptor(r io.Reader, zip64 bool) (*dataDescriptor, error) {

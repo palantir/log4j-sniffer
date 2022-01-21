@@ -946,6 +946,8 @@ func returnBigZipBytes() (r io.ReaderAt, size int64) {
 }
 
 func TestIssue8186(t *testing.T) {
+	var dirHeaderBuf [directoryHeaderLen]byte
+
 	// Directory headers & data found in the TOC of a JAR file.
 	dirEnts := []string{
 		"PK\x01\x02\n\x00\n\x00\x00\b\x00\x004\x9d3?\xaa\x1b\x06\xf0\x81\x02\x00\x00\x81\x02\x00\x00-\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00res/drawable-xhdpi-v4/ic_actionbar_accept.png\xfe\xca\x00\x00\x00",
@@ -960,7 +962,7 @@ func TestIssue8186(t *testing.T) {
 	}
 	for i, s := range dirEnts {
 		var f File
-		err := readDirectoryHeader(&f, strings.NewReader(s))
+		_, err := readDirectoryHeader(&f, strings.NewReader(s), dirHeaderBuf, nil)
 		if err != nil {
 			t.Errorf("error reading #%d: %v", i, err)
 		}
