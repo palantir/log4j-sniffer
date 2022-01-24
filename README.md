@@ -128,13 +128,14 @@ a line of JSON.
 Here is an example of the output with `--json`:
 
 ```
-{"message":"CVE-2021-44832, CVE-2021-44228, CVE-2021-45046, CVE-2021-45105 detected","filePath":"examples/single_bad_version/log4j-core-2.14.1.jar","cvesDetected":["CVE-2021-44832","CVE-2021-44228","CVE-2021-45046","CVE-2021-45105"],"findings":["jndiLookupClassPackageAndName","jarName","jndiManagerClassPackageAndName","classFileMd5"],"log4jVersions":["2.14.0-2.14.1","2.14.1"]}
+{"message":"CVE-2021-44228, CVE-2021-44832, CVE-2021-45046, CVE-2021-45105 detected","filePath":"../examples/inside_a_dist/wrapped_log4j.tar.gz","detailedPath":"../examples/inside_a_dist/wrapped_log4j.tar.gz!log4j-core-2.14.1.jar","cvesDetected":["CVE-2021-44228","CVE-2021-44832","CVE-2021-45046","CVE-2021-45105"],"findings":["jndiLookupClassPackageAndName","jarNameInsideArchive","jndiManagerClassPackageAndName","classFileMd5"],"log4jVersions":["2.14.0-2.14.1","2.14.1"]}
 {"filesScanned":1,"permissionDeniedErrors":0,"pathErrors":0,"pathsSkipped":0,"numImpactedFiles":1}
 ```
 
 The JSON fields have the following meaning:
 - message: information about the output
-- filePath: the path to the file in which the vulnerability was detected
+- filePath: the path to the file on disk where the vulnerability was detected
+- detailedPath: the path to the vulnerable contents, which may be an archived file multiple levels nested. Nesting levels are separated by a '!'
 - cvesDetected: CVEs matched against the version found
 - log4jVersions: the versions detected at this location based on all applied detections, note that some detections are more accurate than others and so a range of versions might be reported
 
@@ -155,7 +156,7 @@ The summary outlines:
 - permissionDeniedErrors: the number of directories or files that could not be read due to permissions
 - pathErrors: the number of paths where an unexpected error occurred while trying to identify bad log4j versions
 - pathsSkipped: the numbers of paths skipped from full identification of bad log4j versions due to the config options set
-- numImpactedFiles: the total number of results previously output
+- findings: the total number of findings previously output
 
 Specifying `--summary=false` makes it such that the program does not output a summary line at the end. In this case,
 the program will only print output if vulnerabilities are found.

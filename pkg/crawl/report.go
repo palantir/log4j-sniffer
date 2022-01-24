@@ -156,6 +156,7 @@ var cveVersions = []AffectedVersion{
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
 func (r *Reporter) Collect(ctx context.Context, path NestedPath, result Finding, versionSet Versions) {
+	countFinding := true
 	versions := sortVersions(versionSet)
 	if r.DisableFlaggingUnknownVersions && (len(versions) == 0 || len(versions) == 1 && versions[0] == UnknownVersion) {
 		return
@@ -167,7 +168,11 @@ func (r *Reporter) Collect(ctx context.Context, path NestedPath, result Finding,
 	if r.DisableFlaggingJndiLookup && jndiLookupResultsOnly(result) {
 		return
 	}
-	r.count++
+	defer func() {
+		if countFinding {
+			r.count++
+		}
+	}()
 
 	// if no output writer is specified, nothing more to do
 	if r.OutputWriter == nil {
@@ -234,6 +239,7 @@ func (r *Reporter) Collect(ctx context.Context, path NestedPath, result Finding,
 		outputToWrite = string(jsonBytes)
 	} else if r.OutputFilePathOnly {
 		if r.lastFilePathOnlyPrinted == path[0] {
+			countFinding = false
 			return
 		}
 		outputToWrite = path[0]
