@@ -368,5 +368,5 @@ func vulnerableVersion(version string) bool {
 	if !parsed {
 		return true
 	}
-	return (major == 2 && minor <= 17) && !(major == 2 && minor == 17 && patch >= 1) && !(major == 2 && minor == 12 && patch >= 4) && !(major == 2 && minor == 3 && patch >= 2)
+	return major == 2 && minor <= 17 && !(minor == 17 && patch >= 1) && !(minor == 12 && patch >= 4) && !(minor == 3 && patch >= 2)
 }
