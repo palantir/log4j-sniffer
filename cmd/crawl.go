@@ -116,7 +116,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				PrintDetailedOutput:                !disableDetailedFindings && !outputJSON && !outputFilePathOnly,
 				EnableTraceLogging:                 enableTraceLogging,
 				Ignores:                            ignores,
-			}, reporter.Collect, cmd.OutOrStdout(), cmd.OutOrStderr())
+			}, reporter.Report, cmd.OutOrStdout(), cmd.OutOrStderr())
 			if err != nil {
 				return err
 			}

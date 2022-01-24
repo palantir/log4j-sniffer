@@ -154,8 +154,10 @@ var cveVersions = []AffectedVersion{
 	},
 }
 
-// Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
-func (r *Reporter) Collect(ctx context.Context, path NestedPath, result Finding, versionSet Versions) {
+// Report the finding based on the configuration of the Reporter.
+// The count will be incremented if the finding is a new finding, i.e. a consecutive finding based on the same file when
+// OutputFilePathOnly is set to true will not cause the counter to be incremented.
+func (r *Reporter) Report(ctx context.Context, path NestedPath, result Finding, versionSet Versions) {
 	countFinding := true
 	versions := sortVersions(versionSet)
 	if r.DisableFlaggingUnknownVersions && (len(versions) == 0 || len(versions) == 1 && versions[0] == UnknownVersion) {
@@ -298,7 +300,7 @@ func sortVersions(versions Versions) []string {
 	return out
 }
 
-// Count returns the number of times that Collect has been called
+// Count returns the number of times that Report has been called
 func (r Reporter) Count() int64 {
 	return r.count
 }
