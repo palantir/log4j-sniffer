@@ -50,6 +50,7 @@ type Reporter struct {
 type JavaCVEInstance struct {
 	Message       string   `json:"message"`
 	FilePath      string   `json:"filePath"`
+	DetailedPath  string   `json:"detailedPath"`
 	CVEsDetected  []string `json:"cvesDetected"`
 	Findings      []string `json:"findings"`
 	Log4JVersions []string `json:"log4jVersions"`
@@ -153,7 +154,7 @@ var cveVersions = []AffectedVersion{
 }
 
 // Collect increments the count of number of calls to Reporter.Collect and logs the path of the vulnerable file to disk.
-func (r *Reporter) Collect(ctx context.Context, path string, result Finding, versionSet Versions) {
+func (r *Reporter) Collect(ctx context.Context, path NestedPath, result Finding, versionSet Versions) {
 	versions := sortVersions(versionSet)
 	if r.DisableFlaggingUnknownVersions && (len(versions) == 0 || len(versions) == 1 && versions[0] == UnknownVersion) {
 		return
@@ -221,7 +222,8 @@ func (r *Reporter) Collect(ctx context.Context, path string, result Finding, ver
 	if r.OutputJSON {
 		cveInfo := JavaCVEInstance{
 			Message:       cveMessage,
-			FilePath:      path,
+			FilePath:      path[0],
+			DetailedPath:  path.Joined(),
 			CVEsDetected:  cvesFound,
 			Findings:      findingNames,
 			Log4JVersions: versions,
@@ -230,9 +232,9 @@ func (r *Reporter) Collect(ctx context.Context, path string, result Finding, ver
 		jsonBytes, _ := json.Marshal(cveInfo)
 		outputToWrite = string(jsonBytes)
 	} else if r.OutputFilePathOnly {
-		outputToWrite = path
+		outputToWrite = path[0]
 	} else {
-		outputToWrite = color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
+		outputToWrite = color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path.Joined(), strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
 	}
 	_, _ = fmt.Fprintln(r.OutputWriter, outputToWrite)
 }

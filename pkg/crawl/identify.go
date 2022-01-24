@@ -111,7 +111,7 @@ type Log4jIdentifier struct {
 
 // HandleFindingFunc is called with the given findings and versions when Log4jIdentifier identifies
 // a log4j vulnerability whilst crawling the filesystem.
-type HandleFindingFunc func(ctx context.Context, path string, result Finding, version Versions)
+type HandleFindingFunc func(ctx context.Context, path NestedPath, result Finding, version Versions)
 
 // Identify identifies vulnerable files, passing each finding along with its versions to the Log4jIdentifier's HandleFindingFunc.
 func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename string) (skipped uint64, err error) {
@@ -147,9 +147,9 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename st
 		}
 	}()
 
-	paths := []string{path}
-	log4jNameMatch, nameVulnerability, nameVersions := i.archiveNameVulnerability(paths)
-	inArchive, inZipVs, skipped, err := i.findArchiveContentVulnerabilities(ctx, 0, walker, paths)
+	nestedPath := []string{path}
+	log4jNameMatch, nameVulnerability, nameVersions := i.archiveNameVulnerability(nestedPath)
+	inArchive, inZipVs, skipped, err := i.findArchiveContentVulnerabilities(ctx, 0, walker, nestedPath)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to walk archive %s", path)
 	}
@@ -159,7 +159,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename st
 		return skipped, err
 	}
 
-	i.HandleFinding(ctx, path, reportFindings, reportVersions)
+	i.HandleFinding(ctx, nestedPath, reportFindings, reportVersions)
 	return skipped, err
 }
 
@@ -193,7 +193,7 @@ func resolveNameAndContentFindings(nameMatchesLog4jJar bool, nameFinding Finding
 	return findings, versions
 }
 
-func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths nestedPaths) (bool, Finding, Versions) {
+func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths NestedPath) (bool, Finding, Versions) {
 	path := nestedPaths[len(nestedPaths)-1]
 	var jarNameMatch bool
 	var jarVersion string
@@ -222,7 +222,7 @@ func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths nestedPaths) (boo
 	return jarNameMatch, NothingDetected, nil
 }
 
-func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn, nestedPaths nestedPaths) (Finding, Versions, uint64, error) {
+func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn, nestedPaths NestedPath) (Finding, Versions, uint64, error) {
 	archiveResult := NothingDetected
 	versions := make(Versions)
 
@@ -237,7 +237,7 @@ func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context,
 
 func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, skipped *uint64, paths []string) archive.FileWalkFn {
 	return func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
-		nestedPaths := nestedPaths(append(paths, path))
+		nestedPaths := NestedPath(append(paths, path))
 		getWalker, maxSize, ok := i.ArchiveWalkers(path)
 		if ok {
 			if maxSize > -1 && size >= maxSize {
@@ -250,7 +250,7 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 					*skipped = *skipped + 1
 					i.printInfoFinding("Skipping nested archive nested beyond configured maximum level at %s", nestedPaths.Joined())
 				} else {
-					i.HandleFinding(ctx, nestedPaths.Joined(), nameFinding, jarNameVersions)
+					i.HandleFinding(ctx, nestedPaths, nameFinding, jarNameVersions)
 				}
 			} else {
 				walker, close, archiveErr := getWalker.FromReader(contents)
@@ -272,7 +272,7 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 				jarNameMatch, nameFinding, jarNameVersions := i.archiveNameVulnerability(nestedPaths)
 				findings, vs := resolveNameAndContentFindings(jarNameMatch, nameFinding, jarNameVersions, archiveContentResult, archiveVersions)
 				if findings != NothingDetected {
-					i.HandleFinding(ctx, nestedPaths.Joined(), findings, vs)
+					i.HandleFinding(ctx, nestedPaths, findings, vs)
 				}
 			}
 		}

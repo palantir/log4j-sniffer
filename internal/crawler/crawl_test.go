@@ -268,8 +268,8 @@ func TestCrawlExamplesFindings(t *testing.T) {
 		ObfuscatedClassNameAverageLength:   3,
 		ObfuscatedPackageNameAverageLength: 3,
 		PrintDetailedOutput:                true,
-	}, func(ctx context.Context, path string, result crawl.Finding, versions crawl.Versions) {
-		findings[path] = versionedFindings{
+	}, func(ctx context.Context, path crawl.NestedPath, result crawl.Finding, versions crawl.Versions) {
+		findings[path.Joined()] = versionedFindings{
 			finding:  result,
 			versions: versions,
 		}
@@ -323,8 +323,8 @@ func TestCrawlFindsJarNameWithoutWalking(t *testing.T) {
 		ObfuscatedClassNameAverageLength:   3,
 		ObfuscatedPackageNameAverageLength: 3,
 		PrintDetailedOutput:                true,
-	}, func(ctx context.Context, path string, result crawl.Finding, versions crawl.Versions) {
-		findings[path] = versionedFindings{
+	}, func(ctx context.Context, path crawl.NestedPath, result crawl.Finding, versions crawl.Versions) {
+		findings[path.Joined()] = versionedFindings{
 			finding:  result,
 			versions: versions,
 		}

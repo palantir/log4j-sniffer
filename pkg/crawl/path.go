@@ -18,15 +18,16 @@ import (
 	"strings"
 )
 
-// nestedPaths represents the path taken to get to a given file that is being walked.
+// NestedPath represents the path taken to get to a given file that is being walked,
+// where the path could be nested within any number of archives.
 // Each element of the slice represents a single walking layer, which could be a file
 // or archive.
 // For example, ["/path/to/archive", "path/to/nested_archive", "path/to/file"] would
 // represent a file being walked that is nested into two layers of archive.
-type nestedPaths []string
+type NestedPath []string
 
-// Joined provides a string representation of the given nestedPaths, where each layer
+// Joined provides a string representation of the given NestedPath, where each layer
 // is separated by a '!'.
-func (n nestedPaths) Joined() string {
+func (n NestedPath) Joined() string {
 	return strings.Join(n, "!")
 }

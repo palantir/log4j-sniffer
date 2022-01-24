@@ -26,9 +26,9 @@ import (
 func TestUnknownVersions(t *testing.T) {
 	t.Run("keep track of number of calls", func(t *testing.T) {
 		var r crawl.Reporter
-		r.Collect(context.Background(), "", crawl.JarName, nil)
-		r.Collect(context.Background(), "", crawl.JarName, nil)
-		r.Collect(context.Background(), "", crawl.JarName, nil)
+		r.Collect(context.Background(), nil, crawl.JarName, nil)
+		r.Collect(context.Background(), nil, crawl.JarName, nil)
+		r.Collect(context.Background(), nil, crawl.JarName, nil)
 		assert.EqualValues(t, 3, r.Count())
 	})
 }
@@ -36,11 +36,11 @@ func TestUnknownVersions(t *testing.T) {
 func TestVulnerableAndUnknownVersions(t *testing.T) {
 	t.Run("keep track of number of calls", func(t *testing.T) {
 		var r crawl.Reporter
-		r.Collect(context.Background(), "", crawl.JarName, nil)
-		r.Collect(context.Background(), "", crawl.JarName, crawl.Versions{"2.15.0": {}})
-		r.Collect(context.Background(), "", crawl.JarName, crawl.Versions{"2.12.1": {}})
-		r.Collect(context.Background(), "", crawl.JarName, crawl.Versions{"2.10.0": {}})
-		r.Collect(context.Background(), "", crawl.JarName, crawl.Versions{"2.15.0-rc1": {}})
+		r.Collect(context.Background(), nil, crawl.JarName, nil)
+		r.Collect(context.Background(), nil, crawl.JarName, crawl.Versions{"2.15.0": {}})
+		r.Collect(context.Background(), nil, crawl.JarName, crawl.Versions{"2.12.1": {}})
+		r.Collect(context.Background(), nil, crawl.JarName, crawl.Versions{"2.10.0": {}})
+		r.Collect(context.Background(), nil, crawl.JarName, crawl.Versions{"2.15.0-rc1": {}})
 		assert.EqualValues(t, 5, r.Count())
 	})
 }
@@ -48,7 +48,7 @@ func TestVulnerableAndUnknownVersions(t *testing.T) {
 func TestBadVersionString(t *testing.T) {
 	t.Run("keep track of number of calls", func(t *testing.T) {
 		var r crawl.Reporter
-		r.Collect(context.Background(), "", crawl.JarName, crawl.Versions{"I'm not a version": {}})
+		r.Collect(context.Background(), nil, crawl.JarName, crawl.Versions{"I'm not a version": {}})
 		assert.EqualValues(t, 1, r.Count())
 	})
 }
@@ -58,7 +58,7 @@ func TestJndiLookupOnly(t *testing.T) {
 		r := crawl.Reporter{
 			DisableFlaggingJndiLookup: true,
 		}
-		r.Collect(context.Background(), "", crawl.JndiLookupClassPackageAndName, nil)
+		r.Collect(context.Background(), nil, crawl.JndiLookupClassPackageAndName, nil)
 		assert.EqualValues(t, 0, r.Count())
 	})
 }
@@ -68,7 +68,7 @@ func TestDefaultOutput(t *testing.T) {
 	r := crawl.Reporter{
 		OutputWriter: buf,
 	}
-	r.Collect(context.Background(), "test-name.jar", crawl.JarName, crawl.Versions{"2.15.0": {}})
+	r.Collect(context.Background(), []string{"test-name.jar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
 	assert.Equal(t, "[MATCH] CVE-2021-44228, CVE-2021-44832, CVE-2021-45046, CVE-2021-45105 detected in file test-name.jar. log4j versions: 2.15.0. Reasons: jar name matched\n", buf.String())
 }
 
@@ -78,8 +78,8 @@ func TestJSONOutput(t *testing.T) {
 		OutputWriter: buf,
 		OutputJSON:   true,
 	}
-	r.Collect(context.Background(), "test-name.jar", crawl.JarName, crawl.Versions{"2.15.0": {}})
-	assert.Equal(t, "{\"message\":\"CVE-2021-44228, CVE-2021-44832, CVE-2021-45046, CVE-2021-45105 detected\",\"filePath\":\"test-name.jar\",\"cvesDetected\":[\"CVE-2021-44228\",\"CVE-2021-44832\",\"CVE-2021-45046\",\"CVE-2021-45105\"],\"findings\":[\"jarName\"],\"log4jVersions\":[\"2.15.0\"]}\n", buf.String())
+	r.Collect(context.Background(), crawl.NestedPath{"test-name.jar", "bar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
+	assert.Equal(t, "{\"message\":\"CVE-2021-44228, CVE-2021-44832, CVE-2021-45046, CVE-2021-45105 detected\",\"filePath\":\"test-name.jar\",\"detailedPath\":\"test-name.jar!bar\",\"cvesDetected\":[\"CVE-2021-44228\",\"CVE-2021-44832\",\"CVE-2021-45046\",\"CVE-2021-45105\"],\"findings\":[\"jarName\"],\"log4jVersions\":[\"2.15.0\"]}\n", buf.String())
 }
 
 func TestFilePathOnlyOutput(t *testing.T) {
@@ -88,7 +88,7 @@ func TestFilePathOnlyOutput(t *testing.T) {
 		OutputWriter:       buf,
 		OutputFilePathOnly: true,
 	}
-	r.Collect(context.Background(), "test-name.jar", crawl.JarName, crawl.Versions{"2.15.0": {}})
+	r.Collect(context.Background(), crawl.NestedPath{"test-name.jar", "bar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
 	assert.Equal(t, "test-name.jar\n", buf.String())
 }
 
@@ -98,6 +98,6 @@ func TestDisableFlaggingUnknownVersions(t *testing.T) {
 		OutputWriter:                   buf,
 		DisableFlaggingUnknownVersions: true,
 	}
-	r.Collect(context.Background(), "test-name.jar", crawl.JarName, crawl.Versions{crawl.UnknownVersion: {}})
+	r.Collect(context.Background(), []string{"test-name.jar"}, crawl.JarName, crawl.Versions{crawl.UnknownVersion: {}})
 	assert.Equal(t, "", buf.String())
 }
