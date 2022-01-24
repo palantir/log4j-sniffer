@@ -111,7 +111,7 @@ type Log4jIdentifier struct {
 
 // HandleFindingFunc is called with the given findings and versions when Log4jIdentifier identifies
 // a log4j vulnerability whilst crawling the filesystem.
-type HandleFindingFunc func(ctx context.Context, path NestedPath, result Finding, version Versions)
+type HandleFindingFunc func(ctx context.Context, path Path, result Finding, version Versions)
 
 // Identify identifies vulnerable files, passing each finding along with its versions to the Log4jIdentifier's HandleFindingFunc.
 func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename string) (skipped uint64, err error) {
@@ -193,7 +193,7 @@ func resolveNameAndContentFindings(nameMatchesLog4jJar bool, nameFinding Finding
 	return findings, versions
 }
 
-func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths NestedPath) (bool, Finding, Versions) {
+func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths Path) (bool, Finding, Versions) {
 	path := nestedPaths[len(nestedPaths)-1]
 	var jarNameMatch bool
 	var jarVersion string
@@ -222,7 +222,7 @@ func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths NestedPath) (bool
 	return jarNameMatch, NothingDetected, nil
 }
 
-func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn, nestedPaths NestedPath) (Finding, Versions, uint64, error) {
+func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn, nestedPaths Path) (Finding, Versions, uint64, error) {
 	archiveResult := NothingDetected
 	versions := make(Versions)
 
@@ -237,7 +237,7 @@ func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context,
 
 func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, skipped *uint64, paths []string) archive.FileWalkFn {
 	return func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
-		nestedPaths := NestedPath(append(paths, path))
+		nestedPaths := Path(append(paths, path))
 		getWalker, maxSize, ok := i.ArchiveWalkers(path)
 		if ok {
 			if maxSize > -1 && size >= maxSize {

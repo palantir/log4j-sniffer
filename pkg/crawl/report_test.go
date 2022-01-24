@@ -78,7 +78,7 @@ func TestJSONOutput(t *testing.T) {
 		OutputWriter: buf,
 		OutputJSON:   true,
 	}
-	r.Report(context.Background(), crawl.NestedPath{"test-name.jar", "bar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
+	r.Report(context.Background(), crawl.Path{"test-name.jar", "bar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
 	assert.Equal(t, "{\"message\":\"CVE-2021-44228, CVE-2021-44832, CVE-2021-45046, CVE-2021-45105 detected\",\"filePath\":\"test-name.jar\",\"detailedPath\":\"test-name.jar!bar\",\"cvesDetected\":[\"CVE-2021-44228\",\"CVE-2021-44832\",\"CVE-2021-45046\",\"CVE-2021-45105\"],\"findings\":[\"jarName\"],\"log4jVersions\":[\"2.15.0\"]}\n", buf.String())
 }
 
@@ -88,10 +88,10 @@ func TestFilePathOnlyOutput(t *testing.T) {
 		OutputWriter:       buf,
 		OutputFilePathOnly: true,
 	}
-	r.Report(context.Background(), crawl.NestedPath{"test-name.jar", "bar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
+	r.Report(context.Background(), crawl.Path{"test-name.jar", "bar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
 	assert.Equal(t, "test-name.jar\n", buf.String())
 	assert.EqualValues(t, 1, r.Count())
-	r.Report(context.Background(), crawl.NestedPath{"test-name.jar", "bar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
+	r.Report(context.Background(), crawl.Path{"test-name.jar", "bar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
 	assert.Equal(t, "test-name.jar\n", buf.String(), "printing a finding with the path on disk should not print again")
 	assert.EqualValues(t, 1, r.Count(), "duplicate finding should not be counted")
 }

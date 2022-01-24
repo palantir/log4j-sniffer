@@ -286,7 +286,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 				ArchiveMaxDepth:    1,
 				ArchiveWalkTimeout: time.Second,
 				Limiter:            ratelimit.NewUnlimited(),
-				HandleFinding: func(ctx context.Context, path crawl.NestedPath, result crawl.Finding, version crawl.Versions) {
+				HandleFinding: func(ctx context.Context, path crawl.Path, result crawl.Finding, version crawl.Versions) {
 					reported++
 					assert.Equal(t, tc.result, result)
 					if tc.version == "" {
