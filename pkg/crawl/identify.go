@@ -116,7 +116,6 @@ type HandleFindingFunc func(ctx context.Context, path Path, result Finding, vers
 // Identify identifies vulnerable files, passing each finding along with its versions to the Log4jIdentifier's HandleFindingFunc.
 func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename string) (skipped uint64, err error) {
 	i.printTraceMessage("Identifying file %s", path)
-
 	if i.ArchiveWalkTimeout > 0 {
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, i.ArchiveWalkTimeout)
 		defer cancel()
