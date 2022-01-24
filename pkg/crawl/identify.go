@@ -123,16 +123,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename st
 		ctx = ctxWithTimeout
 	}
 
-	lowercaseFilename := strings.ToLower(filename)
-
-	if strings.HasSuffix(lowercaseFilename, ".jar") {
-		var err error
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	getWalker, _, ok := i.ArchiveWalkers(lowercaseFilename)
+	getWalker, _, ok := i.ArchiveWalkers(strings.ToLower(filename))
 	if !ok {
 		return 0, nil
 	}
