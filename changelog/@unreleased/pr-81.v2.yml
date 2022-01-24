@@ -1,0 +1,28 @@
+type: improvement
+improvement:
+  description: |+
+    When not using `--file-path-only`, the following output behaviour has been modified.
+
+    Each finding is now reported individually, rather than reporting
+    an aggregation of all findings with only the top-level file on
+    disk.
+
+    For example, a vulnerable jar nested inside an archive will now be
+    reported with the vulnerability findings, rather than reporting on
+    the archive with an aggregation of all findings from within it.
+    Multiple vulnerable jars found within an archive will be reported
+    separately.
+
+    The path reported with a vulnerability finding is the full path
+    to a finding with archive layers delimited by a "!".
+    i.e. /path/to/archive!path/to/finding.jar shows that an archive
+    at /path/to/archive contained a vulnerable jar at
+    path/to/finding.jar within it.
+
+    When using `--json` mode, the path on disk is still reported
+    as the `filePath` field. An extra `detailedPath` field has been
+    added, containing the full path the the vulnerable content, which
+    may be nested in any number of archives.
+
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/81
