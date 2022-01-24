@@ -34,7 +34,8 @@ type Reporter struct {
 	OutputJSON bool
 	// True if the reported output should consist of only the path to the file with the CVE, false otherwise. Only has
 	// an effect if OutputJSON is false.
-	OutputFilePathOnly bool
+	OutputFilePathOnly      bool
+	lastFilePathOnlyPrinted string
 	// Disables results only matching JndiLookup classes
 	DisableFlaggingJndiLookup bool
 	// Disables reporting of CVE-2021-45105
@@ -232,7 +233,11 @@ func (r *Reporter) Collect(ctx context.Context, path NestedPath, result Finding,
 		jsonBytes, _ := json.Marshal(cveInfo)
 		outputToWrite = string(jsonBytes)
 	} else if r.OutputFilePathOnly {
+		if r.lastFilePathOnlyPrinted == path[0] {
+			return
+		}
 		outputToWrite = path[0]
+		r.lastFilePathOnlyPrinted = path[0]
 	} else {
 		outputToWrite = color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path.Joined(), strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
 	}

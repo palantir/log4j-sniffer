@@ -90,6 +90,8 @@ func TestFilePathOnlyOutput(t *testing.T) {
 	}
 	r.Collect(context.Background(), crawl.NestedPath{"test-name.jar", "bar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
 	assert.Equal(t, "test-name.jar\n", buf.String())
+	r.Collect(context.Background(), crawl.NestedPath{"test-name.jar", "bar"}, crawl.JarName, crawl.Versions{"2.15.0": {}})
+	assert.Equal(t, "test-name.jar\n", buf.String(), "printing a finding with the path on disk should not print again")
 }
 
 func TestDisableFlaggingUnknownVersions(t *testing.T) {
