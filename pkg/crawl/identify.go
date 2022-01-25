@@ -111,7 +111,7 @@ type Log4jIdentifier struct {
 // The function identifies:
 // - vulnerable log4j jar files.
 // - zipped files containing vulnerable log4j files, using the provided ZipFileLister.
-func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEntry) (result Finding, versions Versions, skipped uint64, err error) {
+func (i *Log4jIdentifier) Identify(ctx context.Context, path, filename string) (result Finding, versions Versions, skipped uint64, err error) {
 	i.printTraceMessage("Identifying file %s", path)
 	if i.ArchiveWalkTimeout > 0 {
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, i.ArchiveWalkTimeout)
@@ -121,7 +121,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, d fs.DirEnt
 
 	result = NothingDetected
 	versions = make(Versions)
-	lowercaseFilename := strings.ToLower(d.Name())
+	lowercaseFilename := strings.ToLower(filename)
 
 	var log4jMatch bool
 	if strings.HasSuffix(lowercaseFilename, ".jar") {
