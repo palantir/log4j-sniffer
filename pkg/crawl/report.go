@@ -158,7 +158,6 @@ var cveVersions = []AffectedVersion{
 // The count will be incremented if the finding is a new finding, i.e. a consecutive finding based on the same file when
 // OutputFilePathOnly is set to true will not cause the counter to be incremented.
 func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versionSet Versions) {
-	countFinding := true
 	versions := sortVersions(versionSet)
 	if r.DisableFlaggingUnknownVersions && (len(versions) == 0 || len(versions) == 1 && versions[0] == UnknownVersion) {
 		return
@@ -170,6 +169,8 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 	if r.DisableFlaggingJndiLookup && jndiLookupResultsOnly(result) {
 		return
 	}
+
+	countFinding := true
 	defer func() {
 		if countFinding {
 			r.count++
