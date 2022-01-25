@@ -63,10 +63,10 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 	if err != nil {
 		return stats, err
 	}
-	if !rootFile.IsDir() {
-		err = c.processFile(ctx, &stats, root, rootFile.Name(), match, process)
-	} else {
+	if rootFile.IsDir() {
 		err = c.processDir(ctx, &stats, root, match, process)
+	} else {
+		err = c.processFile(ctx, &stats, root, rootFile.Name(), match, process)
 	}
 	return stats, err
 }
