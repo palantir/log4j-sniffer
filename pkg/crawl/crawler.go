@@ -71,8 +71,13 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 	return stats, err
 }
 
-func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, match MatchFunc, process ProcessFunc) error {
+func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, match MatchFunc, process ProcessFunc) (err error) {
 	dirInfo, err := os.Open(path)
+	defer func() {
+		if cErr := dirInfo.close(); err == nil && cErr != nil {
+			err = cErr
+		}
+	}()
 	switch {
 	case os.IsPermission(err):
 		stats.PermissionDeniedCount++
