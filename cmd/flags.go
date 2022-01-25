@@ -65,7 +65,7 @@ A max depth of 0 will open up an archive on the filesystem but not any nested ar
 	cmd.Flags().BoolVar(&flags.enablePartialMatchingOnAllClasses, "enable-partial-matching-on-all-classes", false, `Enable partial bytecode matching to all class files found.`)
 	cmd.Flags().IntVar(&flags.obfuscatedClassNameAverageLength, "maximum-average-obfuscated-class-name-length", 3, `The maximum class name length for a class to be considered obfuscated.`)
 	cmd.Flags().IntVar(&flags.obfuscatedPackageNameAverageLength, "maximum-average-obfuscated-package-name-length", 3, `The maximum average package name length a class to be considered obfuscated.`)
-	cmd.Flags().BoolVar(&flags.enableTraceLogging, "enable-trace-logging", false, `Enables trace logging whilst crawling. disable-detailed-findings must be set to false (the default value) for this flag to have an effect`)
+	cmd.Flags().BoolVar(&flags.enableTraceLogging, "enable-trace-logging", false, `Enables trace logging whilst crawling. disable-detailed-findings must be set to false (the default value) for this flag to have an effect.`)
 }
 
 func createCrawlConfig(root string, flags crawlFlags) (crawler.Config, error) {

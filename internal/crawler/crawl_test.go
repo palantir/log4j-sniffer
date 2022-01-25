@@ -268,11 +268,12 @@ func TestCrawlExamplesFindings(t *testing.T) {
 		ObfuscatedClassNameAverageLength:   3,
 		ObfuscatedPackageNameAverageLength: 3,
 		PrintDetailedOutput:                true,
-	}, func(ctx context.Context, path crawl.Path, result crawl.Finding, versions crawl.Versions) {
+	}, func(ctx context.Context, path crawl.Path, result crawl.Finding, versions crawl.Versions) bool {
 		findings[path.Joined()] = versionedFindings{
 			finding:  result,
 			versions: versions,
 		}
+		return true
 	}, io.Discard, io.Discard)
 
 	require.NoError(t, err)
@@ -323,11 +324,12 @@ func TestCrawlFindsJarNameWithoutWalking(t *testing.T) {
 		ObfuscatedClassNameAverageLength:   3,
 		ObfuscatedPackageNameAverageLength: 3,
 		PrintDetailedOutput:                true,
-	}, func(ctx context.Context, path crawl.Path, result crawl.Finding, versions crawl.Versions) {
+	}, func(ctx context.Context, path crawl.Path, result crawl.Finding, versions crawl.Versions) bool {
 		findings[path.Joined()] = versionedFindings{
 			finding:  result,
 			versions: versions,
 		}
+		return true
 	}, io.Discard, io.Discard)
 	require.NoError(t, err)
 	assert.Equal(t, crawl.Stats{

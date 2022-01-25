@@ -5,8 +5,8 @@
 log4j-sniffer
 ============
 
-log4j-sniffer crawls for all instances of log4j that are earlier than version 2.16 on disk within a specified directory.
-It can be used to determine whether there are any vulnerable instances of log4j within a directory tree.
+log4j-sniffer crawls for all instances of log4j on disk within a specified directory.
+It can be used to determine whether there are any vulnerable instances of log4j within a directory tree and report or delete them depending on the mode used.
 
 Scanning for versions affected by CVE-2021-44228, CVE-2021-45046, CVE-2021-45105 and CVE-2021-44832 is currently supported.
 
@@ -321,6 +321,93 @@ ionice -c 3 nice -n 19 log4j-sniffer crawl / --ignore-dir "^/dev" --ignore-dir "
 Running against a specific Jar with all limits removed:
 ```
 log4j-sniffer crawl jar-under-suspicion.jar --enable-partial-matching-on-all-classes --nested-archive-max-depth 255 --nested-archive-max-size 5242880000
+```
+
+Delete command
+==============
+
+Most of the flags are shared with the crawl command and so it is recommended that delete be run using configuration that is known to not negatively impact performance of a host. 
+
+```
+Delete files containing log4j vulnerabilities.
+
+Crawl the file system from root, detecting files containing log4j-vulnerabilities and deleting them if they meet certain requirements determined by the command flags.
+Root must be provided and can be a single file or directory.
+
+Dry-run mode is enabled by default, where a line will be output to state where a file would be deleted when running not in dry run mode.
+It is recommended to run using dry-run mode enabled, checking the logged output and then running with dry-run disabled using the same configuration flags.
+Use --dry-run=false to turn off dry-run mode, enabling deletes.
+
+When used on windows, deleting based on file ownership is unsupported and skip-owner-check should be used instead of directory-with-owner.
+
+Usage:
+  log4j-sniffer delete <root> [flags]
+
+Examples:
+Delete all findings nested beneath /path/to/dir that are owned by foo and contain findings that match both classFileMd5 and jarFileObfuscated.
+
+log4j-sniffer delete /path/to/dir --dry-run=false --directory-owner ^/path/to/dir/.*:foo --finding-match classFileMd5 --finding-match jarFileObfuscated
+
+Flags:
+      --archive-open-mode string                             Supported values:
+                                                               standard - standard file opening will be used. This may cause the filesystem cache to be populated with reads from the archive opens.
+                                                               directio - direct I/O will be used when opening archives that require sequential reading of their content without being able to skip to file tables at known locations within the file.
+                                                                          For example, "directio" can have an effect on the way that tar-based archives are read but will have no effect on zip-based archives.
+                                                                          Using "directio" will cause the filesystem cache to be skipped where possible. "directio" is not supported on tmpfs filesystems and will cause tmpfs archive files to report an error. (default "standard")
+      --archives-per-second-rate-limit int                   The maximum number of archives to scan per second. 0 for unlimited.
+      --directories-per-second-rate-limit int                The maximum number of directories to crawl per second. 0 for unlimited.
+      --directory-with-owner strings                         Provide a directory pattern and owner template that will be used to check whether a file should be deleted or not when it is deemed to be vulnerable.
+                                                             Multiple values can be provided and values must be provided in the form directory_pattern:owner_template, where a directory pattern and owner template are colon separated.
+
+                                                             When a file is deemed to be vulnerable, the directory containing the file will be matched against all directory patterns.
+                                                             For all directory matches, the owner template will be expanded against the directory pattern match to resolve to a file owner value that the actual file owner will then be compared against.
+                                                             Owner templates may use template variables, e.g. $1, $2, $name, that correspond to capture groups in the directory pattern. Please refer to the standard go regexp package documentation at https://pkg.go.dev/regexp#Regexp.Expand for more detailed expanding behaviour.
+
+                                                             If no directories match, the file will not be deleted. If any directories match, all matching directory corresponding expanded templated owner values must match against the actual file owner for the file to be deleted.
+
+                                                             Examples:
+                                                             --directory-owner ^/foo/bar:qux would consider /foo/bar/baz for deletion only if it is owned by qux
+                                                             --directory-owner ^/foo/bar/:qux and --directory-owner ^/foo/bar/baz:quuz would not consider /foo/bar/baz/corge for deletion if owned by either qux or quuz because both would need to match
+                                                             --directory-owner ^/foo/(\w+):$1 would consider /foo/bar/baz for deletion only if it is owned by bar
+
+      --dry-run                                              When true, a line with be output instead of deleting a file. Use --dry-run=false to enable deletion. (default true)
+      --enable-obfuscation-detection                         Enable applying partial bytecode matching to Jars that appear to be obfuscated. (default true)
+      --enable-partial-matching-on-all-classes               Enable partial bytecode matching to all class files found.
+      --enable-trace-logging                                 Enables trace logging whilst crawling. disable-detailed-findings must be set to false (the default value) for this flag to have an effect.
+      --finding-match strings                                When supplied, any vulnerable finding must contain all values that are provided to finding-match for it to be considered for deletion.
+                                                             These values are considered on a finding-by-finding basis, i.e. an archive containing two separate vulnerable jars will only be deleted if either of the contained jars matches all finding-match values.
+
+                                                             Supported values are as follows:
+                                                             - classBytecodeInstructionMd5
+                                                             - classBytecodePartialMatch
+                                                             - classFileMd5
+                                                             - jarFileObfuscated
+                                                             - jarName
+                                                             - jarNameInsideArchive
+                                                             - jndiLookupClassName
+                                                             - jndiLookupClassPackageAndName
+                                                             - jndiManagerClassName
+                                                             - jndiManagerClassPackageAndName
+
+                                                             Example:
+                                                             --finding-match classFileMd5 and --finding-match jarFileObfuscated would only delete a file containing a vulnerability if the vulnerability contains a class file hash match and an obfuscated jar name.
+                                                             If a vulnerable finding contained only one of these finding-match values then the file would not be considered for deletion.
+
+  -h, --help                                                 help for delete
+      --ignore-dir strings                                   Specify directory pattern to ignore. Use multiple times to supply multiple patterns.
+                                                             Patterns should be relative to the provided root.
+                                                             e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"
+      --maximum-average-obfuscated-class-name-length int     The maximum class name length for a class to be considered obfuscated. (default 3)
+      --maximum-average-obfuscated-package-name-length int   The maximum average package name length a class to be considered obfuscated. (default 3)
+      --nested-archive-max-depth uint                        The maximum depth to recurse into nested archives.
+                                                             A max depth of 0 will open up an archive on the filesystem but not any nested archives.
+      --nested-archive-max-size uint                         The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.
+                                                             This limit is made a per-depth level.
+                                                             The overall limit to nested archive size unarchived should be controlled
+                                                             by both the nested-archive-max-size and nested-archive-max-depth. (default 5242880)
+      --per-archive-timeout duration                         If this duration is exceeded when inspecting an archive,
+                                                             an error will be logged and the crawler will move onto the next file. (default 15m0s)
+      --skip-owner-check                                     When provided, the owner of a file will not be checked before attempting a delete.
 ```
 
 Identify command

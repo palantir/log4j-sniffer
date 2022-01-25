@@ -160,17 +160,17 @@ var cveVersions = []AffectedVersion{
 // The fileCount will be incremented if the finding is a new finding, i.e. a consecutive finding based on the same file when
 // The findingCount will be incremented for every finding reported.
 // OutputFilePathOnly is set to true will not cause the counter to be incremented.
-func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versionSet Versions) {
+func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versionSet Versions) bool {
 	versions := sortVersions(versionSet)
 	if r.DisableFlaggingUnknownVersions && (len(versions) == 0 || len(versions) == 1 && versions[0] == UnknownVersion) {
-		return
+		return true
 	}
 	cvesFound := r.matchedCVEs(versions)
 	if len(cvesFound) == 0 {
-		return
+		return true
 	}
 	if r.DisableFlaggingJndiLookup && jndiLookupResultsOnly(result) {
-		return
+		return true
 	}
 
 	r.findingCount++
@@ -181,7 +181,7 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 
 	// if no output writer is specified, nothing more to do
 	if r.OutputWriter == nil {
-		return
+		return true
 	}
 
 	cveMessage := strings.Join(cvesFound, ", ") + " detected"
@@ -244,13 +244,14 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 		outputToWrite = string(jsonBytes)
 	} else if r.OutputFilePathOnly {
 		if r.lastFindingFile == path[0] {
-			return
+			return true
 		}
 		outputToWrite = path[0]
 	} else {
 		outputToWrite = color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
 	}
 	_, _ = fmt.Fprintln(r.OutputWriter, outputToWrite)
+	return true
 }
 
 func (r *Reporter) matchedCVEs(versions []string) []string {

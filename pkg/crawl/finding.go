@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Palantir Technologies. All rights reserved.
+// Copyright (c) 2022 Palantir Technologies. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package crawl
 
-import (
-	"github.com/palantir/pkg/cobracli"
-	"github.com/spf13/cobra"
-)
-
-var (
-	Version = "unspecified"
-)
-
-func Execute() int {
-	rootCmd := &cobra.Command{
-		Use:   "log4j-sniffer",
-		Short: "Filesystem crawler to identify jars and java classes",
-	}
-	rootCmd.AddCommand(crawlCmd())
-	rootCmd.AddCommand(deleteCmd())
-	rootCmd.AddCommand(identifyCmd())
-	rootCmd.AddCommand(compareCmd())
-	return cobracli.ExecuteWithDefaultParams(rootCmd, cobracli.VersionFlagParam(Version))
+// AllFindingsSatisfiedBy returns true if all the findings represented by a are also represented by b
+func AllFindingsSatisfiedBy(a, b Finding) bool {
+	// after bitwise and, result should equal exactly the requirements
+	return a&b == a
 }

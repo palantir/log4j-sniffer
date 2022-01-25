@@ -16,11 +16,13 @@ package crawl
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -29,6 +31,20 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
 )
+
+// vulnerableFindingStrings contains only the Finding values that are considered vulnerable.
+var vulnerableFindingStrings = map[Finding]string{
+	JndiLookupClassName:            "jndiLookupClassName",
+	JndiLookupClassPackageAndName:  "jndiLookupClassPackageAndName",
+	JndiManagerClassName:           "jndiManagerClassName",
+	JarName:                        "jarName",
+	JarNameInsideArchive:           "jarNameInsideArchive",
+	JndiManagerClassPackageAndName: "jndiManagerClassPackageAndName",
+	JarFileObfuscated:              "jarFileObfuscated",
+	ClassBytecodePartialMatch:      "classBytecodePartialMatch",
+	ClassBytecodeInstructionMd5:    "classBytecodeInstructionMd5",
+	ClassFileMd5:                   "classFileMd5",
+}
 
 type Finding int
 type Versions map[string]struct{}
@@ -46,6 +62,36 @@ const (
 	ClassBytecodeInstructionMd5    Finding = 1 << iota
 	ClassFileMd5                   Finding = 1 << iota
 )
+
+func FindingOf(v string) (Finding, error) {
+	stringFindings := invertedFindingStringMap()
+	finding, ok := stringFindings[v]
+	if !ok {
+		return 0, fmt.Errorf("invalid finding-match %s, supported values are %s", v, strings.Join(SupportedVulnerableFindingValues(), ", "))
+	}
+	return finding, nil
+}
+
+func SupportedVulnerableFindingValues() []string {
+	var supportedValues []string
+	for s := range invertedFindingStringMap() {
+		supportedValues = append(supportedValues, s)
+	}
+	sort.Strings(supportedValues)
+	return supportedValues
+}
+
+func invertedFindingStringMap() map[string]Finding {
+	out := make(map[string]Finding)
+	for finding, s := range vulnerableFindingStrings {
+		_, exists := out[s]
+		if exists {
+			panic("finding already defined")
+		}
+		out[s] = finding
+	}
+	return out
+}
 
 func (f Finding) String() string {
 	var out []string
@@ -108,7 +154,9 @@ type Log4jIdentifier struct {
 
 // HandleFindingFunc is called with the given findings and versions when Log4jIdentifier identifies
 // a log4j vulnerability whilst crawling the filesystem.
-type HandleFindingFunc func(ctx context.Context, path Path, result Finding, version Versions)
+// The bool returned by HandleFindingFunc, when false, will instruct the identification of the file to cease.
+// If the bool returned is true, identification will continue.
+type HandleFindingFunc func(ctx context.Context, path Path, result Finding, version Versions) bool
 
 // Identify identifies vulnerable files, passing each finding along with its versions to the Log4jIdentifier's HandleFindingFunc.
 func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename string) (skipped uint64, err error) {
@@ -136,9 +184,12 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename st
 
 	nestedPath := []string{path}
 	log4jNameMatch, nameVulnerability, nameVersions := i.archiveNameVulnerability(nestedPath)
-	inArchive, inZipVs, skipped, err := i.findArchiveContentVulnerabilities(ctx, 0, walker, nestedPath)
+	inArchive, inZipVs, skipped, fileLevelProceed, err := i.findArchiveContentVulnerabilities(ctx, 0, walker, nestedPath)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to walk archive %s", path)
+	}
+	if !fileLevelProceed {
+		return skipped, nil
 	}
 
 	reportFindings, reportVersions := resolveNameAndContentFindings(log4jNameMatch, nameVulnerability, nameVersions, inArchive, inZipVs)
@@ -146,7 +197,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename st
 		return skipped, err
 	}
 
-	i.HandleFinding(ctx, nestedPath, reportFindings, reportVersions)
+	_ = i.HandleFinding(ctx, nestedPath, reportFindings, reportVersions)
 	return skipped, err
 }
 
@@ -207,17 +258,18 @@ func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths Path) (bool, Find
 	return jarNameMatch, NothingDetected, nil
 }
 
-func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn, nestedPaths Path) (Finding, Versions, uint64, error) {
+func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn, nestedPaths Path) (Finding, Versions, uint64, bool, error) {
 	archiveResult := NothingDetected
 	versions := make(Versions)
 
 	var skipped uint64
+	fileLevelProceed := true
 	i.Limiter.Take()
-	err := walk(ctx, i.vulnerabilityFileWalkFunc(depth, &archiveResult, versions, &skipped, nestedPaths))
-	return archiveResult, versions, skipped, err
+	err := walk(ctx, i.vulnerabilityFileWalkFunc(depth, &archiveResult, versions, &skipped, &fileLevelProceed, nestedPaths))
+	return archiveResult, versions, skipped, fileLevelProceed, err
 }
 
-func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, skipped *uint64, paths []string) archive.FileWalkFn {
+func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, skipped *uint64, fileLevelProceed *bool, paths []string) archive.FileWalkFn {
 	return func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 		nestedPaths := Path(append(paths, path))
 		getWalker, maxSize, ok := i.ArchiveWalkers(path)
@@ -232,7 +284,10 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 					*skipped = *skipped + 1
 					i.Logger.Info("Skipping nested archive nested beyond configured maximum level at %s", nestedPaths)
 				} else {
-					i.HandleFinding(ctx, nestedPaths, nameFinding, jarNameVersions)
+					*fileLevelProceed = i.HandleFinding(ctx, nestedPaths, nameFinding, jarNameVersions)
+					if !*fileLevelProceed {
+						return false, nil
+					}
 				}
 			} else {
 				walker, close, archiveErr := getWalker.FromReader(contents)
@@ -245,16 +300,23 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 					}
 				}()
 
-				archiveContentResult, archiveVersions, innerSkipped, err := i.findArchiveContentVulnerabilities(ctx, depth+1, walker, nestedPaths)
+				archiveContentResult, archiveVersions, innerSkipped, innerArchiveFileLevelProceed, err := i.findArchiveContentVulnerabilities(ctx, depth+1, walker, nestedPaths)
 				*skipped = *skipped + innerSkipped
 				if err != nil {
 					return false, err
+				}
+				if !innerArchiveFileLevelProceed {
+					*fileLevelProceed = false
+					return false, nil
 				}
 
 				jarNameMatch, nameFinding, jarNameVersions := i.archiveNameVulnerability(nestedPaths)
 				findings, vs := resolveNameAndContentFindings(jarNameMatch, nameFinding, jarNameVersions, archiveContentResult, archiveVersions)
 				if findings != NothingDetected {
-					i.HandleFinding(ctx, nestedPaths, findings, vs)
+					*fileLevelProceed = i.HandleFinding(ctx, nestedPaths, findings, vs)
+					if !*fileLevelProceed {
+						return false, nil
+					}
 				}
 			}
 		}
