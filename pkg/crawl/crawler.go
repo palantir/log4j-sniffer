@@ -86,8 +86,16 @@ func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, matc
 		}
 		return err
 	}
-	dirEntries, err := dirInfo.ReadDir(100)
-	for err != io.EOF {
+
+	for dirEntries, err := dirInfo.ReadDir(100); err != io.EOF {
+		if err != nil {
+			stats.PathErrorCount++
+			if c.ErrorWriter != nil {
+				_, _ = fmt.Fprintf(c.ErrorWriter, "Error processing path %s: %v\n", path, err)
+			}
+			return nil
+		}
+
 		for _, entry := range dirEntries {
 			select {
 			case <-ctx.Done():
@@ -113,12 +121,6 @@ func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, matc
 					return err
 				}
 			}
-		}
-
-		dirEntries, err = dirInfo.ReadDir(100)
-		if err != nil && err != io.EOF {
-			stats.PathErrorCount++
-			return nil
 		}
 	}
 	return nil
