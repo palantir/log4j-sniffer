@@ -29,8 +29,9 @@ import (
 type Crawler struct {
 	Limiter ratelimit.Limiter
 	// if non-nil, error output is written to this writer
-	ErrorWriter io.Writer
-	IgnoreDirs  []*regexp.Regexp
+	ErrorWriter                 io.Writer
+	IgnoreDirs                  []*regexp.Regexp
+	DirectoryEntriesPerListCall int
 }
 
 type Stats struct {
@@ -97,8 +98,8 @@ func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, matc
 		return nil
 	}
 
-	dirEntries, err := dirInfo.ReadDir(100)
-	for err != io.EOF {
+	var dirEntries []os.DirEntry
+	for ; err != io.EOF; dirEntries, err = dirInfo.ReadDir(c.DirectoryEntriesPerListCall) {
 		if err != nil {
 			stats.PathErrorCount++
 			if c.ErrorWriter != nil {
@@ -131,8 +132,6 @@ func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, matc
 				}
 			}
 		}
-
-		dirEntries, err = dirInfo.ReadDir(100)
 	}
 	return nil
 }

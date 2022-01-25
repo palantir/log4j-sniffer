@@ -50,6 +50,7 @@ func TestCrawler_Crawl(t *testing.T) {
 				regexp.MustCompile(filepath.Join(root, `foo`)),
 				regexp.MustCompile(filepath.Join(root, `baz`)),
 			},
+			DirectoryEntriesPerListCall: 1,
 		}.Crawl(context.Background(), root, func(ctx context.Context, path, name string) (Finding, Versions, uint64, error) {
 			matchPathInputs = append(matchPathInputs, path)
 			matchDirEntryInputs = append(matchDirEntryInputs, name)
@@ -70,7 +71,8 @@ func TestCrawler_Crawl(t *testing.T) {
 		cancel()
 		root := makeTestFS(t, nil, []string{"foo"})
 		_, err := Crawler{
-			Limiter: ratelimit.NewUnlimited(),
+			Limiter:                     ratelimit.NewUnlimited(),
+			DirectoryEntriesPerListCall: 1,
 		}.Crawl(ctx, root, func(context.Context, string, string) (Finding, Versions, uint64, error) {
 			countMatch++
 			return JarName, nil, 0, nil
@@ -87,7 +89,8 @@ func TestCrawler_Crawl(t *testing.T) {
 		var countProcess int
 		root := makeTestFS(t, nil, []string{"foo"})
 		_, err := Crawler{
-			Limiter: ratelimit.NewUnlimited(),
+			Limiter:                     ratelimit.NewUnlimited(),
+			DirectoryEntriesPerListCall: 1,
 		}.Crawl(context.Background(), root,
 			func(ctx context.Context, path, name string) (Finding, Versions, uint64, error) {
 				matchInputs = append(matchInputs, path)
@@ -105,7 +108,8 @@ func TestCrawler_Crawl(t *testing.T) {
 		var countProcess int
 		root := makeTestFS(t, nil, []string{"foo"})
 		_, err := Crawler{
-			Limiter: ratelimit.NewUnlimited(),
+			Limiter:                     ratelimit.NewUnlimited(),
+			DirectoryEntriesPerListCall: 1,
 		}.Crawl(context.Background(), root,
 			func(ctx context.Context, path, name string) (Finding, Versions, uint64, error) {
 				matchInputs = append(matchInputs, path)
@@ -123,7 +127,8 @@ func TestCrawler_Crawl(t *testing.T) {
 		ctx := context.Background()
 		root := makeTestFS(t, nil, []string{"foo", "bar"})
 		_, err := Crawler{
-			Limiter: ratelimit.NewUnlimited(),
+			Limiter:                     ratelimit.NewUnlimited(),
+			DirectoryEntriesPerListCall: 1,
 		}.Crawl(ctx, root,
 			func(context.Context, string, string) (Finding, Versions, uint64, error) {
 				return JarName, nil, 0, nil
