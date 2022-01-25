@@ -198,8 +198,6 @@ func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths Path) (bool, Find
 		jarVersion, jarNameMatch = pathMatchesLog4JVersion(path)
 		jarFinding = JarNameInsideArchive
 		if jarNameMatch {
-			// ???: shall we only report on vulnerable versions here?
-			//    : if so, will the version below do or do we want a specific one for nested archives?
 			i.printInfoFinding("Found nesting archive matching the log4j-core jar name at %s", nestedPaths.Joined())
 		}
 	}
