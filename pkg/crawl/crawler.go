@@ -95,7 +95,7 @@ func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, matc
 			default:
 			}
 
-			nestedPath := strings.Join([]string{path, entry.Name()}, string(os.PathSeparator))
+			nestedPath := filepath.Join(path, entry.Name())
 			if entry.IsDir() {
 				if !c.includeDir(nestedPath) {
 					continue
