@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -30,8 +29,9 @@ import (
 type Crawler struct {
 	Limiter ratelimit.Limiter
 	// if non-nil, error output is written to this writer
-	ErrorWriter io.Writer
-	IgnoreDirs  []*regexp.Regexp
+	ErrorWriter                 io.Writer
+	IgnoreDirs                  []*regexp.Regexp
+	DirectoryEntriesPerListCall int
 }
 
 type Stats struct {
@@ -49,7 +49,7 @@ type Stats struct {
 // If returning a positive finding, a file will be passed onto the ProcessFunc.
 // Returns the finding, if present, along with the version matching as well as the number of
 // files skipped and any error encountered.
-type MatchFunc func(ctx context.Context, path string, d fs.DirEntry) (Finding, Versions, uint64, error)
+type MatchFunc func(ctx context.Context, path, filename string) (Finding, Versions, uint64, error)
 
 // ProcessFunc processes the given matched file.
 type ProcessFunc func(ctx context.Context, path string, result Finding, version Versions)
@@ -60,41 +60,46 @@ type ProcessFunc func(ctx context.Context, path string, result Finding, version 
 // the directory) will be ignored.
 func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, process ProcessFunc) (Stats, error) {
 	stats := Stats{}
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			switch {
-			case os.IsPermission(err):
-				stats.PermissionDeniedCount++
-				return nil
-			case os.IsNotExist(err):
-				// Root should always exist, to pick up on misconfigured service, but log4j-sniffer can encounter transient
-				// files when walking, where WalkDir lists the directory entries but the entry disappears before or
-				// during the walk function iterating over it.
-				if path == root {
-					return err
+	rootFile, err := os.Lstat(root)
+	if err != nil {
+		return stats, err
+	}
+	if rootFile.IsDir() {
+		err = c.processDir(ctx, &stats, root, match, process)
+	} else {
+		err = c.processFile(ctx, &stats, root, rootFile.Name(), match, process)
+	}
+	return stats, err
+}
+
+func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, match MatchFunc, process ProcessFunc) error {
+	dirInfo, err := os.Open(path)
+	if err == nil {
+		defer func() {
+			if cErr := dirInfo.Close(); err == nil && cErr != nil {
+				stats.PathErrorCount++
+				if c.ErrorWriter != nil {
+					_, _ = fmt.Fprintf(c.ErrorWriter, "Error closing file %s: %v\n", path, err)
 				}
-				return nil
 			}
-			return err
+		}()
+	}
+	switch {
+	case os.IsPermission(err):
+		stats.PermissionDeniedCount++
+		return nil
+	case os.IsNotExist(err):
+		return nil
+	case err != nil:
+		stats.PathErrorCount++
+		if c.ErrorWriter != nil {
+			_, _ = fmt.Fprintf(c.ErrorWriter, "Error processing path %s: %v\n", path, err)
 		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		if d.IsDir() {
-			if c.includeDir(path) {
-				c.Limiter.Take()
-				return nil
-			}
-			return fs.SkipDir
-		}
-		if !d.Type().IsRegular() {
-			return nil
-		}
-		stats.FilesScanned++
-		matched, version, skipCount, err := match(ctx, path, d)
-		stats.PathSkippedCount += skipCount
+		return nil
+	}
+
+	var dirEntries []os.DirEntry
+	for ; err != io.EOF; dirEntries, err = dirInfo.ReadDir(c.DirectoryEntriesPerListCall) {
 		if err != nil {
 			stats.PathErrorCount++
 			if c.ErrorWriter != nil {
@@ -102,13 +107,51 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 			}
 			return nil
 		}
-		if matched == NothingDetected {
-			return nil
+
+		for _, entry := range dirEntries {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			nestedPath := filepath.Join(path, entry.Name())
+			if entry.IsDir() {
+				if !c.includeDir(nestedPath) {
+					continue
+				}
+				c.Limiter.Take()
+				if err = c.processDir(ctx, stats, nestedPath, match, process); err != nil {
+					return err
+				}
+			} else if !entry.Type().IsRegular() {
+				continue
+			} else {
+				if err = c.processFile(ctx, stats, nestedPath, entry.Name(), match, process); err != nil {
+					return err
+				}
+			}
 		}
-		process(ctx, path, matched, version)
-		return err
-	})
-	return stats, err
+	}
+	return nil
+}
+
+func (c Crawler) processFile(ctx context.Context, stats *Stats, path, name string, match MatchFunc, process ProcessFunc) error {
+	stats.FilesScanned++
+	matched, version, skipCount, err := match(ctx, path, name)
+	stats.PathSkippedCount += skipCount
+	if err != nil {
+		stats.PathErrorCount++
+		if c.ErrorWriter != nil {
+			_, _ = fmt.Fprintf(c.ErrorWriter, "Error processing path %s: %v\n", path, err)
+		}
+		return nil
+	}
+	if matched == NothingDetected {
+		return nil
+	}
+	process(ctx, path, matched, version)
+	return err
 }
 
 func (c Crawler) includeDir(path string) bool {

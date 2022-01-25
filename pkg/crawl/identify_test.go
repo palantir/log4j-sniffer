@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/fs"
 	"os"
 	"strings"
 	"testing"
@@ -54,9 +53,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			ArchiveWalkTimeout: time.Millisecond,
 			Limiter:            ratelimit.NewUnlimited(),
 		}
-		_, _, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{
-			name: "bar",
-		})
+		_, _, _, err := identifier.Identify(context.Background(), "foo/bar", "bar")
 		assert.Error(t, err)
 		assert.True(t, strings.HasSuffix(err.Error(), ": context was cancelled"))
 	})
@@ -73,9 +70,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			ArchiveWalkTimeout: time.Second,
 			Limiter:            ratelimit.NewUnlimited(),
 		}
-		_, _, _, err := identifier.Identify(context.Background(), "foo", stubDirEntry{
-			name: "sdlkfjsldkjfs.tar.gz",
-		})
+		_, _, _, err := identifier.Identify(context.Background(), "foo/sdlkfjsldkjfs.tar.gz", "sdlkfjsldkjfs.tar.gz")
 		assert.Equal(t, expectedErr, err)
 	})
 
@@ -104,7 +99,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			Limiter:            ratelimit.NewUnlimited(),
 		}
 
-		_, _, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		_, _, _, err := identifier.Identify(context.Background(), "ignored/.zip", ".zip")
 		require.NoError(t, err)
 		assert.Equal(t, 1, fileWalkCalls)
 		assert.Equal(t, 0, readerWalkCalls)
@@ -136,7 +131,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			Limiter:            ratelimit.NewUnlimited(),
 		}
 
-		_, _, _, err := identifier.Identify(context.Background(), "ignored", stubDirEntry{name: ".zip"})
+		_, _, _, err := identifier.Identify(context.Background(), "ignored/.zip", ".zip")
 		require.NoError(t, err)
 		assert.Equal(t, 1, fileWalkCalls)
 		assert.Equal(t, 3, readerWalkCalls)
@@ -196,9 +191,7 @@ func TestIdentifyFromFileName(t *testing.T) {
 				},
 			}
 
-			result, version, _, err := identifier.Identify(context.Background(), "/path/on/disk", stubDirEntry{
-				name: tc.in,
-			})
+			result, version, _, err := identifier.Identify(context.Background(), "/path/on/disk/"+tc.in, tc.in)
 			require.NoError(t, err)
 			assert.Equal(t, tc.result.String(), result.String())
 			if tc.version == "" {
@@ -305,9 +298,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 				ArchiveWalkTimeout: time.Second,
 				Limiter:            ratelimit.NewUnlimited(),
 			}
-			result, version, _, err := identifier.Identify(context.Background(), "/path/on/disk/", stubDirEntry{
-				name: tc.filename,
-			})
+			result, version, _, err := identifier.Identify(context.Background(), "/path/on/disk/"+tc.filename, tc.filename)
 			require.NoError(t, err)
 			assert.Equal(t, tc.result.String(), result.String())
 			if tc.version == "" {
@@ -357,23 +348,3 @@ func emptyZipContent(t *testing.T) []byte {
 }
 
 func noopCloser() error { return nil }
-
-type stubDirEntry struct {
-	name string
-}
-
-func (s stubDirEntry) Name() string {
-	return s.name
-}
-
-func (s stubDirEntry) IsDir() bool {
-	panic("not required")
-}
-
-func (s stubDirEntry) Type() fs.FileMode {
-	panic("not required")
-}
-
-func (s stubDirEntry) Info() (fs.FileInfo, error) {
-	panic("not required")
-}

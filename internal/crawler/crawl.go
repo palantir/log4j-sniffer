@@ -75,9 +75,10 @@ func Crawl(ctx context.Context, config Config, process crawl.ProcessFunc, stdout
 		ArchiveWalkers:                     archive.Walkers(int64(config.ArchiveMaxSize), config.ArchiveOpenMode),
 	}
 	crawler := crawl.Crawler{
-		Limiter:     limiterFromConfig(config.DirectoriesCrawledPerSecond),
-		ErrorWriter: stderr,
-		IgnoreDirs:  config.Ignores,
+		Limiter:                     limiterFromConfig(config.DirectoriesCrawledPerSecond),
+		ErrorWriter:                 stderr,
+		IgnoreDirs:                  config.Ignores,
+		DirectoryEntriesPerListCall: 100,
 	}
 
 	crawlStats, err := crawler.Crawl(ctx, config.Root, identifier.Identify, process)
