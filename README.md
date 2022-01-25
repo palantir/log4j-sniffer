@@ -128,7 +128,7 @@ a line of JSON.
 Here is an example of the output with `--json`:
 
 ```
-{"message":"CVE-2021-44228, CVE-2021-44832, CVE-2021-45046, CVE-2021-45105 detected","filePath":"../examples/inside_a_dist/wrapped_log4j.tar.gz","detailedPath":"../examples/inside_a_dist/wrapped_log4j.tar.gz!log4j-core-2.14.1.jar","cvesDetected":["CVE-2021-44228","CVE-2021-44832","CVE-2021-45046","CVE-2021-45105"],"findings":["jndiLookupClassPackageAndName","jarNameInsideArchive","jndiManagerClassPackageAndName","classFileMd5"],"log4jVersions":["2.14.0-2.14.1","2.14.1"]}
+{"message":"CVE-2021-44228, CVE-2021-44832, CVE-2021-45046, CVE-2021-45105 detected","filePath":"examples/inside_a_dist/wrapped_log4j.tar.gz","detailedPath":"examples/inside_a_dist/wrapped_log4j.tar.gz!log4j-core-2.14.1.jar","cvesDetected":["CVE-2021-44228","CVE-2021-44832","CVE-2021-45046","CVE-2021-45105"],"findings":["jndiLookupClassPackageAndName","jarNameInsideArchive","jndiManagerClassPackageAndName","classFileMd5"],"log4jVersions":["2.14.0-2.14.1","2.14.1"]}
 {"filesScanned":1,"permissionDeniedErrors":0,"pathErrors":0,"pathsSkipped":0,"numImpactedFiles":1}
 ```
 
