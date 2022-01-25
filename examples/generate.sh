@@ -49,6 +49,17 @@ cd ../
 
 echo "Done"
 
+echo "Creating multiple_bad_versions_in_single_archive with a bad log4j jar inside uncompressed and compressed archives"
+
+mkdir -p multiple_bad_versions_in_single_archive
+rm -f multiple_bad_versions_in_single_archive/*
+
+cd multiple_bad_versions
+tar -czvf ../multiple_bad_versions_in_single_archive/multiple_bad_versions_in_single_archive.tar.gz log4j-core-2.14.0.jar log4j-core-2.15.0.jar
+cd ../
+
+echo "Done"
+
 echo "Creating nested_very_deep with a bad log4j jar inside two levels of tgz"
 
 mkdir -p nested_very_deep

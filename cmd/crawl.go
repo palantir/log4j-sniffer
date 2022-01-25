@@ -116,7 +116,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				PrintDetailedOutput:                !disableDetailedFindings && !outputJSON && !outputFilePathOnly,
 				EnableTraceLogging:                 enableTraceLogging,
 				Ignores:                            ignores,
-			}, reporter.Collect, cmd.OutOrStdout(), cmd.OutOrStderr())
+			}, reporter.Report, cmd.OutOrStdout(), cmd.OutOrStderr())
 			if err != nil {
 				return err
 			}
@@ -127,9 +127,11 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 					jsonBytes, err := json.Marshal(struct {
 						crawl.Stats
 						NumImpactedFiles int64 `json:"numImpactedFiles"`
+						NumFindings      int64 `json:"findings"`
 					}{
 						Stats:            crawlSum,
-						NumImpactedFiles: reporter.Count(),
+						NumImpactedFiles: reporter.FileCount(),
+						NumFindings:      reporter.FindingCount(),
 					})
 					if err != nil {
 						return err
@@ -144,7 +146,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 					if !disableCVE44832 {
 						cveInfo += " or CVE-2021-44832"
 					}
-					count := reporter.Count()
+					count := reporter.FileCount()
 					if count > 0 {
 						output = color.RedString("Files affected by %s detected: %d file(s)", cveInfo, count)
 					} else {

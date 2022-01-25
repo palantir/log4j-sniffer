@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -105,13 +106,15 @@ type Log4jIdentifier struct {
 	ArchiveWalkTimeout                 time.Duration
 	ArchiveMaxDepth                    uint
 	ArchiveWalkers                     func(string) (archive.WalkerProvider, int64, bool)
+	HandleFinding                      HandleFindingFunc
 }
 
-// Identify identifies vulnerable files.
-// The function identifies:
-// - vulnerable log4j jar files.
-// - zipped files containing vulnerable log4j files, using the provided ZipFileLister.
-func (i *Log4jIdentifier) Identify(ctx context.Context, path, filename string) (result Finding, versions Versions, skipped uint64, err error) {
+// HandleFindingFunc is called with the given findings and versions when Log4jIdentifier identifies
+// a log4j vulnerability whilst crawling the filesystem.
+type HandleFindingFunc func(ctx context.Context, path Path, result Finding, version Versions)
+
+// Identify identifies vulnerable files, passing each finding along with its versions to the Log4jIdentifier's HandleFindingFunc.
+func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename string) (skipped uint64, err error) {
 	i.printTraceMessage("Identifying file %s", path)
 	if i.ArchiveWalkTimeout > 0 {
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, i.ArchiveWalkTimeout)
@@ -119,79 +122,124 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path, filename string) (
 		ctx = ctxWithTimeout
 	}
 
-	result = NothingDetected
-	versions = make(Versions)
-	lowercaseFilename := strings.ToLower(filename)
-
-	var log4jMatch bool
-	if strings.HasSuffix(lowercaseFilename, ".jar") {
-		var err error
-		if err != nil {
-			return NothingDetected, nil, 0, err
-		}
-		archiveVersion, match := fileNameMatchesLog4jVersion(lowercaseFilename)
-		if match && vulnerableVersion(archiveVersion) {
-			result |= JarName
-			versions[archiveVersion] = struct{}{}
-			i.printInfoFinding("Found archive with name matching vulnerable log4j-core format at %s", path)
-		}
-		log4jMatch = match
-	}
-
-	getWalker, _, ok := i.ArchiveWalkers(lowercaseFilename)
+	getWalker, _, ok := i.ArchiveWalkers(strings.ToLower(filename))
 	if !ok {
-		return result, versions, 0, nil
+		return 0, nil
 	}
 
 	walker, close, tErr := getWalker.FromFile(path)
 	if tErr != nil {
-		return NothingDetected, nil, 0, tErr
+		return 0, tErr
 	}
 	defer func() {
 		if cErr := close(); err == nil && cErr != nil {
 			err = cErr
 		}
 	}()
-	inZip, inZipVs, skipped, err := i.findArchiveVulnerabilities(ctx, 0, walker)
+
+	nestedPath := []string{path}
+	log4jNameMatch, nameVulnerability, nameVersions := i.archiveNameVulnerability(nestedPath)
+	inArchive, inZipVs, skipped, err := i.findArchiveContentVulnerabilities(ctx, 0, walker, nestedPath)
 	if err != nil {
-		return 0, nil, 0, errors.Wrapf(err, "failed to walk archive %s", path)
+		return 0, errors.Wrapf(err, "failed to walk archive %s", path)
 	}
-	for v := range inZipVs {
-		versions[v] = struct{}{}
+
+	reportFindings, reportVersions := resolveNameAndContentFindings(log4jNameMatch, nameVulnerability, nameVersions, inArchive, inZipVs)
+	if reportFindings == NothingDetected {
+		return skipped, err
 	}
-	// If file on disk matches log4j but no signs of vulnerable version have been found
-	// during identification phase, then we assume non-vulnerable.
-	if log4jMatch && len(versions) == 0 {
-		return NothingDetected, nil, skipped, nil
-	}
-	result |= inZip
-	if result != NothingDetected && len(versions) == 0 {
-		versions[UnknownVersion] = struct{}{}
-	}
-	return result, versions, skipped, err
+
+	i.HandleFinding(ctx, nestedPath, reportFindings, reportVersions)
+	return skipped, err
 }
 
-func (i *Log4jIdentifier) findArchiveVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn) (Finding, Versions, uint64, error) {
+func resolveNameAndContentFindings(nameMatchesLog4jJar bool, nameFinding Finding, nameVersions Versions, archiveFinding Finding, archiveVersions Versions) (Finding, Versions) {
+	if archiveFinding == NothingDetected {
+		if nameFinding != NothingDetected {
+			return nameFinding, nameVersions
+		}
+		return NothingDetected, nil
+	}
+
+	// If detections are made but no clues of any vulnerable versions within the archive,
+	// then we determine non-vulnerable if the archive name has been matched but with a
+	// non-vulnerable filename.
+	if len(archiveVersions) == 0 && nameMatchesLog4jJar && nameFinding == NothingDetected {
+		return NothingDetected, nil
+	}
+
+	findings := nameFinding | archiveFinding
+	if findings == NothingDetected {
+		return findings, nil
+	}
+
+	versions := archiveVersions
+	for v := range nameVersions {
+		versions[v] = struct{}{}
+	}
+	if len(versions) == 0 {
+		versions = map[string]struct{}{UnknownVersion: {}}
+	}
+	return findings, versions
+}
+
+func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths Path) (bool, Finding, Versions) {
+	path := nestedPaths[len(nestedPaths)-1]
+	var jarNameMatch bool
+	var jarVersion string
+	var jarFinding Finding
+	if len(nestedPaths) == 1 {
+		// we are on disk and so need to split using filepath to support different OS separators
+		_, filename := filepath.Split(path)
+		jarVersion, jarNameMatch = FileNameMatchesLog4jJar(filename)
+		jarFinding = JarName
+	} else {
+		// we are in an archive and so can assume separator is '/'
+		jarVersion, jarNameMatch = pathMatchesLog4JVersion(path)
+		jarFinding = JarNameInsideArchive
+		if jarNameMatch {
+			i.printInfoFinding("Found nesting archive matching the log4j-core jar name at %s", nestedPaths.Joined())
+		}
+	}
+
+	archiveVersionVulnerable := vulnerableVersion(jarVersion)
+	if jarNameMatch && archiveVersionVulnerable {
+		i.printInfoFinding("Found archive with name matching vulnerable log4j-core format at %s", nestedPaths.Joined())
+		return jarNameMatch, jarFinding, map[string]struct{}{jarVersion: {}}
+	}
+	return jarNameMatch, NothingDetected, nil
+}
+
+func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn, nestedPaths Path) (Finding, Versions, uint64, error) {
 	archiveResult := NothingDetected
 	versions := make(Versions)
-	var skipped uint64 = 0
+
+	var skipped uint64
 	i.Limiter.Take()
-	if err := walk(ctx, i.vulnerabilityFileWalkFunc(depth, &archiveResult, versions, &skipped)); err != nil {
-		return NothingDetected, nil, 0, err
+	if err := walk(ctx, i.vulnerabilityFileWalkFunc(depth, &archiveResult, versions, &skipped, nestedPaths)); err != nil {
+		return archiveResult, versions, skipped, err
 	}
+
 	return archiveResult, versions, skipped, nil
 }
 
-func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, skipped *uint64) archive.FileWalkFn {
+func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, skipped *uint64, paths []string) archive.FileWalkFn {
 	return func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+		nestedPaths := Path(append(paths, path))
 		getWalker, maxSize, ok := i.ArchiveWalkers(path)
 		if ok {
 			if maxSize > -1 && size >= maxSize {
 				*skipped = *skipped + 1
-				i.printInfoFinding("Skipping nested archive above configured maximum size at %s", path)
+				i.printInfoFinding("Skipping nested archive above configured maximum size at %s", nestedPaths.Joined())
 			} else if depth >= i.ArchiveMaxDepth {
-				*skipped = *skipped + 1
-				i.printInfoFinding("Skipping nested archive nested beyond configured maximum level at %s", path)
+				_, nameFinding, jarNameVersions := i.archiveNameVulnerability(nestedPaths)
+				// If there is a finding from the name we don't consider the file skipped.
+				if nameFinding == NothingDetected {
+					*skipped = *skipped + 1
+					i.printInfoFinding("Skipping nested archive nested beyond configured maximum level at %s", nestedPaths.Joined())
+				} else {
+					i.HandleFinding(ctx, nestedPaths, nameFinding, jarNameVersions)
+				}
 			} else {
 				walker, close, archiveErr := getWalker.FromReader(contents)
 				if archiveErr != nil {
@@ -203,14 +251,16 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 					}
 				}()
 
-				finding, innerVersions, innerSkipped, err := i.findArchiveVulnerabilities(ctx, depth+1, walker)
+				archiveContentResult, archiveVersions, innerSkipped, err := i.findArchiveContentVulnerabilities(ctx, depth+1, walker, nestedPaths)
 				*skipped = *skipped + innerSkipped
 				if err != nil {
 					return false, err
 				}
-				*result |= finding
-				for vv := range innerVersions {
-					versions[vv] = struct{}{}
+
+				jarNameMatch, nameFinding, jarNameVersions := i.archiveNameVulnerability(nestedPaths)
+				findings, vs := resolveNameAndContentFindings(jarNameMatch, nameFinding, jarNameVersions, archiveContentResult, archiveVersions)
+				if findings != NothingDetected {
+					i.HandleFinding(ctx, nestedPaths, findings, vs)
 				}
 			}
 		}
@@ -229,13 +279,6 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 				versions[versionInFile] = struct{}{}
 			}
 			*result |= finding
-			return true, nil
-		}
-
-		if version, match := pathMatchesLog4JVersion(path); match {
-			i.printInfoFinding("Found nesting archive matching the log4j-core jar name at %s", path)
-			*result |= JarNameInsideArchive
-			versions[version] = struct{}{}
 		}
 		return true, nil
 	}
@@ -324,8 +367,7 @@ func (i *Log4jIdentifier) printErrorFinding(message string, err error) {
 }
 
 func pathMatchesLog4JVersion(path string) (string, bool) {
-	filename := filenameFromPathInsideArchive(path)
-	return fileNameMatchesLog4jVersion(filename)
+	return FileNameMatchesLog4jJar(filenameFromPathInsideArchive(path))
 }
 
 func filenameFromPathInsideArchive(path string) string {
@@ -336,7 +378,7 @@ func filenameFromPathInsideArchive(path string) string {
 	return filename
 }
 
-func fileNameMatchesLog4jVersion(filename string) (string, bool) {
+func FileNameMatchesLog4jJar(filename string) (string, bool) {
 	matches := log4jRegex.FindStringSubmatch(strings.ToLower(filename))
 	if len(matches) == 0 {
 		return "", false

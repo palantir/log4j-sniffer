@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -53,7 +52,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			ArchiveWalkTimeout: time.Millisecond,
 			Limiter:            ratelimit.NewUnlimited(),
 		}
-		_, _, _, err := identifier.Identify(context.Background(), "foo/bar", "bar")
+		_, err := identifier.Identify(context.Background(), "foo", "bar")
 		assert.Error(t, err)
 		assert.True(t, strings.HasSuffix(err.Error(), ": context was cancelled"))
 	})
@@ -70,7 +69,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			ArchiveWalkTimeout: time.Second,
 			Limiter:            ratelimit.NewUnlimited(),
 		}
-		_, _, _, err := identifier.Identify(context.Background(), "foo/sdlkfjsldkjfs.tar.gz", "sdlkfjsldkjfs.tar.gz")
+		_, err := identifier.Identify(context.Background(), "foo", "sdlkfjsldkjfs.tar.gz")
 		assert.Equal(t, expectedErr, err)
 	})
 
@@ -98,8 +97,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			ArchiveWalkTimeout: time.Second,
 			Limiter:            ratelimit.NewUnlimited(),
 		}
-
-		_, _, _, err := identifier.Identify(context.Background(), "ignored/.zip", ".zip")
+		_, err := identifier.Identify(context.Background(), "ignored/.zip", ".zip")
 		require.NoError(t, err)
 		assert.Equal(t, 1, fileWalkCalls)
 		assert.Equal(t, 0, readerWalkCalls)
@@ -131,7 +129,7 @@ func TestLog4jIdentifier(t *testing.T) {
 			Limiter:            ratelimit.NewUnlimited(),
 		}
 
-		_, _, _, err := identifier.Identify(context.Background(), "ignored/.zip", ".zip")
+		_, err := identifier.Identify(context.Background(), "ignored", ".zip")
 		require.NoError(t, err)
 		assert.Equal(t, 1, fileWalkCalls)
 		assert.Equal(t, 3, readerWalkCalls)
@@ -142,7 +140,6 @@ func TestIdentifyFromFileName(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		in      string
-		result  crawl.Finding
 		version string
 	}{{
 		name: "empty filename",
@@ -152,18 +149,17 @@ func TestIdentifyFromFileName(t *testing.T) {
 	}, {
 		name:    "log4j x.y.z vulnerable version",
 		in:      "log4j-core-2.10.0.jar",
-		result:  crawl.JarName,
 		version: "2.10.0",
 	}, {
 		name: "invalid file extension",
 		in:   "log4j-core-2.10.0.png",
 	}, {
-		name: "log4j patched version",
-		in:   "log4j-core-2.17.1.jar",
+		name:    "log4j patched version",
+		in:      "log4j-core-2.17.1.jar",
+		version: "2.17.1",
 	}, {
 		name:    "log4j major minor vulnerable version",
 		in:      "log4j-core-2.15.jar",
-		result:  crawl.JarName,
 		version: "2.15",
 	}, {
 		name: "log4j name not as start of filename",
@@ -174,30 +170,17 @@ func TestIdentifyFromFileName(t *testing.T) {
 	}, {
 		name:    "vulnerable release candidate",
 		in:      "log4j-core-2.14.1-rc1.jar",
-		result:  crawl.JarName,
 		version: "2.14.1-rc1",
 	}, {
 		name:    "case-insensitive match",
 		in:      "lOg4J-cOrE-2.14.0.jAr",
-		result:  crawl.JarName,
 		version: "2.14.0",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			identifier := crawl.Log4jIdentifier{
-				ArchiveWalkTimeout: time.Second,
-				Limiter:            ratelimit.NewUnlimited(),
-				ArchiveWalkers: func(s string) (archive.WalkerProvider, int64, bool) {
-					return nil, 0, false
-				},
-			}
-
-			result, version, _, err := identifier.Identify(context.Background(), "/path/on/disk/"+tc.in, tc.in)
-			require.NoError(t, err)
-			assert.Equal(t, tc.result.String(), result.String())
-			if tc.version == "" {
-				assert.Empty(t, version)
-			} else {
-				assert.Equal(t, crawl.Versions{tc.version: {}}, version)
+			version, match := crawl.FileNameMatchesLog4jJar(tc.in)
+			require.Equal(t, tc.version != "", match)
+			if match {
+				assert.Equal(t, tc.version, version)
 			}
 		})
 	}
@@ -282,6 +265,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 		version: "2.14.1",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
+			var reported int
 			identifier := crawl.Log4jIdentifier{
 				ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
 					return archive.WalkerProviderFromFuncs(func(string) (archive.WalkFn, func() error, error) {
@@ -293,18 +277,29 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 							}
 							return nil
 						}, noopCloser, nil
-					}, nil), -1, true
+					}, func(reader io.Reader) (archive.WalkFn, func() error, error) {
+						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
+							return nil
+						}, noopCloser, nil
+					}), -1, true
 				},
+				ArchiveMaxDepth:    1,
 				ArchiveWalkTimeout: time.Second,
 				Limiter:            ratelimit.NewUnlimited(),
+				HandleFinding: func(ctx context.Context, path crawl.Path, result crawl.Finding, version crawl.Versions) {
+					reported++
+					assert.Equal(t, tc.result, result)
+					if tc.version == "" {
+						assert.Empty(t, version)
+					} else {
+						assert.Equal(t, crawl.Versions{tc.version: {}}, version)
+					}
+				},
 			}
-			result, version, _, err := identifier.Identify(context.Background(), "/path/on/disk/"+tc.filename, tc.filename)
+			_, err := identifier.Identify(context.Background(), "/path/on/disk/"+tc.filename, tc.filename)
 			require.NoError(t, err)
-			assert.Equal(t, tc.result.String(), result.String())
-			if tc.version == "" {
-				assert.Empty(t, version)
-			} else {
-				assert.Equal(t, crawl.Versions{tc.version: {}}, version)
+			if tc.result != crawl.NothingDetected {
+				require.Equal(t, 1, reported)
 			}
 		})
 	}
@@ -329,16 +324,6 @@ func TestFindingString(t *testing.T) {
 			assert.Equal(t, tc.Out, tc.In.String())
 		})
 	}
-}
-
-func mustWriteTempFile(t *testing.T, name string, content []byte) string {
-	t.Helper()
-	temp, err := os.CreateTemp(t.TempDir(), name)
-	require.NoError(t, err)
-	_, err = temp.Write(content)
-	require.NoError(t, err)
-	require.NoError(t, temp.Close())
-	return temp.Name()
 }
 
 func emptyZipContent(t *testing.T) []byte {
