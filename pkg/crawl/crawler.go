@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
-	"strings"
 
 	"go.uber.org/ratelimit"
 )
@@ -71,13 +71,18 @@ func (c Crawler) Crawl(ctx context.Context, root string, match MatchFunc, proces
 	return stats, err
 }
 
-func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, match MatchFunc, process ProcessFunc) (err error) {
+func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, match MatchFunc, process ProcessFunc) error {
 	dirInfo, err := os.Open(path)
-	defer func() {
-		if cErr := dirInfo.close(); err == nil && cErr != nil {
-			err = cErr
-		}
-	}()
+	if err == nil {
+		defer func() {
+			if cErr := dirInfo.Close(); err == nil && cErr != nil {
+				stats.PathErrorCount++
+				if c.ErrorWriter != nil {
+					_, _ = fmt.Fprintf(c.ErrorWriter, "Error closing file %s: %v\n", path, err)
+				}
+			}
+		}()
+	}
 	switch {
 	case os.IsPermission(err):
 		stats.PermissionDeniedCount++
@@ -89,10 +94,11 @@ func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, matc
 		if c.ErrorWriter != nil {
 			_, _ = fmt.Fprintf(c.ErrorWriter, "Error processing path %s: %v\n", path, err)
 		}
-		return err
+		return nil
 	}
 
-	for dirEntries, err := dirInfo.ReadDir(100); err != io.EOF {
+	dirEntries, err := dirInfo.ReadDir(100)
+	for err != io.EOF {
 		if err != nil {
 			stats.PathErrorCount++
 			if c.ErrorWriter != nil {
@@ -114,19 +120,19 @@ func (c Crawler) processDir(ctx context.Context, stats *Stats, path string, matc
 					continue
 				}
 				c.Limiter.Take()
-				nestedError := c.processDir(ctx, stats, nestedPath, match, process)
-				if nestedError != nil {
-					return nestedError
+				if err = c.processDir(ctx, stats, nestedPath, match, process); err != nil {
+					return err
 				}
 			} else if !entry.Type().IsRegular() {
 				continue
 			} else {
-				err = c.processFile(ctx, stats, nestedPath, entry.Name(), match, process)
-				if err != nil {
+				if err = c.processFile(ctx, stats, nestedPath, entry.Name(), match, process); err != nil {
 					return err
 				}
 			}
 		}
+
+		dirEntries, err = dirInfo.ReadDir(100)
 	}
 	return nil
 }
