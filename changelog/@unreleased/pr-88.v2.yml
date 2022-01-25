@@ -1,0 +1,6 @@
+type: improvement
+improvement:
+  description: Use a bounded amount of memory per directory, regardless of how many
+    entries it contains
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/88
