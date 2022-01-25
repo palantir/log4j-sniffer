@@ -156,7 +156,8 @@ The summary outlines:
 - permissionDeniedErrors: the number of directories or files that could not be read due to permissions
 - pathErrors: the number of paths where an unexpected error occurred while trying to identify bad log4j versions
 - pathsSkipped: the numbers of paths skipped from full identification of bad log4j versions due to the config options set
-- findings: the total number of findings previously output
+- numImpactedFiles: the total number of files impacted
+- findings: the total number of findings previously output. For file path only mode, this will equal the number of impacted files.
 
 Specifying `--summary=false` makes it such that the program does not output a summary line at the end. In this case,
 the program will only print output if vulnerabilities are found.

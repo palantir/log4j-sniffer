@@ -34,8 +34,8 @@ type Reporter struct {
 	OutputJSON bool
 	// True if the reported output should consist of only the path to the file with the CVE, false otherwise. Only has
 	// an effect if OutputJSON is false.
-	OutputFilePathOnly      bool
-	lastFilePathOnlyPrinted string
+	OutputFilePathOnly bool
+	lastFindingFile    string
 	// Disables results only matching JndiLookup classes
 	DisableFlaggingJndiLookup bool
 	// Disables reporting of CVE-2021-45105
@@ -44,8 +44,10 @@ type Reporter struct {
 	DisableCVE44832 bool
 	// Disables flagging issues where version of log4j is not known
 	DisableFlaggingUnknownVersions bool
-	// Number of issues that have been found
-	count int64
+	// Number of files with issues that have been reported
+	fileCount int64
+	// Number of individual findings that have been reported
+	findingCount int64
 }
 
 type JavaCVEInstance struct {
@@ -155,7 +157,8 @@ var cveVersions = []AffectedVersion{
 }
 
 // Report the finding based on the configuration of the Reporter.
-// The count will be incremented if the finding is a new finding, i.e. a consecutive finding based on the same file when
+// The fileCount will be incremented if the finding is a new finding, i.e. a consecutive finding based on the same file when
+// The findingCount will be incremented for every finding reported.
 // OutputFilePathOnly is set to true will not cause the counter to be incremented.
 func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versionSet Versions) {
 	versions := sortVersions(versionSet)
@@ -170,12 +173,11 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 		return
 	}
 
-	countFinding := true
-	defer func() {
-		if countFinding {
-			r.count++
-		}
-	}()
+	r.findingCount++
+	if r.lastFindingFile != path[0] {
+		r.fileCount++
+	}
+	defer func() { r.lastFindingFile = path[0] }()
 
 	// if no output writer is specified, nothing more to do
 	if r.OutputWriter == nil {
@@ -241,12 +243,10 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 		jsonBytes, _ := json.Marshal(cveInfo)
 		outputToWrite = string(jsonBytes)
 	} else if r.OutputFilePathOnly {
-		if r.lastFilePathOnlyPrinted == path[0] {
-			countFinding = false
+		if r.lastFindingFile == path[0] {
 			return
 		}
 		outputToWrite = path[0]
-		r.lastFilePathOnlyPrinted = path[0]
 	} else {
 		outputToWrite = color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path.Joined(), strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
 	}
@@ -301,9 +301,14 @@ func sortVersions(versions Versions) []string {
 	return out
 }
 
-// Count returns the number of times that Report has been called
-func (r Reporter) Count() int64 {
-	return r.count
+// FileCount returns the number of unique files that have been reported.
+func (r Reporter) FileCount() int64 {
+	return r.fileCount
+}
+
+// FindingCount returns the number of unique findings that have been reported.
+func (r Reporter) FindingCount() int64 {
+	return r.findingCount
 }
 
 func ParseLog4jVersion(version string) (int, int, int, bool) {

@@ -170,6 +170,7 @@ func TestSummaryContainsExpectedFields(t *testing.T) {
 		"filesScanned":           37,
 		"permissionDeniedErrors": 0,
 		"pathErrors":             0,
+		"numImpactedFiles":       29,
 		"findings":               30,
 		"pathsSkipped":           3,
 	}, summary)
