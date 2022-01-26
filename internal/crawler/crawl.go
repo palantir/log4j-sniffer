@@ -23,6 +23,7 @@ import (
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
+	"github.com/palantir/log4j-sniffer/pkg/log"
 	"go.uber.org/ratelimit"
 )
 
@@ -63,9 +64,11 @@ func Crawl(ctx context.Context, config Config, process crawl.HandleFindingFunc, 
 		outputWriter = stdout
 	}
 	identifier := crawl.Log4jIdentifier{
-		ErrorWriter:                        stderr,
-		EnableTraceLogging:                 config.EnableTraceLogging,
-		DetailedOutputWriter:               outputWriter,
+		Logger: log.Logger{
+			ErrorWriter:        stderr,
+			EnableTraceLogging: config.EnableTraceLogging,
+			OutputWriter:       outputWriter,
+		},
 		IdentifyObfuscation:                config.ObfuscatedClassNameAverageLength > 0 && config.ObfuscatedPackageNameAverageLength > 0,
 		ObfuscatedClassNameAverageLength:   config.ObfuscatedClassNameAverageLength,
 		ObfuscatedPackageNameAverageLength: config.ObfuscatedPackageNameAverageLength,
