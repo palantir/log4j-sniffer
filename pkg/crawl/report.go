@@ -248,7 +248,7 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 		}
 		outputToWrite = path[0]
 	} else {
-		outputToWrite = color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path.Joined(), strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
+		outputToWrite = color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
 	}
 	_, _ = fmt.Fprintln(r.OutputWriter, outputToWrite)
 }

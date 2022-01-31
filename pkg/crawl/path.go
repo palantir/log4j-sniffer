@@ -26,6 +26,10 @@ import (
 // represent a file being walked that is nested into two layers of archive.
 type Path []string
 
+func (n Path) String() string {
+	return n.Joined()
+}
+
 // Joined provides a string representation of the given Path, where each layer
 // is separated by a '!'.
 func (n Path) Joined() string {
