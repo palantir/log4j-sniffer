@@ -95,35 +95,13 @@ func invertedFindingStringMap() map[string]Finding {
 
 func (f Finding) String() string {
 	var out []string
-	if f&JndiLookupClassName > 0 {
-		out = append(out, "JndiLookupClassName")
-	}
-	if f&JndiLookupClassPackageAndName > 0 {
-		out = append(out, "JndiLookupClassPackageAndName")
-	}
-	if f&JndiManagerClassName > 0 {
-		out = append(out, "JndiManagerClassName")
-	}
-	if f&JarName > 0 {
-		out = append(out, "JarName")
-	}
-	if f&JarNameInsideArchive > 0 {
-		out = append(out, "JarNameInsideArchive")
-	}
-	if f&JndiManagerClassPackageAndName > 0 {
-		out = append(out, "JndiManagerClassPackageAndName")
-	}
-	if f&JarFileObfuscated > 0 {
-		out = append(out, "JarFileObfuscated")
-	}
-	if f&ClassBytecodePartialMatch > 0 {
-		out = append(out, "ClassBytecodePartialMatch")
-	}
-	if f&ClassBytecodeInstructionMd5 > 0 {
-		out = append(out, "ClassBytecodeInstructionMd5")
-	}
-	if f&ClassFileMd5 > 0 {
-		out = append(out, "ClassFileMd5")
+	// for all noon-zero bits, append string for finding if it exists
+	for i := 0; f > 0; i, f = i+1, f>>1 {
+		if f&(1) > 0 {
+			if s, ok := vulnerableFindingStrings[1<<i]; ok && len(s) > 1 {
+				out = append(out, strings.ToUpper(string(s[0]))+s[1:])
+			}
+		}
 	}
 	return strings.Join(out, ",")
 }

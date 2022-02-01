@@ -312,10 +312,15 @@ func TestFindingString(t *testing.T) {
 		Out string
 	}{
 		{},
+		{crawl.JndiLookupClassName, "JndiLookupClassName"},
+		{crawl.JndiLookupClassPackageAndName, "JndiLookupClassPackageAndName"},
 		{crawl.JndiManagerClassName, "JndiManagerClassName"},
 		{crawl.JarName, "JarName"},
 		{crawl.JarNameInsideArchive, "JarNameInsideArchive"},
 		{crawl.JndiManagerClassPackageAndName, "JndiManagerClassPackageAndName"},
+		{crawl.JarFileObfuscated, "JarFileObfuscated"},
+		{crawl.ClassBytecodePartialMatch, "ClassBytecodePartialMatch"},
+		{crawl.ClassBytecodeInstructionMd5, "ClassBytecodeInstructionMd5"},
 		{crawl.JndiManagerClassName | crawl.JarName, "JndiManagerClassName,JarName"},
 		{crawl.JndiManagerClassName | crawl.JndiManagerClassPackageAndName, "JndiManagerClassName,JndiManagerClassPackageAndName"},
 		{crawl.JndiManagerClassName | crawl.JarName | crawl.JndiManagerClassPackageAndName, "JndiManagerClassName,JarName,JndiManagerClassPackageAndName"},
