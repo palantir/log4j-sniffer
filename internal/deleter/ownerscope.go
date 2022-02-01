@@ -30,7 +30,7 @@ func (ms FileOwnerMatchers) Match(path string) (bool, error) {
 		owner         string
 	)
 	for _, matcher := range ms.Matchers {
-		if !matcher.DirectoryMatch(path) {
+		if !matcher.FilepathMatch(path) {
 			continue
 		}
 		dirMatchFound = true
@@ -50,6 +50,6 @@ func (ms FileOwnerMatchers) Match(path string) (bool, error) {
 
 // Matcher determine whether a directory and owner match some given constraints.
 type Matcher interface {
-	DirectoryMatch(filepath string) bool
+	FilepathMatch(filepath string) bool
 	OwnerMatch(filepath, owner string) bool
 }

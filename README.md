@@ -338,7 +338,7 @@ Dry-run mode is enabled by default, where a line will be output to state where a
 It is recommended to run using dry-run mode enabled, checking the logged output and then running with dry-run disabled using the same configuration flags.
 Use --dry-run=false to turn off dry-run mode, enabling deletes.
 
-When used on windows, deleting based on file ownership is unsupported and skip-owner-check should be used instead of directory-with-owner.
+When used on windows, deleting based on file ownership is unsupported and skip-owner-check should be used instead of filepath-owner.
 
 Usage:
   log4j-sniffer delete <root> [flags]
@@ -356,7 +356,7 @@ Flags:
                                                                           Using "directio" will cause the filesystem cache to be skipped where possible. "directio" is not supported on tmpfs filesystems and will cause tmpfs archive files to report an error. (default "standard")
       --archives-per-second-rate-limit int                   The maximum number of archives to scan per second. 0 for unlimited.
       --directories-per-second-rate-limit int                The maximum number of directories to crawl per second. 0 for unlimited.
-      --directory-with-owner strings                         Provide a directory pattern and owner template that will be used to check whether a file should be deleted or not when it is deemed to be vulnerable.
+      --filepath-owner strings                         Provide a directory pattern and owner template that will be used to check whether a file should be deleted or not when it is deemed to be vulnerable.
                                                              Multiple values can be provided and values must be provided in the form directory_pattern:owner_template, where a directory pattern and owner template are colon separated.
 
                                                              When a file is deemed to be vulnerable, the directory containing the file will be matched against all directory patterns.

@@ -24,15 +24,15 @@ import (
 func TestRegexWithSubstitutionMatcher(t *testing.T) {
 	t.Run("matches regex against path", func(t *testing.T) {
 		matcher := TemplatedOwner{
-			DirectoryExpression: regexp.MustCompile("/foo/bar/.*"),
+			FilepathExpression: regexp.MustCompile("/foo/bar/.*"),
 		}
-		assert.True(t, matcher.DirectoryMatch("someprefix/foo/bar/baz/qux"))
+		assert.True(t, matcher.FilepathMatch("someprefix/foo/bar/baz/qux"))
 	})
 
 	t.Run("makes substitution for owner match", func(t *testing.T) {
 		matcher := TemplatedOwner{
-			DirectoryExpression: regexp.MustCompile("/foo/(.+)"),
-			OwnerTemplate:       "owner $1",
+			FilepathExpression: regexp.MustCompile("/foo/(.+)/"),
+			OwnerTemplate:      "owner $1",
 		}
 		assert.True(t, matcher.OwnerMatch("/foo/bar/baz", "owner bar"))
 	})

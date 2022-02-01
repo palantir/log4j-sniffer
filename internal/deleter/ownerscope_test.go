@@ -23,7 +23,7 @@ import (
 )
 
 func TestFileOwnerMatcher_Match(t *testing.T) {
-	t.Run("no directory owners does not match anything", func(t *testing.T) {
+	t.Run("no matchers does not match anything", func(t *testing.T) {
 		match, err := FileOwnerMatchers{}.Match("")
 		require.NoError(t, err)
 		assert.False(t, match)
@@ -36,7 +36,7 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 				return "", expectedErr
 			},
 			Matchers: []Matcher{
-				stubMatcher{directoryMatch: func(path string) bool { return true }}},
+				stubMatcher{filepathMatch: func(path string) bool { return true }}},
 		}.Match("path")
 		assert.Equal(t, expectedErr, err)
 	})
@@ -49,7 +49,7 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 			},
 			Matchers: []Matcher{
 				stubMatcher{
-					directoryMatch: func(path string) bool {
+					filepathMatch: func(path string) bool {
 						calls = append(calls, "a")
 						assert.Equal(t, "path", path)
 						return true
@@ -62,7 +62,7 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 					},
 				},
 				stubMatcher{
-					directoryMatch: func(path string) bool {
+					filepathMatch: func(path string) bool {
 						calls = append(calls, "c")
 						assert.Equal(t, "path", path)
 						return true
@@ -84,7 +84,7 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 		_, err := FileOwnerMatchers{
 			Matchers: []Matcher{
 				stubMatcher{
-					directoryMatch: func(path string) bool {
+					filepathMatch: func(path string) bool {
 						calls = append(calls, "a")
 						return false
 					},
@@ -94,7 +94,7 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 					},
 				},
 				stubMatcher{
-					directoryMatch: func(path string) bool {
+					filepathMatch: func(path string) bool {
 						calls = append(calls, "b")
 						return false
 					},
@@ -109,14 +109,14 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 		assert.Equal(t, []string{"a", "b"}, calls, "expected calls to functions to be in order")
 	})
 
-	t.Run("no directory matches results in no match", func(t *testing.T) {
+	t.Run("no filepath matches results in no match", func(t *testing.T) {
 		match, err := FileOwnerMatchers{
 			Matchers: []Matcher{
 				stubMatcher{
-					directoryMatch: func(path string) bool { return false },
+					filepathMatch: func(path string) bool { return false },
 				},
 				stubMatcher{
-					directoryMatch: func(path string) bool { return false },
+					filepathMatch: func(path string) bool { return false },
 				},
 			},
 		}.Match("path")
@@ -124,16 +124,16 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 		assert.False(t, match)
 	})
 
-	t.Run("single directory match returns result of owner match", func(t *testing.T) {
+	t.Run("single filepath match returns result of owner match", func(t *testing.T) {
 		match, err := FileOwnerMatchers{
 			ResolveOwner: func(path string) (string, error) { return "", nil },
 			Matchers: []Matcher{
 				stubMatcher{
-					directoryMatch: func(path string) bool { return false },
+					filepathMatch: func(path string) bool { return false },
 				},
 				stubMatcher{
-					directoryMatch: func(path string) bool { return true },
-					ownerMatch:     func(path, owner string) bool { return true },
+					filepathMatch: func(path string) bool { return true },
+					ownerMatch:    func(path, owner string) bool { return true },
 				},
 			},
 		}.Match("path")
@@ -141,20 +141,20 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 		assert.True(t, match)
 	})
 
-	t.Run("multiple directory match returns false if any are owner misses", func(t *testing.T) {
+	t.Run("multiple filepath match returns false if any are owner misses", func(t *testing.T) {
 		match, err := FileOwnerMatchers{
 			ResolveOwner: func(path string) (string, error) { return "", nil },
 			Matchers: []Matcher{
 				stubMatcher{
-					directoryMatch: func(path string) bool { return false },
+					filepathMatch: func(path string) bool { return false },
 				},
 				stubMatcher{
-					directoryMatch: func(path string) bool { return true },
-					ownerMatch:     func(path, owner string) bool { return true },
+					filepathMatch: func(path string) bool { return true },
+					ownerMatch:    func(path, owner string) bool { return true },
 				},
 				stubMatcher{
-					directoryMatch: func(path string) bool { return true },
-					ownerMatch:     func(path, owner string) bool { return false },
+					filepathMatch: func(path string) bool { return true },
+					ownerMatch:    func(path, owner string) bool { return false },
 				},
 			},
 		}.Match("path")
@@ -162,20 +162,20 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 		assert.False(t, match)
 	})
 
-	t.Run("multiple directory match returns true if all are owner misses", func(t *testing.T) {
+	t.Run("multiple filepath match returns true if all are owner misses", func(t *testing.T) {
 		match, err := FileOwnerMatchers{
 			ResolveOwner: func(path string) (string, error) { return "", nil },
 			Matchers: []Matcher{
 				stubMatcher{
-					directoryMatch: func(path string) bool { return false },
+					filepathMatch: func(path string) bool { return false },
 				},
 				stubMatcher{
-					directoryMatch: func(path string) bool { return true },
-					ownerMatch:     func(path, owner string) bool { return true },
+					filepathMatch: func(path string) bool { return true },
+					ownerMatch:    func(path, owner string) bool { return true },
 				},
 				stubMatcher{
-					directoryMatch: func(path string) bool { return true },
-					ownerMatch:     func(path, owner string) bool { return true },
+					filepathMatch: func(path string) bool { return true },
+					ownerMatch:    func(path, owner string) bool { return true },
 				},
 			},
 		}.Match("path")
@@ -183,16 +183,16 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 		assert.True(t, match)
 	})
 
-	t.Run("does not subsequent directory matchers if any directory has an owner miss", func(t *testing.T) {
+	t.Run("does not match subsequent filepath matchers if any directory has an owner miss", func(t *testing.T) {
 		match, err := FileOwnerMatchers{
 			ResolveOwner: func(path string) (string, error) { return "", nil },
 			Matchers: []Matcher{
 				stubMatcher{
-					directoryMatch: func(path string) bool { return true },
-					ownerMatch:     func(path, owner string) bool { return false },
+					filepathMatch: func(path string) bool { return true },
+					ownerMatch:    func(path, owner string) bool { return false },
 				},
 				stubMatcher{
-					directoryMatch: func(path string) bool {
+					filepathMatch: func(path string) bool {
 						require.FailNow(t, "should not be called")
 						return false
 					},
@@ -212,12 +212,12 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 			},
 			Matchers: []Matcher{
 				stubMatcher{
-					directoryMatch: func(path string) bool { return true },
-					ownerMatch:     func(path, owner string) bool { return true },
+					filepathMatch: func(path string) bool { return true },
+					ownerMatch:    func(path, owner string) bool { return true },
 				},
 				stubMatcher{
-					directoryMatch: func(path string) bool { return true },
-					ownerMatch:     func(path, owner string) bool { return true },
+					filepathMatch: func(path string) bool { return true },
+					ownerMatch:    func(path, owner string) bool { return true },
 				},
 			},
 		}.Match("path")
@@ -227,12 +227,12 @@ func TestFileOwnerMatcher_Match(t *testing.T) {
 }
 
 type stubMatcher struct {
-	directoryMatch func(path string) bool
-	ownerMatch     func(path, owner string) bool
+	filepathMatch func(path string) bool
+	ownerMatch    func(path, owner string) bool
 }
 
-func (s stubMatcher) DirectoryMatch(path string) bool {
-	return s.directoryMatch(path)
+func (s stubMatcher) FilepathMatch(path string) bool {
+	return s.filepathMatch(path)
 }
 
 func (s stubMatcher) OwnerMatch(path, owner string) bool {

@@ -22,21 +22,20 @@ import (
 // TemplatedOwner provides a Matcher interface with flexible pattern matching behaviour to determine a file
 // ownership match based on a templated expression and regular expression.
 type TemplatedOwner struct {
-	DirectoryExpression *regexp.Regexp
-	OwnerTemplate       string
+	FilepathExpression *regexp.Regexp
+	OwnerTemplate      string
 }
 
-// DirectoryMatch returns true when the directory containing path matches the TemplatedOwner DirectoryExpression field.
-func (r TemplatedOwner) DirectoryMatch(path string) bool {
-	return r.DirectoryExpression.MatchString(filepath.Dir(path))
+// FilepathMatch returns true when the filepath of the finding matches the TemplatedOwner FilepathExpression field.
+func (r TemplatedOwner) FilepathMatch(path string) bool {
+	return r.FilepathExpression.MatchString(filepath.Dir(path))
 }
 
 // OwnerMatch returns true when owner of the file matches the result of the OwnerTemplate being expanded against the
-// DirectoryExpression regular expression.
+// FilepathExpression regular expression.
 // OwnerTemplate may contain variable names of the form $1 or $name which will be expanded against captured group
-// matches from the DirectoryExpression when it is matched against the directory containing the file at path.
+// matches from the FilepathExpression when it is matched against a filepath.
 // Please refer to the go regexp documentation at https://pkg.go.dev/regexp#Regexp.Expand for more detailed behaviour.
 func (r TemplatedOwner) OwnerMatch(path, owner string) bool {
-	dir := filepath.Dir(path)
-	return string(r.DirectoryExpression.ExpandString(nil, r.OwnerTemplate, dir, r.DirectoryExpression.FindStringSubmatchIndex(dir))) == owner
+	return string(r.FilepathExpression.ExpandString(nil, r.OwnerTemplate, path, r.FilepathExpression.FindStringSubmatchIndex(path))) == owner
 }

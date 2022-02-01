@@ -28,29 +28,29 @@ import (
 )
 
 func TestDeleteCmd(t *testing.T) {
-	t.Run("errors when no directory-with-owner provided and skip-owner-check not set", func(t *testing.T) {
+	t.Run("errors when no filepath-owner provided and skip-owner-check not set", func(t *testing.T) {
 		cmd := deleteCmd()
 		cmd.SetArgs([]string{"path"})
 		cmd.SetOut(io.Discard)
 		var err bytes.Buffer
 		cmd.SetErr(&err)
 		require.Error(t, cmd.Execute())
-		assert.Equal(t, err.String(), "Error: at least one --directory-with-owner value must be provided or --skip-owner-check must be set\n")
+		assert.Equal(t, err.String(), "Error: at least one --filepath-owner value must be provided or --skip-owner-check must be set\n")
 	})
 
-	t.Run("errors when directory-with-owner and skip-owner-check both provided", func(t *testing.T) {
+	t.Run("errors when filepath-owner and skip-owner-check both provided", func(t *testing.T) {
 		cmd := deleteCmd()
-		cmd.SetArgs([]string{"path", "--directory-with-owner", "foo", "--skip-owner-check"})
+		cmd.SetArgs([]string{"path", "--filepath-owner", "foo", "--skip-owner-check"})
 		cmd.SetOut(io.Discard)
 		var err bytes.Buffer
 		cmd.SetErr(&err)
 		require.Error(t, cmd.Execute())
-		assert.Equal(t, err.String(), "Error: --directory-with-owner and --skip-owner-check cannot be used together\n")
+		assert.Equal(t, err.String(), "Error: --filepath-owner and --skip-owner-check cannot be used together\n")
 	})
 
 	t.Run("errors when invalid findings match values provided", func(t *testing.T) {
 		cmd := deleteCmd()
-		cmd.SetArgs([]string{"path", "--directory-with-owner", "foo:bar", "--finding-match", "jarName", "--finding-match", "🧨"})
+		cmd.SetArgs([]string{"path", "--filepath-owner", "foo:bar", "--finding-match", "jarName", "--finding-match", "🧨"})
 		cmd.SetOut(io.Discard)
 		var err bytes.Buffer
 		cmd.SetErr(&err)
@@ -58,38 +58,30 @@ func TestDeleteCmd(t *testing.T) {
 		assert.Equal(t, "Error: invalid finding-match 🧨, supported values are ClassBytecodeInstructionMd5, ClassBytecodePartialMatch, ClassFileMd5, JarFileObfuscated, JarName, JarNameInsideArchive, JndiLookupClassName, JndiLookupClassPackageAndName, JndiManagerClassName, JndiManagerClassPackageAndName\n", err.String())
 	})
 
-	t.Run("runs successfully against directory with no flags", func(t *testing.T) {
+	t.Run("errors when invalid filepath-owner provided", func(t *testing.T) {
 		cmd := deleteCmd()
-		cmd.SetArgs([]string{"foo"})
+		cmd.SetArgs([]string{"foo", "--filepath-owner", "foo"})
 		cmd.SetOut(io.Discard)
 		cmd.SetErr(io.Discard)
-		require.Error(t, cmd.Execute())
+		require.EqualError(t, cmd.Execute(), `invalid filepath-owner, must contain 2 colon-separated segments but got "foo"`)
 	})
 
-	t.Run("errors when invalid directory with owner provided", func(t *testing.T) {
+	t.Run("errors when one of many filepath-owner provided is invalid", func(t *testing.T) {
 		cmd := deleteCmd()
-		cmd.SetArgs([]string{"foo", "--directory-with-owner", "foo"})
+		cmd.SetArgs([]string{"foo", "--filepath-owner", "foo:bar", "--filepath-owner", "baz"})
 		cmd.SetOut(io.Discard)
 		cmd.SetErr(io.Discard)
-		require.EqualError(t, cmd.Execute(), `invalid directory-with-owner, must contain 2 colon-separated segments but got "foo"`)
+		require.EqualError(t, cmd.Execute(), `invalid filepath-owner, must contain 2 colon-separated segments but got "baz"`)
 	})
 
-	t.Run("errors when one of many directory with owner provided is invalid", func(t *testing.T) {
+	t.Run("errors when filepath-owner pattern cannot be created", func(t *testing.T) {
 		cmd := deleteCmd()
-		cmd.SetArgs([]string{"foo", "--directory-with-owner", "foo:bar", "--directory-with-owner", "baz"})
-		cmd.SetOut(io.Discard)
-		cmd.SetErr(io.Discard)
-		require.EqualError(t, cmd.Execute(), `invalid directory-with-owner, must contain 2 colon-separated segments but got "baz"`)
-	})
-
-	t.Run("errors when directory with owner pattern cannot be created", func(t *testing.T) {
-		cmd := deleteCmd()
-		cmd.SetArgs([]string{"foo", "--directory-with-owner", "**:bar"})
+		cmd.SetArgs([]string{"foo", "--filepath-owner", "**:bar"})
 		cmd.SetOut(io.Discard)
 		cmd.SetErr(io.Discard)
 		err := cmd.Execute()
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `error compiling pattern for directory-with-owner **:bar`)
+		assert.Contains(t, err.Error(), `error compiling pattern for filepath-owner **:bar`)
 	})
 
 	t.Run("Runs deletions in dry-mode by default", func(t *testing.T) {
@@ -102,7 +94,7 @@ func TestDeleteCmd(t *testing.T) {
 		cmd := deleteCmd()
 		current, err := user.Current()
 		require.NoError(t, err)
-		cmd.SetArgs([]string{dir, "--directory-with-owner", dir + ".*:" + current.Username})
+		cmd.SetArgs([]string{dir, "--filepath-owner", dir + ".*:" + current.Username})
 		var out bytes.Buffer
 		cmd.SetOut(&out)
 		require.NoError(t, cmd.Execute())
@@ -121,7 +113,7 @@ func TestDeleteCmd(t *testing.T) {
 		cmd := deleteCmd()
 		current, err := user.Current()
 		require.NoError(t, err)
-		cmd.SetArgs([]string{dir, "--directory-with-owner", dir + ".*:" + current.Username, "--finding-match", "jarNameInsideArchive"})
+		cmd.SetArgs([]string{dir, "--filepath-owner", dir + ".*:" + current.Username, "--finding-match", "jarNameInsideArchive"})
 		var out bytes.Buffer
 		cmd.SetOut(&out)
 		require.NoError(t, cmd.Execute())
@@ -133,7 +125,7 @@ func TestDeleteCmd(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("Deletes findings when dry-run=false with directory-with-owner", func(t *testing.T) {
+	t.Run("Deletes findings when dry-run=false with filepath-owner", func(t *testing.T) {
 		examples := []string{
 			"multiple_bad_versions/log4j-core-2.10.0.jar",
 			"multiple_bad_versions/log4j-core-2.11.0.jar",
@@ -143,7 +135,7 @@ func TestDeleteCmd(t *testing.T) {
 		cmd := deleteCmd()
 		current, err := user.Current()
 		require.NoError(t, err)
-		cmd.SetArgs([]string{dir, "--dry-run=false", "--directory-with-owner", dir + ".*:" + current.Username})
+		cmd.SetArgs([]string{dir, "--dry-run=false", "--filepath-owner", dir + ".*:" + current.Username})
 		var out bytes.Buffer
 		cmd.SetOut(&out)
 		require.NoError(t, cmd.Execute())
