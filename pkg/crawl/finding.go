@@ -90,7 +90,7 @@ func invertedFindingStringMap() map[string]Finding {
 	for finding, s := range vulnerableFindingStrings {
 		_, exists := out[s]
 		if exists {
-			panic(fmt.Sprintf("finding already defined: %s", s))
+			panic(fmt.Sprintf("finding already defined when inverting finding strings map: %s", s))
 		}
 		out[s] = finding
 	}
