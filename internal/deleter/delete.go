@@ -36,6 +36,7 @@ type Deleter struct {
 // In this case, Process will always return false to state that this file should no longer exist and that inspecting
 // this file for more findings should not be undertaken.
 //
+// nil FilepathMatch and nil FindingMatch functions will act as match alls, asif returning true for all inputs.
 // When Deleter.DryRun is true then a line will be logged stating that the file would be deleted.
 // When Deleter.Delete is false, then the configured function Delete will be called to delete the file.
 func (d Deleter) Process(ctx context.Context, path crawl.Path, finding crawl.Finding, _ crawl.Versions) bool {
@@ -43,15 +44,17 @@ func (d Deleter) Process(ctx context.Context, path crawl.Path, finding crawl.Fin
 		return true
 	}
 	filepath := path[0]
-	match, err := d.FilepathMatch(filepath)
-	if err != nil {
-		d.Logger.Error("Error matching file %s: %s", filepath, err)
-		return true
+	if d.FilepathMatch != nil {
+		match, err := d.FilepathMatch(filepath)
+		if err != nil {
+			d.Logger.Error("Error matching file %s: %s", filepath, err)
+			return true
+		}
+		if !match {
+			return true
+		}
 	}
-	if !match {
-		return true
-	}
-	if !d.FindingMatch(finding) {
+	if d.FindingMatch != nil && !d.FindingMatch(finding) {
 		return true
 	}
 	if d.DryRun {

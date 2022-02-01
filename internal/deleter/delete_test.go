@@ -27,6 +27,17 @@ import (
 )
 
 func TestDeleter_Delete(t *testing.T) {
+	t.Run("nil match functions act as match-all", func(t *testing.T) {
+		var filepath string
+		deleter.Deleter{
+			Delete: func(f string) error {
+				filepath = f
+				return nil
+			},
+		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 1, nil)
+		assert.Equal(t, "foo", filepath)
+	})
+
 	t.Run("logs error on filepath match error", func(t *testing.T) {
 		var err bytes.Buffer
 		deleter.Deleter{
