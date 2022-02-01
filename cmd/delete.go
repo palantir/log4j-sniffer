@@ -109,7 +109,7 @@ Examples:
 	cmd.Flags().StringSliceVar(&findingsMatches, "finding-match", nil, `When supplied, any vulnerable finding must contain all values that are provided to finding-match for it to be considered for deletion.
 These values are considered on a finding-by-finding basis, i.e. an archive containing two separate vulnerable jars will only be deleted if either of the contained jars matches all finding-match values.
 
-Supported values are as follows:
+Supported values are as follows, but can be provided case-insensitively:
 `+strings.Join(prefixAll(crawl.SupportedVulnerableFindingValues(), "- "), "\n")+`
 
 Example:

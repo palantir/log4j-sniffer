@@ -346,7 +346,7 @@ Usage:
 Examples:
 Delete all findings nested beneath /path/to/dir that are owned by foo and contain findings that match both classFileMd5 and jarFileObfuscated.
 
-log4j-sniffer delete /path/to/dir --dry-run=false --directory-owner ^/path/to/dir/.*:foo --finding-match classFileMd5 --finding-match jarFileObfuscated
+log4j-sniffer delete /path/to/dir --dry-run=false --filepath-owner ^/path/to/dir/.*:foo --finding-match classFileMd5 --finding-match jarFileObfuscated
 
 Flags:
       --archive-open-mode string                             Supported values:
@@ -356,38 +356,38 @@ Flags:
                                                                           Using "directio" will cause the filesystem cache to be skipped where possible. "directio" is not supported on tmpfs filesystems and will cause tmpfs archive files to report an error. (default "standard")
       --archives-per-second-rate-limit int                   The maximum number of archives to scan per second. 0 for unlimited.
       --directories-per-second-rate-limit int                The maximum number of directories to crawl per second. 0 for unlimited.
-      --filepath-owner strings                         Provide a directory pattern and owner template that will be used to check whether a file should be deleted or not when it is deemed to be vulnerable.
-                                                             Multiple values can be provided and values must be provided in the form directory_pattern:owner_template, where a directory pattern and owner template are colon separated.
-
-                                                             When a file is deemed to be vulnerable, the directory containing the file will be matched against all directory patterns.
-                                                             For all directory matches, the owner template will be expanded against the directory pattern match to resolve to a file owner value that the actual file owner will then be compared against.
-                                                             Owner templates may use template variables, e.g. $1, $2, $name, that correspond to capture groups in the directory pattern. Please refer to the standard go regexp package documentation at https://pkg.go.dev/regexp#Regexp.Expand for more detailed expanding behaviour.
-
-                                                             If no directories match, the file will not be deleted. If any directories match, all matching directory corresponding expanded templated owner values must match against the actual file owner for the file to be deleted.
-
-                                                             Examples:
-                                                             --directory-owner ^/foo/bar:qux would consider /foo/bar/baz for deletion only if it is owned by qux
-                                                             --directory-owner ^/foo/bar/:qux and --directory-owner ^/foo/bar/baz:quuz would not consider /foo/bar/baz/corge for deletion if owned by either qux or quuz because both would need to match
-                                                             --directory-owner ^/foo/(\w+):$1 would consider /foo/bar/baz for deletion only if it is owned by bar
-
       --dry-run                                              When true, a line with be output instead of deleting a file. Use --dry-run=false to enable deletion. (default true)
       --enable-obfuscation-detection                         Enable applying partial bytecode matching to Jars that appear to be obfuscated. (default true)
       --enable-partial-matching-on-all-classes               Enable partial bytecode matching to all class files found.
       --enable-trace-logging                                 Enables trace logging whilst crawling. disable-detailed-findings must be set to false (the default value) for this flag to have an effect.
+      --filepath-owner strings                               Provide a filepath pattern and owner template that will be used to check whether a file should be deleted or not when it is deemed to be vulnerable.
+                                                             Multiple values can be provided and values must be provided in the form filepath_pattern:owner_template, where a filepath pattern and owner template are colon separated.
+
+                                                             When a file is deemed to be vulnerable, the path of the file containing the vulnerability will be matched against all filepath patterns.
+                                                             For all filepath matches, the owner template will be expanded against the filepath pattern match to resolve to a file owner value that the actual file owner will then be compared against.
+                                                             Owner templates may use template variables, e.g. $1, $2, $name, that correspond to capture groups in the filepath pattern. Please refer to the standard go regexp package documentation at https://pkg.go.dev/regexp#Regexp.Expand for more detailed expanding behaviour.
+
+                                                             If no filepaths match, the file will not be deleted. If any filepaths match, all matching filepath patterns' corresponding expanded templated owner values must match against the actual file owner for the file to be deleted.
+
+                                                             Examples:
+                                                             --filepath-owner ^/foo/bar/.+:qux would consider /foo/bar/baz for deletion only if it is owned by qux.
+                                                             --filepath-owner ^/foo/bar/.+:qux and --filepath-owner ^/foo/bar/baz/.+:quuz would not consider /foo/bar/baz/corge for deletion if owned by either qux or quuz because both would need to match.
+                                                             --filepath-owner ^/foo/(\w+)/.*:$1 would consider /foo/bar/baz for deletion only if it is owned by bar.
+
       --finding-match strings                                When supplied, any vulnerable finding must contain all values that are provided to finding-match for it to be considered for deletion.
                                                              These values are considered on a finding-by-finding basis, i.e. an archive containing two separate vulnerable jars will only be deleted if either of the contained jars matches all finding-match values.
 
-                                                             Supported values are as follows:
-                                                             - classBytecodeInstructionMd5
-                                                             - classBytecodePartialMatch
-                                                             - classFileMd5
-                                                             - jarFileObfuscated
-                                                             - jarName
-                                                             - jarNameInsideArchive
-                                                             - jndiLookupClassName
-                                                             - jndiLookupClassPackageAndName
-                                                             - jndiManagerClassName
-                                                             - jndiManagerClassPackageAndName
+                                                             Supported values are as follows, but can be provided case-insensitively:
+                                                             - ClassBytecodeInstructionMd5
+                                                             - ClassBytecodePartialMatch
+                                                             - ClassFileMd5
+                                                             - JarFileObfuscated
+                                                             - JarName
+                                                             - JarNameInsideArchive
+                                                             - JndiLookupClassName
+                                                             - JndiLookupClassPackageAndName
+                                                             - JndiManagerClassName
+                                                             - JndiManagerClassPackageAndName
 
                                                              Example:
                                                              --finding-match classFileMd5 and --finding-match jarFileObfuscated would only delete a file containing a vulnerability if the vulnerability contains a class file hash match and an obfuscated jar name.
