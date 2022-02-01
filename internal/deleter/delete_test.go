@@ -18,46 +18,36 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/palantir/log4j-sniffer/internal/deleter"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"github.com/palantir/log4j-sniffer/pkg/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeleter_Delete(t *testing.T) {
 	t.Run("nil match functions act as match-all", func(t *testing.T) {
-		var filepath string
-		deleter.Deleter{
-			Delete: func(f string) error {
-				filepath = f
-				return nil
-			},
-		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 1, nil)
-		assert.Equal(t, "foo", filepath)
+		file := mustTempFile(t)
+		assert.False(t, deleter.Deleter{}.Process(context.Background(), crawl.Path{file, "bar"}, 1, nil))
+		assertDoesntExist(t, file)
 	})
 
 	t.Run("logs error on filepath match error", func(t *testing.T) {
 		var err bytes.Buffer
-		deleter.Deleter{
+		assert.True(t, deleter.Deleter{
 			Logger: log.Logger{
 				ErrorWriter: &err,
 			},
 			FilepathMatch: func(string) (bool, error) { return true, errors.New("some err") },
-		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 0, nil)
+		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 0, nil))
 		assert.Equal(t, "[ERROR] Error matching file foo: some err\n", err.String())
-	})
-
-	t.Run("logs matchers missing when no matchers configured", func(t *testing.T) {
-		var path string
-		deleter.Deleter{
-			FilepathMatch: func(p string) (bool, error) {
-				path = p
-				return false, nil
-			},
-		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 0, nil)
-		assert.Equal(t, "foo", path)
 	})
 
 	t.Run("passes first path segment to FilepathMatch", func(t *testing.T) {
@@ -84,20 +74,23 @@ func TestDeleter_Delete(t *testing.T) {
 	})
 
 	t.Run("logs dry mode if running in dry mode", func(t *testing.T) {
+		file := mustTempFile(t)
 		var out bytes.Buffer
-		deleter.Deleter{
+		assert.False(t, deleter.Deleter{
 			Logger: log.Logger{
 				OutputWriter: &out,
 			},
 			FilepathMatch: func(string) (bool, error) { return true, nil },
 			FindingMatch:  func(crawl.Finding) bool { return true },
 			DryRun:        true,
-		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 600, nil)
-		assert.Equal(t, "[INFO] Dry-run: would delete foo\n", out.String())
+		}.Process(context.Background(), crawl.Path{file, "bar"}, 600, nil))
+		assert.Equal(t, fmt.Sprintf("[INFO] Dry-run: would delete %s\n", file), out.String())
+		_, err := os.Stat(file)
+		assert.NoError(t, err)
 	})
 
 	t.Run("deletes file if filepath and finding match", func(t *testing.T) {
-		var path string
+		file := mustTempFile(t)
 		var out bytes.Buffer
 		deleter.Deleter{
 			Logger: log.Logger{
@@ -105,30 +98,35 @@ func TestDeleter_Delete(t *testing.T) {
 			},
 			FilepathMatch: func(string) (bool, error) { return true, nil },
 			FindingMatch:  func(crawl.Finding) bool { return true },
-			Delete: func(p string) error {
-				path = p
-				return nil
-			},
-		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 600, nil)
-		assert.Equal(t, "foo", path)
-		assert.Equal(t, "[INFO] Deleted file foo\n", out.String())
+		}.Process(context.Background(), crawl.Path{file, "bar"}, 600, nil)
+		assert.Equal(t, fmt.Sprintf("[INFO] Deleted file %s\n", file), out.String())
+		assertDoesntExist(t, file)
 	})
 
 	t.Run("logs error if error deleting file", func(t *testing.T) {
-		var path string
 		var err bytes.Buffer
+		path := filepath.Join(t.TempDir(), "nonexistent")
 		deleter.Deleter{
 			Logger: log.Logger{
 				ErrorWriter: &err,
 			},
 			FilepathMatch: func(string) (bool, error) { return true, nil },
 			FindingMatch:  func(crawl.Finding) bool { return true },
-			Delete: func(p string) error {
-				path = p
-				return errors.New("some error")
-			},
-		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 600, nil)
-		assert.Equal(t, "foo", path)
-		assert.Equal(t, "[ERROR] Error deleting file foo: some error\n", err.String())
+		}.Process(context.Background(), crawl.Path{path, "bar"}, 600, nil)
+		assert.True(t, strings.HasPrefix(err.String(), fmt.Sprintf("[ERROR] Error deleting file %s: ", path)))
 	})
+}
+
+func assertDoesntExist(t *testing.T, file string) {
+	t.Helper()
+	_, err := os.Stat(file)
+	assert.True(t, os.IsNotExist(err))
+}
+
+func mustTempFile(t *testing.T) string {
+	t.Helper()
+	file, err := ioutil.TempFile(t.TempDir(), "")
+	require.NoError(t, err)
+	require.NoError(t, file.Close())
+	return file.Name()
 }

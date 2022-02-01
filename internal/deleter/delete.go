@@ -16,6 +16,7 @@ package deleter
 
 import (
 	"context"
+	"os"
 
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"github.com/palantir/log4j-sniffer/pkg/log"
@@ -27,7 +28,6 @@ type Deleter struct {
 	FilepathMatch func(filepath string) (bool, error)
 	FindingMatch  func(finding crawl.Finding) bool
 	DryRun        bool
-	Delete        func(filepath string) error
 }
 
 // Process a finding and delete it if it is eligible for deletion given certain configuration criteria.
@@ -61,7 +61,7 @@ func (d Deleter) Process(ctx context.Context, path crawl.Path, finding crawl.Fin
 		d.Logger.Info("Dry-run: would delete %s", filepath)
 		return false
 	}
-	if err := d.Delete(filepath); err != nil {
+	if err := os.Remove(filepath); err != nil {
 		d.Logger.Error("Error deleting file %s: %s", filepath, err.Error())
 	} else {
 		d.Logger.Info("Deleted file %s", filepath)

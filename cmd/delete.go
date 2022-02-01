@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"strings"
 
@@ -84,7 +83,6 @@ When used on windows, deleting based on file ownership is unsupported and skip-o
 				FilepathMatch: filepathMatch,
 				FindingMatch:  findingMatch,
 				DryRun:        dryRun,
-				Delete:        os.Remove,
 			}.Process, cmd.OutOrStdout(), cmd.OutOrStderr())
 			return err
 		},
