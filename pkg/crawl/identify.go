@@ -16,13 +16,11 @@ package crawl
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -30,84 +28,6 @@ import (
 	"github.com/palantir/log4j-sniffer/pkg/log"
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
-)
-
-// vulnerableFindingStrings contains only the Finding values that are considered vulnerable.
-var vulnerableFindingStrings = map[Finding]string{
-	JndiLookupClassName:            "jndiLookupClassName",
-	JndiLookupClassPackageAndName:  "jndiLookupClassPackageAndName",
-	JndiManagerClassName:           "jndiManagerClassName",
-	JarName:                        "jarName",
-	JarNameInsideArchive:           "jarNameInsideArchive",
-	JndiManagerClassPackageAndName: "jndiManagerClassPackageAndName",
-	JarFileObfuscated:              "jarFileObfuscated",
-	ClassBytecodePartialMatch:      "classBytecodePartialMatch",
-	ClassBytecodeInstructionMd5:    "classBytecodeInstructionMd5",
-	ClassFileMd5:                   "classFileMd5",
-}
-
-type Finding int
-type Versions map[string]struct{}
-
-const (
-	NothingDetected                Finding = 0
-	JndiLookupClassName            Finding = 1 << iota
-	JndiLookupClassPackageAndName  Finding = 1 << iota
-	JndiManagerClassName           Finding = 1 << iota
-	JarName                        Finding = 1 << iota
-	JarNameInsideArchive           Finding = 1 << iota
-	JndiManagerClassPackageAndName Finding = 1 << iota
-	JarFileObfuscated              Finding = 1 << iota
-	ClassBytecodePartialMatch      Finding = 1 << iota
-	ClassBytecodeInstructionMd5    Finding = 1 << iota
-	ClassFileMd5                   Finding = 1 << iota
-)
-
-func FindingOf(v string) (Finding, error) {
-	stringFindings := invertedFindingStringMap()
-	finding, ok := stringFindings[v]
-	if !ok {
-		return 0, fmt.Errorf("invalid finding-match %s, supported values are %s", v, strings.Join(SupportedVulnerableFindingValues(), ", "))
-	}
-	return finding, nil
-}
-
-func SupportedVulnerableFindingValues() []string {
-	var supportedValues []string
-	for s := range invertedFindingStringMap() {
-		supportedValues = append(supportedValues, s)
-	}
-	sort.Strings(supportedValues)
-	return supportedValues
-}
-
-func invertedFindingStringMap() map[string]Finding {
-	out := make(map[string]Finding)
-	for finding, s := range vulnerableFindingStrings {
-		_, exists := out[s]
-		if exists {
-			panic(fmt.Sprintf("finding already defined: %s", s))
-		}
-		out[s] = finding
-	}
-	return out
-}
-
-func (f Finding) String() string {
-	var out []string
-	// for all noon-zero bits, append string for finding if it exists
-	for i := 0; f > 0; i, f = i+1, f>>1 {
-		if f&(1) > 0 {
-			if s, ok := vulnerableFindingStrings[1<<i]; ok && len(s) > 1 {
-				out = append(out, strings.ToUpper(string(s[0]))+s[1:])
-			}
-		}
-	}
-	return strings.Join(out, ",")
-}
-
-const (
-	UnknownVersion = "unknown"
 )
 
 var log4jRegex = regexp.MustCompile(`(?i)^log4j-core-(\d+\.\d+(?:\..*)?)\.jar$`)

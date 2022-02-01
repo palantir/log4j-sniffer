@@ -191,43 +191,43 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 	var findingNames []string
 	if result&JndiLookupClassName > 0 && !r.DisableFlaggingJndiLookup {
 		readableReasons = append(readableReasons, "JndiLookup class name matched")
-		findingNames = append(findingNames, "jndiLookupClassName")
+		findingNames = append(findingNames, lowerCamelCaseFindingString(JndiLookupClassName))
 	}
 	if result&JndiLookupClassPackageAndName > 0 && !r.DisableFlaggingJndiLookup {
 		readableReasons = append(readableReasons, "JndiLookup class and package name matched")
-		findingNames = append(findingNames, "jndiLookupClassPackageAndName")
+		findingNames = append(findingNames, lowerCamelCaseFindingString(JndiLookupClassPackageAndName))
 	}
 	if result&JndiManagerClassName > 0 {
 		readableReasons = append(readableReasons, "JndiManager class name matched")
-		findingNames = append(findingNames, "jndiManagerClassName")
+		findingNames = append(findingNames, lowerCamelCaseFindingString(JndiManagerClassName))
 	}
 	if result&JarName > 0 {
 		readableReasons = append(readableReasons, "jar name matched")
-		findingNames = append(findingNames, "jarName")
+		findingNames = append(findingNames, lowerCamelCaseFindingString(JarName))
 	}
 	if result&JarNameInsideArchive > 0 {
 		readableReasons = append(readableReasons, "jar name inside archive matched")
-		findingNames = append(findingNames, "jarNameInsideArchive")
+		findingNames = append(findingNames, lowerCamelCaseFindingString(JarNameInsideArchive))
 	}
 	if result&JndiManagerClassPackageAndName > 0 {
 		readableReasons = append(readableReasons, "JndiManager class and package name matched")
-		findingNames = append(findingNames, "jndiManagerClassPackageAndName")
+		findingNames = append(findingNames, lowerCamelCaseFindingString(JndiManagerClassPackageAndName))
 	}
 	if result&ClassFileMd5 > 0 {
 		readableReasons = append(readableReasons, "class file MD5 matched")
-		findingNames = append(findingNames, "classFileMd5")
+		findingNames = append(findingNames, lowerCamelCaseFindingString(ClassFileMd5))
 	}
 	if result&ClassBytecodeInstructionMd5 > 0 {
 		readableReasons = append(readableReasons, "byte code instruction MD5 matched")
-		findingNames = append(findingNames, "classBytecodeInstructionMd5")
+		findingNames = append(findingNames, lowerCamelCaseFindingString(ClassBytecodeInstructionMd5))
 	}
 	if result&JarFileObfuscated > 0 {
 		readableReasons = append(readableReasons, "jar file appeared obfuscated")
-		findingNames = append(findingNames, "jarFileObfuscated")
+		findingNames = append(findingNames, lowerCamelCaseFindingString(JarFileObfuscated))
 	}
 	if result&ClassBytecodePartialMatch > 0 {
 		readableReasons = append(readableReasons, "byte code partially matched known version")
-		findingNames = append(findingNames, "classBytecodePartialMatch")
+		findingNames = append(findingNames, lowerCamelCaseFindingString(ClassBytecodePartialMatch))
 	}
 
 	var outputToWrite string
@@ -253,6 +253,14 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 	}
 	_, _ = fmt.Fprintln(r.OutputWriter, outputToWrite)
 	return true
+}
+
+func lowerCamelCaseFindingString(f Finding) string {
+	s := f.String()
+	if len(s) > 1 {
+		return strings.ToLower(string(s[0])) + s[1:]
+	}
+	return s
 }
 
 func (r *Reporter) matchedCVEs(versions []string) []string {

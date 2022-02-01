@@ -55,7 +55,7 @@ func TestDeleteCmd(t *testing.T) {
 		var err bytes.Buffer
 		cmd.SetErr(&err)
 		require.Error(t, cmd.Execute())
-		assert.Equal(t, "Error: invalid finding-match 🧨, supported values are classBytecodeInstructionMd5, classBytecodePartialMatch, classFileMd5, jarFileObfuscated, jarName, jarNameInsideArchive, jndiLookupClassName, jndiLookupClassPackageAndName, jndiManagerClassName, jndiManagerClassPackageAndName\n", err.String())
+		assert.Equal(t, "Error: invalid finding-match 🧨, supported values are ClassBytecodeInstructionMd5, ClassBytecodePartialMatch, ClassFileMd5, JarFileObfuscated, JarName, JarNameInsideArchive, JndiLookupClassName, JndiLookupClassPackageAndName, JndiManagerClassName, JndiManagerClassPackageAndName\n", err.String())
 	})
 
 	t.Run("runs successfully against directory with no flags", func(t *testing.T) {
