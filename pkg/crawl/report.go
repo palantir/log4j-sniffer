@@ -160,6 +160,7 @@ var cveVersions = []AffectedVersion{
 // The fileCount will be incremented if the finding is a new finding, i.e. a consecutive finding based on the same file when
 // The findingCount will be incremented for every finding reported.
 // OutputFilePathOnly is set to true will not cause the counter to be incremented.
+// The returned boolean will always be true to represent that further inspection of the same file should continue.
 func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versionSet Versions) bool {
 	versions := sortVersions(versionSet)
 	if r.DisableFlaggingUnknownVersions && (len(versions) == 0 || len(versions) == 1 && versions[0] == UnknownVersion) {

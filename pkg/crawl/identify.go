@@ -86,7 +86,7 @@ func invertedFindingStringMap() map[string]Finding {
 	for finding, s := range vulnerableFindingStrings {
 		_, exists := out[s]
 		if exists {
-			panic("finding already defined")
+			panic(fmt.Sprintf("finding already defined: %s", s))
 		}
 		out[s] = finding
 	}
@@ -154,8 +154,9 @@ type Log4jIdentifier struct {
 
 // HandleFindingFunc is called with the given findings and versions when Log4jIdentifier identifies
 // a log4j vulnerability whilst crawling the filesystem.
-// The bool returned by HandleFindingFunc, when false, will instruct the identification of the file to cease.
-// If the bool returned is true, identification will continue.
+// The bool returned by HandleFindingFunc, indicates whether identification within the file should continue or not.
+// For example, if the identification of a file has already yielded results that are desired for a given file,
+// then there may be no need for the identification of the file to continue.
 type HandleFindingFunc func(ctx context.Context, path Path, result Finding, version Versions) bool
 
 // Identify identifies vulnerable files, passing each finding along with its versions to the Log4jIdentifier's HandleFindingFunc.

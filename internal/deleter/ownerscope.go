@@ -26,14 +26,14 @@ type FileOwnerMatchers struct {
 // all of those matchers return true from their OwnerMatch method.
 func (ms FileOwnerMatchers) Match(path string) (bool, error) {
 	var (
-		directoryMatches int
-		owner            string
+		dirMatchFound bool
+		owner         string
 	)
-	for _, match := range ms.Matchers {
-		if !match.DirectoryMatch(path) {
+	for _, matcher := range ms.Matchers {
+		if !matcher.DirectoryMatch(path) {
 			continue
 		}
-		directoryMatches++
+		dirMatchFound = true
 		if owner == "" {
 			var err error
 			owner, err = ms.ResolveOwner(path)
@@ -41,11 +41,11 @@ func (ms FileOwnerMatchers) Match(path string) (bool, error) {
 				return false, err
 			}
 		}
-		if !match.OwnerMatch(path, owner) {
+		if !matcher.OwnerMatch(path, owner) {
 			return false, nil
 		}
 	}
-	return directoryMatches > 0, nil
+	return dirMatchFound, nil
 }
 
 // Matcher determine whether a directory and owner match some given constraints.

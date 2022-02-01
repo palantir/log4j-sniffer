@@ -34,7 +34,7 @@ type Deleter struct {
 //
 // If the filepath and detailed finding both match for a given crawl.Path then a file is eligible for deletion.
 // In this case, Process will always return false to state that this file should no longer exist and that inspecting
-// this file for more findings should  not be undertaken.
+// this file for more findings should not be undertaken.
 //
 // When Deleter.DryRun is true then a line will be logged stating that the file would be deleted.
 // When Deleter.Delete is false, then the configured function Delete will be called to delete the file.
@@ -42,9 +42,10 @@ func (d Deleter) Process(ctx context.Context, path crawl.Path, finding crawl.Fin
 	if len(path) == 0 {
 		return true
 	}
-	match, err := d.FilepathMatch(path[0])
+	filepath := path[0]
+	match, err := d.FilepathMatch(filepath)
 	if err != nil {
-		d.Logger.Error("Error matching file %s: %s", path[0], err)
+		d.Logger.Error("Error matching file %s: %s", filepath, err)
 		return true
 	}
 	if !match {
@@ -54,13 +55,13 @@ func (d Deleter) Process(ctx context.Context, path crawl.Path, finding crawl.Fin
 		return true
 	}
 	if d.DryRun {
-		d.Logger.Info("Dry-run: would delete %s", path[0])
+		d.Logger.Info("Dry-run: would delete %s", filepath)
 		return false
 	}
-	if err := d.Delete(path[0]); err != nil {
-		d.Logger.Error("Error deleting file %s: %s", path[0], err.Error())
+	if err := d.Delete(filepath); err != nil {
+		d.Logger.Error("Error deleting file %s: %s", filepath, err.Error())
 	} else {
-		d.Logger.Info("Deleted file %s", path[0])
+		d.Logger.Info("Deleted file %s", filepath)
 	}
 	return false
 }

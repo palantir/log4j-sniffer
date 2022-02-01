@@ -28,8 +28,7 @@ type TemplatedOwner struct {
 
 // DirectoryMatch returns true when the directory containing path matches the TemplatedOwner DirectoryExpression field.
 func (r TemplatedOwner) DirectoryMatch(path string) bool {
-	dir, _ := filepath.Split(path)
-	return r.DirectoryExpression.MatchString(dir)
+	return r.DirectoryExpression.MatchString(filepath.Dir(path))
 }
 
 // OwnerMatch returns true when owner of the file matches the result of the OwnerTemplate being expanded against the
@@ -38,6 +37,6 @@ func (r TemplatedOwner) DirectoryMatch(path string) bool {
 // matches from the DirectoryExpression when it is matched against the directory containing the file at path.
 // Please refer to the go regexp documentation at https://pkg.go.dev/regexp#Regexp.Expand for more detailed behaviour.
 func (r TemplatedOwner) OwnerMatch(path, owner string) bool {
-	dir, _ := filepath.Split(path)
+	dir := filepath.Dir(path)
 	return string(r.DirectoryExpression.ExpandString(nil, r.OwnerTemplate, dir, r.DirectoryExpression.FindStringSubmatchIndex(dir))) == owner
 }
