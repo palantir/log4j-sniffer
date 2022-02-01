@@ -69,62 +69,22 @@ When used on windows, deleting based on file ownership is unsupported and skip-o
 				return errors.New("at least one --directory-with-owner value must be provided or --skip-owner-check must be set")
 			}
 
-			var ms []deleter.Matcher
-			for _, value := range directoriesWithOwners {
-				split := strings.Split(value, ":")
-				if len(split) != 2 {
-					return fmt.Errorf(`invalid directory-with-owner, must contain 2 colon-separated segments but got %q`, value)
-				}
-				expr, err := regexp.Compile(split[0])
-				if err != nil {
-					return fmt.Errorf("error compiling pattern for directory-with-owner %s: %w", value, err)
-				}
-				ms = append(ms, deleter.TemplatedOwner{
-					DirectoryExpression: expr,
-					OwnerTemplate:       split[1],
-				})
+			filepathMatch, err := filepathMatcher(skipOwnerCheck, directoriesWithOwners)
+			if err != nil {
+				return err
 			}
 
-			var minimumFindingsRequirement crawl.Finding
-			for _, value := range findingsMatches {
-				f, err := crawl.FindingOf(value)
-				if err != nil {
-					return err
-				}
-				minimumFindingsRequirement |= f
-			}
-
-			var detailedOutputWriter io.Writer
-			var enableTraceLogging bool
-			if !cmdCrawlFlags.disableDetailedFindings {
-				detailedOutputWriter = cmd.OutOrStdout()
-				enableTraceLogging = cmdCrawlFlags.enableTraceLogging
-			}
-
-			var filepathMatchFunc func(string) (bool, error)
-			if skipOwnerCheck {
-				filepathMatchFunc = func(string) (bool, error) {
-					return true, nil
-				}
-			} else {
-				filepathMatchFunc = (&deleter.FileOwnerMatchers{
-					Matchers:     ms,
-					ResolveOwner: snifferos.OwnerUsername,
-				}).Match
+			findingMatch, err := minimumFindingMatch(findingsMatches)
+			if err != nil {
+				return err
 			}
 
 			_, err = crawler.Crawl(cmd.Context(), crawlConfig, deleter.Deleter{
-				Logger: log.Logger{
-					OutputWriter:       detailedOutputWriter,
-					ErrorWriter:        cmd.OutOrStderr(),
-					EnableTraceLogging: enableTraceLogging,
-				},
-				FilepathMatch: filepathMatchFunc,
-				FindingMatch: func(finding crawl.Finding) bool {
-					return crawl.AllFindingsSatisfiedBy(minimumFindingsRequirement, finding)
-				},
-				DryRun: dryRun,
-				Delete: os.Remove,
+				Logger:        logger(cmd, cmdCrawlFlags),
+				FilepathMatch: filepathMatch,
+				FindingMatch:  findingMatch,
+				DryRun:        dryRun,
+				Delete:        os.Remove,
 			}.Process, cmd.OutOrStdout(), cmd.OutOrStderr())
 			return err
 		},
@@ -157,6 +117,63 @@ Example:
 If a vulnerable finding contained only one of these finding-match values then the file would not be considered for deletion.
 `)
 	return &cmd
+}
+
+func logger(cmd *cobra.Command, cmdCrawlFlags crawlFlags) log.Logger {
+	var detailedOutputWriter io.Writer
+	var enableTraceLogging bool
+	if !cmdCrawlFlags.disableDetailedFindings {
+		detailedOutputWriter = cmd.OutOrStdout()
+		enableTraceLogging = cmdCrawlFlags.enableTraceLogging
+	}
+	return log.Logger{
+		OutputWriter:       detailedOutputWriter,
+		ErrorWriter:        cmd.OutOrStderr(),
+		EnableTraceLogging: enableTraceLogging,
+	}
+}
+
+func minimumFindingMatch(findingsMatches []string) (func(finding crawl.Finding) bool, error) {
+	var minimumFindingsRequirement crawl.Finding
+	for _, value := range findingsMatches {
+		f, err := crawl.FindingOf(value)
+		if err != nil {
+			return nil, err
+		}
+		minimumFindingsRequirement |= f
+	}
+	return func(finding crawl.Finding) bool {
+		return crawl.AllFindingsSatisfiedBy(minimumFindingsRequirement, finding)
+	}, nil
+}
+
+func filepathMatcher(skipOwnerCheck bool, directoriesWithOwners []string) (func(string) (bool, error), error) {
+	if skipOwnerCheck {
+		return func(string) (bool, error) {
+			return true, nil
+		}, nil
+	}
+
+	var ms []deleter.Matcher
+	for _, value := range directoriesWithOwners {
+		split := strings.Split(value, ":")
+		if len(split) != 2 {
+			return nil, fmt.Errorf(`invalid directory-with-owner, must contain 2 colon-separated segments but got %q`, value)
+		}
+		expr, err := regexp.Compile(split[0])
+		if err != nil {
+			return nil, fmt.Errorf("error compiling pattern for directory-with-owner %s: %w", value, err)
+		}
+		ms = append(ms, deleter.TemplatedOwner{
+			DirectoryExpression: expr,
+			OwnerTemplate:       split[1],
+		})
+	}
+
+	return (&deleter.FileOwnerMatchers{
+		Matchers:     ms,
+		ResolveOwner: snifferos.OwnerUsername,
+	}).Match, nil
 }
 
 func prefixAll(vals []string, prefix string) []string {
