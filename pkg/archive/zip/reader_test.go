@@ -959,11 +959,10 @@ func TestIssue8186(t *testing.T) {
 		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?\xbfP\x96b\x86\x04\x00\x00\xb2\x06\x00\x00\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xa9J\x02\x00META-INF/CERT.RSA",
 	}
 
-	var dirHeaderBuf [directoryHeaderLen]byte
 	var metadataBuffer []byte
 	for i, s := range dirEnts {
 		var f File
-		_, err := readDirectoryHeader(&f, strings.NewReader(s), &dirHeaderBuf, &metadataBuffer)
+		_, err := (&Reader{}).readDirectoryHeader(&f, strings.NewReader(s), &metadataBuffer)
 		if err != nil {
 			t.Errorf("error reading #%d: %v", i, err)
 		}

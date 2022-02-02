@@ -37,6 +37,9 @@ type Reader struct {
 	// for use by the Open method.
 	fileListOnce sync.Once
 	fileList     []fileListEntry
+
+	// reused buffers for memory optimisation
+	directoryHeaderBuffer [directoryHeaderLen]byte
 }
 
 // A ReadCloser is a Reader that must be closed when no longer needed.
@@ -74,14 +77,13 @@ func (z *Reader) walk(r io.ReaderAt, size int64, handleFile WalkFn) error {
 	// Gloss over this by reading headers until we encounter
 	// a bad one, and then only report an ErrFormat or UnexpectedEOF if
 	// the handleFile count modulo 65536 is incorrect.
-	var dirHeaderBuf [directoryHeaderLen]byte
 	var numFiles uint64
 	var f File
 	var metadataBuf []byte
 	var metadatLen int
 	for {
 		f = File{zip: z, zipr: r}
-		metadatLen, err = readDirectoryHeader(&f, buf, &dirHeaderBuf, &metadataBuf)
+		metadatLen, err = z.readDirectoryHeader(&f, buf, &metadataBuf)
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
@@ -296,11 +298,11 @@ func (f *File) findBodyOffset() (int64, error) {
 // readDirectoryHeader attempts to read a directory header from r.
 // It returns io.ErrUnexpectedEOF if it cannot read a complete header,
 // and ErrFormat if it doesn't find a valid header signature.
-func readDirectoryHeader(f *File, r io.Reader, buf *[46]byte, i *[]byte) (int, error) {
-	if _, err := io.ReadFull(r, buf[:]); err != nil {
+func (z *Reader) readDirectoryHeader(f *File, r io.Reader, i *[]byte) (int, error) {
+	if _, err := io.ReadFull(r, z.directoryHeaderBuffer[:]); err != nil {
 		return 0, err
 	}
-	b := readBuf(buf[:])
+	b := readBuf(z.directoryHeaderBuffer[:])
 	if sig := b.uint32(); sig != directoryHeaderSignature {
 		return 0, ErrFormat
 	}
