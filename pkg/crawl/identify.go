@@ -71,12 +71,12 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename st
 		return 0, nil
 	}
 
-	walker, close, tErr := getWalker.FromFile(path)
+	walker, tErr := getWalker.FromFile(path)
 	if tErr != nil {
 		return 0, tErr
 	}
 	defer func() {
-		if cErr := close(); err == nil && cErr != nil {
+		if cErr := walker.Close(); err == nil && cErr != nil {
 			err = cErr
 		}
 	}()
@@ -157,14 +157,14 @@ func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths Path) (bool, Find
 	return jarNameMatch, NothingDetected, nil
 }
 
-func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context, depth uint, walk archive.WalkFn, nestedPaths Path) (Finding, Versions, uint64, bool, error) {
+func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context, depth uint, walker archive.WalkCloser, nestedPaths Path) (Finding, Versions, uint64, bool, error) {
 	archiveResult := NothingDetected
 	versions := make(Versions)
 
 	var skipped uint64
 	fileLevelProceed := true
 	i.Limiter.Take()
-	err := walk(ctx, i.vulnerabilityFileWalkFunc(depth, &archiveResult, versions, &skipped, &fileLevelProceed, nestedPaths))
+	err := walker.Walk(ctx, i.vulnerabilityFileWalkFunc(depth, &archiveResult, versions, &skipped, &fileLevelProceed, nestedPaths))
 	return archiveResult, versions, skipped, fileLevelProceed, err
 }
 
@@ -189,12 +189,12 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 					}
 				}
 			} else {
-				walker, close, archiveErr := getWalker.FromReader(contents)
+				walker, archiveErr := getWalker.FromReader(contents)
 				if archiveErr != nil {
 					return false, archiveErr
 				}
 				defer func() {
-					if cErr := close(); err == nil {
+					if cErr := walker.Close(); err == nil {
 						err = cErr
 					}
 				}()

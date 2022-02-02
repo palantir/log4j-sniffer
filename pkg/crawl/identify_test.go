@@ -36,17 +36,19 @@ func TestLog4jIdentifier(t *testing.T) {
 		identifier := crawl.Log4jIdentifier{
 			ArchiveWalkers: func(path string) (archive.WalkerProvider, int64, bool) {
 				assert.Equal(t, "bar", path)
-				return archive.WalkerProviderFromFuncs(func(string) (archive.WalkFn, func() error, error) {
-					return func(ctx context.Context, walkFn archive.FileWalkFn) error {
-						time.Sleep(50 * time.Millisecond)
-						select {
-						case <-ctx.Done():
-							return errors.New("context was cancelled")
-						default:
-							require.FailNow(t, "context should have been cancelled")
-						}
-						return nil
-					}, noopCloser, nil
+				return archive.WalkerProviderFromFuncs(func(string) (archive.WalkCloser, error) {
+					return stubbedFileWalkCloser{
+						walk: func(ctx context.Context, walkFn archive.FileWalkFn) error {
+							time.Sleep(50 * time.Millisecond)
+							select {
+							case <-ctx.Done():
+								return errors.New("context was cancelled")
+							default:
+								require.FailNow(t, "context should have been cancelled")
+							}
+							return nil
+						},
+					}, nil
 				}, nil), -1, true
 			},
 			ArchiveWalkTimeout: time.Millisecond,
@@ -61,9 +63,8 @@ func TestLog4jIdentifier(t *testing.T) {
 		expectedErr := errors.New("err")
 		identifier := crawl.Log4jIdentifier{
 			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
-				return archive.WalkerProviderFromFuncs(func(string) (archive.WalkFn, func() error, error) {
-					return func(ctx context.Context, walkFn archive.FileWalkFn) error { return nil },
-						func() error { return expectedErr }, nil
+				return archive.WalkerProviderFromFuncs(func(string) (archive.WalkCloser, error) {
+					return stubbedFileWalkCloser{closeErr: expectedErr}, nil
 				}, nil), -1, true
 			},
 			ArchiveWalkTimeout: time.Second,
@@ -79,19 +80,23 @@ func TestLog4jIdentifier(t *testing.T) {
 		identifier := crawl.Log4jIdentifier{
 			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
 				return archive.WalkerProviderFromFuncs(
-					func(string) (archive.WalkFn, func() error, error) {
-						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
-							fileWalkCalls++
-							_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
-							return nil
-						}, noopCloser, nil
+					func(path string) (archive.WalkCloser, error) {
+						return stubbedFileWalkCloser{
+							walk: func(ctx context.Context, walkFn archive.FileWalkFn) error {
+								fileWalkCalls++
+								_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
+								return nil
+							},
+						}, nil
 					},
-					func(r io.Reader) (archive.WalkFn, func() error, error) {
-						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
-							readerWalkCalls++
-							_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
-							return nil
-						}, noopCloser, nil
+					func(r io.Reader) (archive.WalkCloser, error) {
+						return stubbedFileWalkCloser{
+							walk: func(ctx context.Context, walkFn archive.FileWalkFn) error {
+								readerWalkCalls++
+								_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
+								return nil
+							},
+						}, nil
 					}), -1, true
 			},
 			ArchiveWalkTimeout: time.Second,
@@ -109,19 +114,22 @@ func TestLog4jIdentifier(t *testing.T) {
 		identifier := crawl.Log4jIdentifier{
 			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
 				return archive.WalkerProviderFromFuncs(
-					func(string) (archive.WalkFn, func() error, error) {
-						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
-							fileWalkCalls++
-							_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
-							return nil
-						}, noopCloser, nil
+					func(path string) (archive.WalkCloser, error) {
+						return stubbedFileWalkCloser{
+							walk: func(ctx context.Context, walkFn archive.FileWalkFn) error {
+								fileWalkCalls++
+								_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
+								return nil
+							}}, nil
 					},
-					func(r io.Reader) (archive.WalkFn, func() error, error) {
-						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
-							readerWalkCalls++
-							_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
-							return nil
-						}, noopCloser, nil
+					func(r io.Reader) (archive.WalkCloser, error) {
+						return stubbedFileWalkCloser{
+							walk: func(ctx context.Context, walkFn archive.FileWalkFn) error {
+								readerWalkCalls++
+								_, _ = walkFn(ctx, "", 0, &bytes.Buffer{})
+								return nil
+							},
+						}, nil
 					}), -1, true
 			},
 			ArchiveWalkTimeout: time.Second,
@@ -268,19 +276,18 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 			var reported int
 			identifier := crawl.Log4jIdentifier{
 				ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
-					return archive.WalkerProviderFromFuncs(func(string) (archive.WalkFn, func() error, error) {
-						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
-							for _, path := range tc.filesInArchive {
-								if _, err := walkFn(ctx, path, 0, bytes.NewReader(emptyZipContent(t))); err != nil {
-									return err
+					return archive.WalkerProviderFromFuncs(func(string) (archive.WalkCloser, error) {
+						return stubbedFileWalkCloser{
+							walk: func(ctx context.Context, walkFn archive.FileWalkFn) error {
+								for _, path := range tc.filesInArchive {
+									if _, err := walkFn(ctx, path, 0, bytes.NewReader(emptyZipContent(t))); err != nil {
+										return err
+									}
 								}
-							}
-							return nil
-						}, noopCloser, nil
-					}, func(reader io.Reader) (archive.WalkFn, func() error, error) {
-						return func(ctx context.Context, walkFn archive.FileWalkFn) error {
-							return nil
-						}, noopCloser, nil
+								return nil
+							}}, nil
+					}, func(r io.Reader) (archive.WalkCloser, error) {
+						return stubbedFileWalkCloser{}, nil
 					}), -1, true
 				},
 				ArchiveMaxDepth:    1,
@@ -332,10 +339,24 @@ func TestFindingString(t *testing.T) {
 	}
 }
 
+type stubbedFileWalkCloser struct {
+	walk     func(ctx context.Context, walkFn archive.FileWalkFn) error
+	closeErr error
+}
+
+func (s stubbedFileWalkCloser) Walk(ctx context.Context, walkFn archive.FileWalkFn) error {
+	if s.walk != nil {
+		return s.walk(ctx, walkFn)
+	}
+	return nil
+}
+
+func (s stubbedFileWalkCloser) Close() error {
+	return s.closeErr
+}
+
 func emptyZipContent(t *testing.T) []byte {
 	var buf bytes.Buffer
 	require.NoError(t, zip.NewWriter(&buf).Close())
 	return buf.Bytes()
 }
-
-func noopCloser() error { return nil }

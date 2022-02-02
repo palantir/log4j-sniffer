@@ -19,8 +19,27 @@ import (
 	"io"
 )
 
-// A WalkFn iterates through an archive, calling FileWalkFn on each member file.
-type WalkFn func(ctx context.Context, walkFn FileWalkFn) error
+// WalkCloser iterates through an archive when Walk is called, calling FileWalkFn on each member file.
+type WalkCloser interface {
+	Walk(ctx context.Context, walkFn FileWalkFn) error
+	io.Closer
+}
 
 // FileWalkFn is called by a WalkFn on each file contained in an archive.
 type FileWalkFn func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error)
+
+type walkCloser struct {
+	walk  func(ctx context.Context, walkFn FileWalkFn) error
+	close func() error
+}
+
+func (w walkCloser) Walk(ctx context.Context, walkFn FileWalkFn) error {
+	return w.walk(ctx, walkFn)
+}
+
+func (w walkCloser) Close() error {
+	if w.close != nil {
+		return w.close()
+	}
+	return nil
+}
