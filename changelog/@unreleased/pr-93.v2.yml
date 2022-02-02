@@ -4,6 +4,7 @@ feature:
     A subcommand, `log4j-sniffer delete`, has been added that crawls the filesystem for vulnerable log4j versions and can delete them based on some configuration supplied by flags.
 
     The flags for tuning configure figure deletion based on file ownership (on unix-like systems) and type of findings found within a file.
+
     Please run `log4j-sniffer delete -h` for detailed documentation.
   links:
   - https://github.com/palantir/log4j-sniffer/pull/93
