@@ -97,7 +97,13 @@ When a file is deemed to be vulnerable, the path of the file containing the vuln
 For all filepath matches, the owner template will be expanded against the filepath pattern match to resolve to a file owner value that the actual file owner will then be compared against.
 Owner templates may use template variables, e.g. $1, $2, $name, that correspond to capture groups in the filepath pattern. Please refer to the standard go regexp package documentation at https://pkg.go.dev/regexp#Regexp.Expand for more detailed expanding behaviour.
 
-If no filepaths match, the file will not be deleted. If any filepaths match, all matching filepath patterns' corresponding expanded templated owner values must match against the actual file owner for the file to be deleted.  
+If no filepaths match, the file will not be deleted. If any filepaths match, all matching filepath patterns' corresponding expanded templated owner values must match against the actual file owner for the file to be deleted.
+
+Architecture-specific behaviour:
+- linux-amd64: libc-backed code is used, which is able to infer the owner of a file over a broad range of account setups.
+- linux-arm64: only the user running or users from /etc/passwd will be available to infer file ownership.
+- darwin-*: only the user running or users from /etc/passwd will be available to infer file ownership.
+- windows-*: file ownership is unsupported and --skip-owner-check should be used instead.
 
 Examples:
 --filepath-owner ^/foo/bar/.+:qux would consider /foo/bar/baz for deletion only if it is owned by qux.

@@ -369,6 +369,12 @@ Flags:
 
                                                              If no filepaths match, the file will not be deleted. If any filepaths match, all matching filepath patterns' corresponding expanded templated owner values must match against the actual file owner for the file to be deleted.
 
+                                                             Architecture-specific behaviour:
+                                                             - linux-amd64: libc-backed code is used, which is able to infer the owner of a file over a broad range of account setups.
+                                                             - linux-arm64: only the user running or users from /etc/passwd will be available to infer file ownership.
+                                                             - darwin-*: only the user running or users from /etc/passwd will be available to infer file ownership.
+                                                             - windows-*: file ownership is unsupported and --skip-owner-check should be used instead.
+
                                                              Examples:
                                                              --filepath-owner ^/foo/bar/.+:qux would consider /foo/bar/baz for deletion only if it is owned by qux.
                                                              --filepath-owner ^/foo/bar/.+:qux and --filepath-owner ^/foo/bar/baz/.+:quuz would not consider /foo/bar/baz/corge for deletion if owned by either qux or quuz because both would need to match.
