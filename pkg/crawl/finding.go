@@ -99,10 +99,12 @@ func invertedFindingStringMap() map[string]Finding {
 
 func (f Finding) String() string {
 	var out []string
-	// for all non-zero bits, append string for finding if it exists
-	for i := 0; f > 0; i, f = i+1, f>>1 {
-		if f&(1) > 0 {
-			if s, ok := vulnerableFindingStrings[1<<i]; ok {
+	// For each vulnerable finding type, aka non-zero Finding value,
+	// compare single bit against finding and append the string from
+	// that finding to the joined list.
+	for findingBit := Finding(1); f >= findingBit; findingBit <<= 1 {
+		if AllFindingsSatisfiedBy(findingBit, f) {
+			if s, ok := vulnerableFindingStrings[findingBit]; ok {
 				out = append(out, s)
 			}
 		}
