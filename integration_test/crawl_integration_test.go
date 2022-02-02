@@ -197,3 +197,18 @@ func TestTraceLoggingFlag(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(output), "[TRACE]")
 }
+
+func TestDiskSwapping(t *testing.T) {
+	cli, err := products.Bin("log4j-sniffer")
+	require.NoError(t, err)
+
+	cmd := exec.Command(cli, "crawl", "../examples/nested_very_deep", "--nested-archive-max-depth", "3", "--nested-archive-max-size", "0", "--nested-archive-disk-swap-max-size", "1")
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err)
+	assert.Contains(t, string(output), "over remaining space allowed for disk swap")
+
+	cmd = exec.Command(cli, "crawl", "../examples/nested_very_deep", "--nested-archive-max-depth", "3", "--nested-archive-max-size", "0", "--nested-archive-disk-swap-max-size", "99999999")
+	output, err = cmd.CombinedOutput()
+	require.NoError(t, err)
+	assert.Contains(t, string(output), "Files affected by CVE-2021-44228 or CVE-2021-45046 or CVE-2021-45105 or CVE-2021-44832 detected: 1 file")
+}

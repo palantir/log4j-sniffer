@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
+	"github.com/palantir/log4j-sniffer/pkg/buffer"
 	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"github.com/palantir/log4j-sniffer/pkg/log"
 	"go.uber.org/ratelimit"
@@ -54,6 +55,13 @@ type Config struct {
 	ArchiveOpenMode archive.FileOpenMode
 	// EnableTraceLogging enables trace level logging.
 	EnableTraceLogging bool
+	// ArchiveDiskSwapMaxSize is the size on disk, in bytes, that is allowed to be used for writing
+	// archives over ArchiveMaxSize to disk as temporary files.
+	// ArchiveDiskSwapMaxSize is the total size allowed across all files that exist at the same time.
+	ArchiveDiskSwapMaxSize uint
+	// ArchiveDiskSwapMaxDir is the directory in which temporary files will be written for archives
+	// that are over ArchiveMaxSize.
+	ArchiveDiskSwapMaxDir string
 }
 
 // Crawl crawls identifying and reporting vulnerable files according to crawl.Identify and crawl.Reporter using the
@@ -75,7 +83,7 @@ func Crawl(ctx context.Context, config Config, process crawl.HandleFindingFunc, 
 		Limiter:                            limiterFromConfig(config.ArchivesCrawledPerSecond),
 		ArchiveWalkTimeout:                 config.ArchiveListTimeout,
 		ArchiveMaxDepth:                    config.ArchiveMaxDepth,
-		ArchiveWalkers:                     archive.Walkers(int64(config.ArchiveMaxSize), config.ArchiveOpenMode),
+		ArchiveWalkers:                     config.archiveWalkers(),
 		HandleFinding:                      process,
 	}
 	crawler := crawl.Crawler{
@@ -94,6 +102,20 @@ func Crawl(ctx context.Context, config Config, process crawl.HandleFindingFunc, 
 	}
 
 	return crawlStats, nil
+}
+
+func (cfg Config) archiveWalkers() func(string) (archive.WalkerProvider, bool) {
+	var converter buffer.ReaderReaderAtConverter
+	if cfg.ArchiveDiskSwapMaxSize == 0 {
+		converter = buffer.SizeCappedInMemoryReaderAtConverter(int64(cfg.ArchiveMaxSize))
+	} else {
+		converter = &buffer.InMemoryWithDiskOverflowReaderAtConverter{
+			Path:          cfg.ArchiveDiskSwapMaxDir,
+			MaxMemorySize: int64(cfg.ArchiveMaxSize),
+			MaxDiskSpace:  int64(cfg.ArchiveDiskSwapMaxSize),
+		}
+	}
+	return archive.Walkers(converter, cfg.ArchiveOpenMode)
 }
 
 func limiterFromConfig(limit int) ratelimit.Limiter {

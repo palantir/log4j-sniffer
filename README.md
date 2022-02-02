@@ -249,39 +249,43 @@ Usage:
   log4j-sniffer crawl <root> [flags]
 
 Flags:
-      --archive-open-mode string                                Supported values:
-                                                                  standard - standard file opening will be used. This may cause the filesystem cache to be populated with reads from the archive opens.
-                                                                  directio - direct I/O will be used when opening archives that require sequential reading of their content without being able to skip to file tables at known locations within the file.
-                                                                             For example, "directio" can have an effect on the way that tar-based archives are read but will have no effect on zip-based archives.
-                                                                             Using "directio" will cause the filesystem cache to be skipped where possible. "directio" is not supported on tmpfs filesystems and will cause tmpfs archive files to report an error. (default "standard")
-      --archives-per-second-rate-limit int                      The maximum number of archives to scan per second. 0 for unlimited.
-      --directories-per-second-rate-limit int                   The maximum number of directories to crawl per second. 0 for unlimited.
-      --disable-cve-2021-44832-detection                        Disable detection of CVE-2021-44832 in versions up to 2.17.0
-      --disable-cve-2021-45105-detection                        Disable detection of CVE-2021-45105 in versions up to 2.16.0
-      --disable-detailed-findings                               Do not print out detailed finding information when not outputting in JSON.
-      --disable-flagging-jndi-lookup                            Do not report results that only match on the presence of a JndiLookup class.
-                                                                Even when disabled results which match other criteria will still report the presence of JndiLookup if relevant.
-      --disable-unknown-versions                                Only output issues if the version of log4j can be determined (note that this will cause certain detection mechanisms to be skipped)
-      --enable-obfuscation-detection                            Enable applying partial bytecode matching to Jars that appear to be obfuscated. (default true)
-      --enable-partial-matching-on-all-classes                  Enable partial bytecode matching to all class files found.
-      --enable-trace-logging                                    Enables trace logging whilst crawling. disable-detailed-findings must be set to false (the default value) for this flag to have an effect
-      --file-path-only                                          If true, output will consist of only paths to the files in which CVEs are detected
-  -h, --help                                                    help for crawl
-      --ignore-dir strings                                      Specify directory pattern to ignore. Use multiple times to supply multiple patterns.
-                                                                Patterns should be relative to the provided root.
-                                                                e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"
-      --json                                                    If true, output will be in JSON format
-      --maximum-average-obfuscated-class-name-length uint32     The maximum average class name length for classes within a Jar to be considered obfuscated. (default 3)
-      --maximum-average-obfuscated-package-name-length uint32   The maximum average package name length for packages within a Jar to be considered obfuscated. (default 3)
-      --nested-archive-max-depth uint                           The maximum depth to recurse into nested archives.
-                                                                A max depth of 0 will open up an archive on the filesystem but not any nested archives.
-      --nested-archive-max-size uint                            The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.
-                                                                This limit is made a per-depth level.
-                                                                The overall limit to nested archive size unarchived should be controlled
-                                                                by both the nested-archive-max-size and nested-archive-max-depth. (default 5242880)
-      --per-archive-timeout duration                            If this duration is exceeded when inspecting an archive,
-                                                                an error will be logged and the crawler will move onto the next file. (default 15m0s)
-      --summary                                                 If true, outputs a summary of all operations once program completes (default true)
+      --archive-open-mode string                             Supported values:
+                                                               standard - standard file opening will be used. This may cause the filesystem cache to be populated with reads from the archive opens.
+                                                               directio - direct I/O will be used when opening archives that require sequential reading of their content without being able to skip to file tables at known locations within the file.
+                                                                          For example, "directio" can have an effect on the way that tar-based archives are read but will have no effect on zip-based archives.
+                                                                          Using "directio" will cause the filesystem cache to be skipped where possible. "directio" is not supported on tmpfs filesystems and will cause tmpfs archive files to report an error. (default "standard")
+      --archives-per-second-rate-limit int                   The maximum number of archives to scan per second. 0 for unlimited.
+      --directories-per-second-rate-limit int                The maximum number of directories to crawl per second. 0 for unlimited.
+      --disable-cve-2021-44832-detection                     Disable detection of CVE-2021-44832 in versions up to 2.17.0
+      --disable-cve-2021-45105-detection                     Disable detection of CVE-2021-45105 in versions up to 2.16.0
+      --disable-detailed-findings                            Do not print out detailed finding information when not outputting in JSON.
+      --disable-flagging-jndi-lookup                         Do not report results that only match on the presence of a JndiLookup class.
+                                                             Even when disabled results which match other criteria will still report the presence of JndiLookup if relevant.
+      --disable-unknown-versions                             Only output issues if the version of log4j can be determined (note that this will cause certain detection mechanisms to be skipped)
+      --enable-obfuscation-detection                         Enable applying partial bytecode matching to Jars that appear to be obfuscated. (default true)
+      --enable-partial-matching-on-all-classes               Enable partial bytecode matching to all class files found.
+      --enable-trace-logging                                 Enables trace logging whilst crawling. disable-detailed-findings must be set to false (the default value) for this flag to have an effect.
+      --file-path-only                                       If true, output will consist of only paths to the files in which CVEs are detected
+  -h, --help                                                 help for crawl
+      --ignore-dir strings                                   Specify directory pattern to ignore. Use multiple times to supply multiple patterns.
+                                                             Patterns should be relative to the provided root.
+                                                             e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"
+      --json                                                 If true, output will be in JSON format
+      --maximum-average-obfuscated-class-name-length int     The maximum class name length for a class to be considered obfuscated. (default 3)
+      --maximum-average-obfuscated-package-name-length int   The maximum average package name length a class to be considered obfuscated. (default 3)
+      --nested-archive-disk-swap-dir string                  When nested-archive-disk-swap-max-size is non-zero, this is the directory in which temporary files will be created for writing temporary large nested archives to disk. (default "/tmp")
+      --nested-archive-disk-swap-max-size uint               The maximum size in bytes of disk space allowed to use for inspecting nest archives that are over the nested-archive-max-size.
+                                                             When an archive is encountered that is over the nested-archive-max-size, an the archive may be written out to a temporary file so that it can be inspected without a large memory penalty.
+                                                             If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured nested-archive-disk-swap-max-size.
+      --nested-archive-max-depth uint                        The maximum depth to recurse into nested archives.
+                                                             A max depth of 0 will open up an archive on the filesystem but not any nested archives.
+      --nested-archive-max-size uint                         The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.
+                                                             This limit is made a per-depth level.
+                                                             The overall limit to nested archive size unarchived should be controlled
+                                                             by both the nested-archive-max-size and nested-archive-max-depth. (default 5242880)
+      --per-archive-timeout duration                         If this duration is exceeded when inspecting an archive,
+                                                             an error will be logged and the crawler will move onto the next file. (default 15m0s)
+      --summary                                              If true, outputs a summary of all operations once program completes (default true)
 ```
 
 #### Archives
@@ -405,6 +409,10 @@ Flags:
                                                              e.g. ignore "^/proc" to ignore "/proc" when using a crawl root of "/"
       --maximum-average-obfuscated-class-name-length int     The maximum class name length for a class to be considered obfuscated. (default 3)
       --maximum-average-obfuscated-package-name-length int   The maximum average package name length a class to be considered obfuscated. (default 3)
+      --nested-archive-disk-swap-dir string                  When nested-archive-disk-swap-max-size is non-zero, this is the directory in which temporary files will be created for writing temporary large nested archives to disk. (default "/tmp")
+      --nested-archive-disk-swap-max-size uint               The maximum size in bytes of disk space allowed to use for inspecting nest archives that are over the nested-archive-max-size.
+                                                             When an archive is encountered that is over the nested-archive-max-size, an the archive may be written out to a temporary file so that it can be inspected without a large memory penalty.
+                                                             If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured nested-archive-disk-swap-max-size.
       --nested-archive-max-depth uint                        The maximum depth to recurse into nested archives.
                                                              A max depth of 0 will open up an archive on the filesystem but not any nested archives.
       --nested-archive-max-size uint                         The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.
