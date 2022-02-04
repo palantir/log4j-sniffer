@@ -15,7 +15,6 @@
 package deleter
 
 import (
-	"path/filepath"
 	"regexp"
 )
 
@@ -28,7 +27,7 @@ type TemplatedOwner struct {
 
 // FilepathMatch returns true when the filepath of the finding matches the TemplatedOwner FilepathExpression field.
 func (r TemplatedOwner) FilepathMatch(path string) bool {
-	return r.FilepathExpression.MatchString(filepath.Dir(path))
+	return r.FilepathExpression.MatchString(path)
 }
 
 // OwnerMatch returns true when owner of the file matches the result of the OwnerTemplate being expanded against the

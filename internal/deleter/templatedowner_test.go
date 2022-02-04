@@ -31,9 +31,9 @@ func TestRegexWithSubstitutionMatcher(t *testing.T) {
 
 	t.Run("makes substitution for owner match", func(t *testing.T) {
 		matcher := TemplatedOwner{
-			FilepathExpression: regexp.MustCompile("/foo/(.+)/"),
+			FilepathExpression: regexp.MustCompile("/foo/bar/(.+)"),
 			OwnerTemplate:      "owner $1",
 		}
-		assert.True(t, matcher.OwnerMatch("/foo/bar/baz", "owner bar"))
+		assert.True(t, matcher.OwnerMatch("/foo/bar/baz", "owner baz"))
 	})
 }
