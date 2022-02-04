@@ -286,7 +286,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 				ArchiveMaxDepth:    1,
 				ArchiveWalkTimeout: time.Second,
 				Limiter:            ratelimit.NewUnlimited(),
-				HandleFinding: func(ctx context.Context, path crawl.Path, result crawl.Finding, version crawl.Versions) {
+				HandleFinding: func(ctx context.Context, path crawl.Path, result crawl.Finding, version crawl.Versions) bool {
 					reported++
 					assert.Equal(t, tc.result, result)
 					if tc.version == "" {
@@ -294,6 +294,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 					} else {
 						assert.Equal(t, crawl.Versions{tc.version: {}}, version)
 					}
+					return true
 				},
 			}
 			_, err := identifier.Identify(context.Background(), "/path/on/disk/"+tc.filename, tc.filename)
@@ -311,10 +312,15 @@ func TestFindingString(t *testing.T) {
 		Out string
 	}{
 		{},
+		{crawl.JndiLookupClassName, "JndiLookupClassName"},
+		{crawl.JndiLookupClassPackageAndName, "JndiLookupClassPackageAndName"},
 		{crawl.JndiManagerClassName, "JndiManagerClassName"},
 		{crawl.JarName, "JarName"},
 		{crawl.JarNameInsideArchive, "JarNameInsideArchive"},
 		{crawl.JndiManagerClassPackageAndName, "JndiManagerClassPackageAndName"},
+		{crawl.JarFileObfuscated, "JarFileObfuscated"},
+		{crawl.ClassBytecodePartialMatch, "ClassBytecodePartialMatch"},
+		{crawl.ClassBytecodeInstructionMd5, "ClassBytecodeInstructionMd5"},
 		{crawl.JndiManagerClassName | crawl.JarName, "JndiManagerClassName,JarName"},
 		{crawl.JndiManagerClassName | crawl.JndiManagerClassPackageAndName, "JndiManagerClassName,JndiManagerClassPackageAndName"},
 		{crawl.JndiManagerClassName | crawl.JarName | crawl.JndiManagerClassPackageAndName, "JndiManagerClassName,JarName,JndiManagerClassPackageAndName"},

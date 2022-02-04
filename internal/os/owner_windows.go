@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Palantir Technologies. All rights reserved.
+// Copyright (c) 2022 Palantir Technologies. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+//go:build windows
+// +build windows
+
+package os
 
 import (
-	"github.com/palantir/pkg/cobracli"
-	"github.com/spf13/cobra"
+	"errors"
 )
 
-var (
-	Version = "unspecified"
-)
-
-func Execute() int {
-	rootCmd := &cobra.Command{
-		Use:   "log4j-sniffer",
-		Short: "Filesystem crawler to identify jars and java classes",
-	}
-	rootCmd.AddCommand(crawlCmd())
-	rootCmd.AddCommand(deleteCmd())
-	rootCmd.AddCommand(identifyCmd())
-	rootCmd.AddCommand(compareCmd())
-	return cobracli.ExecuteWithDefaultParams(rootCmd, cobracli.VersionFlagParam(Version))
+// OwnerUsername returns an error stating that this operation is unsupported on windows.
+func OwnerUsername(string) (string, error) {
+	return "", errors.New("unsupported on windows")
 }
