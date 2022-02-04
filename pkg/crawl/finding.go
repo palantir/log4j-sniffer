@@ -56,7 +56,23 @@ var (
 )
 
 type Finding int
+
 type Versions map[string]struct{}
+
+func (vs Versions) contains(v string) bool {
+	_, ok := vs[v]
+	return ok
+}
+
+func (vs Versions) SortedList() []string {
+	var out []string
+	for v := range vs {
+		out = append(out, v)
+	}
+	// N.B. Lexical sort will mess with base-10 versions, but it's better than random.
+	sort.Strings(out)
+	return out
+}
 
 // FindingOf creates a finding from a string, returning an error if a corresponding finding does not exist.
 // Conversion is case-insensitive.

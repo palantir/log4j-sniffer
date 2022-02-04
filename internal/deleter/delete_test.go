@@ -52,25 +52,38 @@ func TestDeleter_Delete(t *testing.T) {
 
 	t.Run("passes first path segment to FilepathMatch", func(t *testing.T) {
 		var path string
-		deleter.Deleter{
+		assert.True(t, deleter.Deleter{
 			FilepathMatch: func(p string) (bool, error) {
 				path = p
 				return false, nil
 			},
-		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 0, nil)
+		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 0, nil))
 		assert.Equal(t, "foo", path)
 	})
 
 	t.Run("passes finding to finding matcher if path matches", func(t *testing.T) {
 		var finding crawl.Finding
-		deleter.Deleter{
+		assert.True(t, deleter.Deleter{
 			FilepathMatch: func(string) (bool, error) { return true, nil },
 			FindingMatch: func(f crawl.Finding) bool {
 				finding = f
 				return false
 			},
-		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 600, nil)
+		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 600, nil))
 		assert.Equal(t, crawl.Finding(600), finding)
+	})
+
+	t.Run("passes versions to version matcher if path and finding matches", func(t *testing.T) {
+		var versions crawl.Versions
+		assert.True(t, deleter.Deleter{
+			FilepathMatch: func(string) (bool, error) { return true, nil },
+			FindingMatch:  func(f crawl.Finding) bool { return true },
+			VersionsMatch: func(vs crawl.Versions) bool {
+				versions = vs
+				return false
+			},
+		}.Process(context.Background(), crawl.Path{"foo", "bar"}, 600, crawl.Versions{"foo": {}}))
+		assert.Equal(t, crawl.Versions{"foo": {}}, versions)
 	})
 
 	t.Run("logs dry mode if running in dry mode", func(t *testing.T) {
@@ -89,7 +102,7 @@ func TestDeleter_Delete(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("deletes file if filepath and finding match", func(t *testing.T) {
+	t.Run("deletes file if filepath, finding and version match", func(t *testing.T) {
 		file := mustTempFile(t)
 		var out bytes.Buffer
 		deleter.Deleter{
@@ -98,6 +111,7 @@ func TestDeleter_Delete(t *testing.T) {
 			},
 			FilepathMatch: func(string) (bool, error) { return true, nil },
 			FindingMatch:  func(crawl.Finding) bool { return true },
+			VersionsMatch: func(crawl.Versions) bool { return true },
 		}.Process(context.Background(), crawl.Path{file, "bar"}, 600, nil)
 		assert.Equal(t, fmt.Sprintf("[INFO] Deleted file %s\n", file), out.String())
 		assertDoesntExist(t, file)

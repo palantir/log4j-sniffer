@@ -22,6 +22,7 @@ import (
 
 	"github.com/palantir/log4j-sniffer/internal/crawler"
 	"github.com/palantir/log4j-sniffer/pkg/archive"
+	"github.com/palantir/log4j-sniffer/pkg/crawl"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -124,4 +125,25 @@ func (fs crawlFlags) resolveIgnoreDirs() ([]*regexp.Regexp, error) {
 		ignores = append(ignores, compiled)
 	}
 	return ignores, nil
+}
+
+type cveFlags struct {
+	disableCVE45105 bool
+	disableCVE44832 bool
+}
+
+func (fs cveFlags) cveResolver() crawl.CVEResolver {
+	var cveResolver crawl.CVEResolver
+	if fs.disableCVE44832 {
+		cveResolver.IgnoreCVES = append(cveResolver.IgnoreCVES, crawl.CVE202144832)
+	}
+	if fs.disableCVE45105 {
+		cveResolver.IgnoreCVES = append(cveResolver.IgnoreCVES, crawl.CVE202145105)
+	}
+	return cveResolver
+}
+
+func applyCVEFlags(cmd *cobra.Command, flags *cveFlags) {
+	cmd.Flags().BoolVar(&flags.disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
+	cmd.Flags().BoolVar(&flags.disableCVE44832, "disable-cve-2021-44832-detection", false, `Disable detection of CVE-2021-44832 in versions up to 2.17.0`)
 }

@@ -27,6 +27,7 @@ type Deleter struct {
 	Logger        log.Logger
 	FilepathMatch func(filepath string) (bool, error)
 	FindingMatch  func(finding crawl.Finding) bool
+	VersionsMatch func(versions crawl.Versions) bool
 	DryRun        bool
 }
 
@@ -39,7 +40,7 @@ type Deleter struct {
 // nil FilepathMatch and nil FindingMatch functions will act as match alls, asif returning true for all inputs.
 // When Deleter.DryRun is true then a line will be logged stating that the file would be deleted.
 // When Deleter.Delete is false, then the configured function Delete will be called to delete the file.
-func (d Deleter) Process(ctx context.Context, path crawl.Path, finding crawl.Finding, _ crawl.Versions) bool {
+func (d Deleter) Process(ctx context.Context, path crawl.Path, finding crawl.Finding, versions crawl.Versions) bool {
 	if len(path) == 0 {
 		return true
 	}
@@ -55,6 +56,9 @@ func (d Deleter) Process(ctx context.Context, path crawl.Path, finding crawl.Fin
 		}
 	}
 	if d.FindingMatch != nil && !d.FindingMatch(finding) {
+		return true
+	}
+	if d.VersionsMatch != nil && !d.VersionsMatch(versions) {
 		return true
 	}
 	if d.DryRun {

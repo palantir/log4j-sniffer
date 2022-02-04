@@ -133,7 +133,7 @@ func resolveNameAndContentFindings(nameMatchesLog4jJar bool, nameFinding Finding
 func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths Path) (bool, Finding, Versions) {
 	path := nestedPaths[len(nestedPaths)-1]
 	var jarNameMatch bool
-	var jarVersion string
+	var jarVersion Log4jVersion
 	var jarFinding Finding
 	if len(nestedPaths) == 1 {
 		// we are on disk and so need to split using filepath to support different OS separators
@@ -149,10 +149,9 @@ func (i *Log4jIdentifier) archiveNameVulnerability(nestedPaths Path) (bool, Find
 		}
 	}
 
-	archiveVersionVulnerable := vulnerableVersion(jarVersion)
-	if jarNameMatch && archiveVersionVulnerable {
+	if jarNameMatch && jarVersion.Vulnerable() {
 		i.Logger.Info("Found archive with name matching vulnerable log4j-core format at %s", nestedPaths)
-		return jarNameMatch, jarFinding, map[string]struct{}{jarVersion: {}}
+		return jarNameMatch, jarFinding, map[string]struct{}{jarVersion.Original: {}}
 	}
 	return jarNameMatch, NothingDetected, nil
 }
@@ -228,7 +227,8 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 				return true, nil
 			}
 			if versionMatch {
-				if !vulnerableVersion(versionInFile) {
+				version, parsed := ParseLog4jVersion(versionInFile)
+				if !parsed || !version.Vulnerable() {
 					return true, nil
 				}
 				versions[versionInFile] = struct{}{}
@@ -303,7 +303,7 @@ func (i *Log4jIdentifier) printDetailedHashFinding(path string, finding Finding)
 	}
 }
 
-func pathMatchesLog4JVersion(path string) (string, bool) {
+func pathMatchesLog4JVersion(path string) (Log4jVersion, bool) {
 	return FileNameMatchesLog4jJar(filenameFromPathInsideArchive(path))
 }
 
@@ -315,19 +315,10 @@ func filenameFromPathInsideArchive(path string) string {
 	return filename
 }
 
-func FileNameMatchesLog4jJar(filename string) (string, bool) {
+func FileNameMatchesLog4jJar(filename string) (Log4jVersion, bool) {
 	matches := log4jRegex.FindStringSubmatch(strings.ToLower(filename))
 	if len(matches) == 0 {
-		return "", false
+		return Log4jVersion{}, false
 	}
-	version := matches[1]
-	return version, true
-}
-
-func vulnerableVersion(version string) bool {
-	major, minor, patch, parsed := ParseLog4jVersion(version)
-	if !parsed {
-		return true
-	}
-	return (major == 2 && minor <= 17) && !(major == 2 && minor == 17 && patch >= 1) && !(major == 2 && minor == 12 && patch >= 4) && !(major == 2 && minor == 3 && patch >= 2)
+	return ParseLog4jVersion(matches[1])
 }

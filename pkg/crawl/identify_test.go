@@ -188,7 +188,7 @@ func TestIdentifyFromFileName(t *testing.T) {
 			version, match := crawl.FileNameMatchesLog4jJar(tc.in)
 			require.Equal(t, tc.version != "", match)
 			if match {
-				assert.Equal(t, tc.version, version)
+				assert.Equal(t, tc.version, version.Original)
 			}
 		})
 	}

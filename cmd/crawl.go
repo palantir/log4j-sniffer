@@ -27,9 +27,8 @@ import (
 func crawlCmd() *cobra.Command {
 	var (
 		cmdCrawlFlags             crawlFlags
+		cmdCVEFlags               cveFlags
 		disableDetailedFindings   bool
-		disableCVE45105           bool
-		disableCVE44832           bool
 		disableFlaggingJndiLookup bool
 		disableUnknownVersions    bool
 		outputJSON                bool
@@ -55,8 +54,7 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				OutputJSON:                     outputJSON,
 				OutputFilePathOnly:             outputFilePathOnly,
 				OutputWriter:                   cmd.OutOrStdout(),
-				DisableCVE45105:                disableCVE45105,
-				DisableCVE44832:                disableCVE44832,
+				CVEResolver:                    cmdCVEFlags.cveResolver(),
 				DisableFlaggingJndiLookup:      disableFlaggingJndiLookup,
 				DisableFlaggingUnknownVersions: disableUnknownVersions,
 			}
@@ -92,10 +90,10 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 				} else {
 					var cveInfo string
 					cveInfo = "CVE-2021-44228 or CVE-2021-45046"
-					if !disableCVE45105 {
+					if !cmdCVEFlags.disableCVE45105 {
 						cveInfo += " or CVE-2021-45105"
 					}
-					if !disableCVE44832 {
+					if !cmdCVEFlags.disableCVE44832 {
 						cveInfo += " or CVE-2021-44832"
 					}
 					count := reporter.FileCount()
@@ -114,11 +112,10 @@ Use the ignore-dir flag to provide directories of which to ignore all nested fil
 	}
 
 	applyCrawlFlags(&cmd, &cmdCrawlFlags)
+	applyCVEFlags(&cmd, &cmdCVEFlags)
 	cmd.Flags().BoolVar(&disableDetailedFindings, "disable-detailed-findings", false, "Do not print out detailed finding information when not outputting in JSON.")
 	cmd.Flags().BoolVar(&disableFlaggingJndiLookup, "disable-flagging-jndi-lookup", false, `Do not report results that only match on the presence of a JndiLookup class.
 Even when disabled results which match other criteria will still report the presence of JndiLookup if relevant.`)
-	cmd.Flags().BoolVar(&disableCVE45105, "disable-cve-2021-45105-detection", false, `Disable detection of CVE-2021-45105 in versions up to 2.16.0`)
-	cmd.Flags().BoolVar(&disableCVE44832, "disable-cve-2021-44832-detection", false, `Disable detection of CVE-2021-44832 in versions up to 2.17.0`)
 	cmd.Flags().BoolVar(&disableUnknownVersions, "disable-unknown-versions", false, `Only output issues if the version of log4j can be determined (note that this will cause certain detection mechanisms to be skipped)`)
 	cmd.Flags().BoolVar(&outputJSON, "json", false, "If true, output will be in JSON format")
 	cmd.Flags().BoolVar(&outputFilePathOnly, "file-path-only", false, "If true, output will consist of only paths to the files in which CVEs are detected")

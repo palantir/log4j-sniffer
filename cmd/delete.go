@@ -32,6 +32,7 @@ import (
 func deleteCmd() *cobra.Command {
 	var (
 		cmdCrawlFlags   crawlFlags
+		cmdCVEFlags     cveFlags
 		dryRun          bool
 		skipOwnerCheck  bool
 		filepathOwners  []string
@@ -82,12 +83,14 @@ When used on windows, deleting based on file ownership is unsupported and skip-o
 				Logger:        logger(cmd, cmdCrawlFlags),
 				FilepathMatch: filepathMatch,
 				FindingMatch:  findingMatch,
+				VersionsMatch: deleter.VersionMatcher(cmdCVEFlags.cveResolver()),
 				DryRun:        dryRun,
 			}.Process, cmd.OutOrStdout(), cmd.OutOrStderr())
 			return err
 		},
 	}
 	applyCrawlFlags(&cmd, &cmdCrawlFlags)
+	applyCVEFlags(&cmd, &cmdCVEFlags)
 	cmd.Flags().BoolVar(&dryRun, "dry-run", true, "When true, a line with be output instead of deleting a file. Use --dry-run=false to enable deletion.")
 	cmd.Flags().BoolVar(&skipOwnerCheck, "skip-owner-check", false, "When provided, the owner of a file will not be checked before attempting a delete.")
 	cmd.Flags().StringSliceVar(&filepathOwners, "filepath-owner", nil, `Provide a filepath pattern and owner template that will be used to check whether a file should be deleted or not when it is deemed to be vulnerable.
