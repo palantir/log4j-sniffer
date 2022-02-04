@@ -34,51 +34,53 @@ const (
 	directIOIntermediateBufferSize = 8 * directio.BlockSize
 )
 
-func standardOpenFileWalker(getWalkFn ReaderWalkerProviderFunc) func(path string) (WalkFn, func() error, error) {
-	return func(path string) (WalkFn, func() error, error) {
+func standardOpenFileWalker(getWalkFn ReaderWalkerProviderFunc) func(path string) (WalkCloser, error) {
+	return func(path string) (WalkCloser, error) {
 		f, err := os.Open(path)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		walkFn, closeWalker, err := getWalkFn(f)
+		walker, err := getWalkFn(f)
 		if err != nil {
 			_ = f.Close()
-			return nil, nil, err
+			return nil, err
 		}
 
-		return walkFn, func() error {
-			wErr := closeWalker()
-			fErr := f.Close()
-			if fErr != nil {
-				return fErr
-			}
-			return wErr
+		return walkCloser{
+			walk: walker.Walk,
+			close: func() error {
+				wErr := walker.Close()
+				fErr := f.Close()
+				if fErr != nil {
+					return fErr
+				}
+				return wErr
+			},
 		}, nil
 	}
 }
 
-func directIOOpenFileWalker(reader ReaderWalkerProviderFunc) func(path string) (WalkFn, func() error, error) {
-	return func(path string) (WalkFn, func() error, error) {
+func directIOOpenFileWalker(reader ReaderWalkerProviderFunc) func(path string) (WalkCloser, error) {
+	return func(path string) (WalkCloser, error) {
 		stat, err := os.Stat(path)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		var f *os.File
-		var walkFn WalkFn
-		var closeWalker func() error
+		var walker WalkCloser
 		if stat.Size() < directio.BlockSize {
 			f, err = os.Open(path)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
-			walkFn, closeWalker, err = reader(f)
+			walker, err = reader(f)
 		} else {
 			f, err = directio.OpenFile(path, os.O_RDONLY, 0)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
-			walkFn, closeWalker, err = reader(&buffer.IntermediateBufferReader{
+			walker, err = reader(&buffer.IntermediateBufferReader{
 				Reader:      f,
 				ContentSize: stat.Size(),
 				Buffer:      directio.AlignedBlock(directIOIntermediateBufferSize),
@@ -86,16 +88,19 @@ func directIOOpenFileWalker(reader ReaderWalkerProviderFunc) func(path string) (
 		}
 		if err != nil {
 			_ = f.Close()
-			return nil, nil, err
+			return nil, err
 		}
 
-		return walkFn, func() error {
-			wErr := closeWalker()
-			fErr := f.Close()
-			if fErr != nil {
-				return fErr
-			}
-			return wErr
+		return walkCloser{
+			walk: walker.Walk,
+			close: func() error {
+				wErr := walker.Close()
+				fErr := f.Close()
+				if fErr != nil {
+					return fErr
+				}
+				return wErr
+			},
 		}, nil
 	}
 }

@@ -100,10 +100,10 @@ func TestWalkersCanWalk(t *testing.T) {
 
 func assertCanWalkExample(t *testing.T, getWalker WalkerProvider, example string) {
 	t.Helper()
-	walk, close, err := getWalker.FromFile(filepath.Join("../../examples", example))
+	walker, err := getWalker.FromFile(filepath.Join("../../examples", example))
 	require.NoError(t, err)
-	require.NoError(t, walk(context.Background(), func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
+	require.NoError(t, walker.Walk(context.Background(), func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 		return true, nil
 	}))
-	require.NoError(t, close())
+	require.NoError(t, walker.Close())
 }
