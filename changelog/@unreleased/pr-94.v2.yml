@@ -1,0 +1,6 @@
+type: improvement
+improvement:
+  description: Some optimisations have been made which should reduce the resource
+    overhead required when inspecting zip files, such as .jars, .wars, .pars, etc.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/94

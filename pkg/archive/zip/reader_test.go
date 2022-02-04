@@ -958,9 +958,10 @@ func TestIssue8186(t *testing.T) {
 		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?\xe6\x98Ьo\x01\x00\x00\x84\x02\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfcH\x02\x00META-INF/CERT.SF",
 		"PK\x01\x02\x14\x00\x14\x00\b\b\b\x004\x9d3?\xbfP\x96b\x86\x04\x00\x00\xb2\x06\x00\x00\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xa9J\x02\x00META-INF/CERT.RSA",
 	}
+
 	for i, s := range dirEnts {
 		var f File
-		err := readDirectoryHeader(&f, strings.NewReader(s))
+		err := (&Reader{}).readDirectoryHeader(&f, strings.NewReader(s))
 		if err != nil {
 			t.Errorf("error reading #%d: %v", i, err)
 		}
@@ -1115,9 +1116,9 @@ func TestCVE202127919(t *testing.T) {
 		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 
-	var fs []*File
+	var fs []File
 	err := WalkZipReaderAt(bytes.NewReader(data), int64(len(data)), func(f *File) (bool, error) {
-		fs = append(fs, f)
+		fs = append(fs, *f)
 		return true, nil
 	})
 	if err != nil {

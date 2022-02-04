@@ -37,6 +37,10 @@ type Reader struct {
 	// for use by the Open method.
 	fileListOnce sync.Once
 	fileList     []fileListEntry
+
+	// reused buffers for memory allocation optimisation
+	directoryHeaderBuffer [directoryHeaderLen]byte
+	metadataBuf           []byte
 }
 
 // A ReadCloser is a Reader that must be closed when no longer needed.
@@ -75,17 +79,19 @@ func (z *Reader) walk(r io.ReaderAt, size int64, handleFile WalkFn) error {
 	// a bad one, and then only report an ErrFormat or UnexpectedEOF if
 	// the handleFile count modulo 65536 is incorrect.
 	var numFiles uint64
+	var f File
 	for {
-		f := &File{zip: z, zipr: r}
-		err = readDirectoryHeader(f, buf)
+		f = File{zip: z, zipr: r}
+		err = z.readDirectoryHeader(&f, buf)
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
 		if err != nil {
 			return err
 		}
+
 		numFiles++
-		if proceed, err := handleFile(f); err != nil || !proceed {
+		if proceed, err := handleFile(&f); err != nil || !proceed {
 			return err
 		}
 	}
@@ -288,12 +294,11 @@ func (f *File) findBodyOffset() (int64, error) {
 // readDirectoryHeader attempts to read a directory header from r.
 // It returns io.ErrUnexpectedEOF if it cannot read a complete header,
 // and ErrFormat if it doesn't find a valid header signature.
-func readDirectoryHeader(f *File, r io.Reader) error {
-	var buf [directoryHeaderLen]byte
-	if _, err := io.ReadFull(r, buf[:]); err != nil {
+func (z *Reader) readDirectoryHeader(f *File, r io.Reader) error {
+	if _, err := io.ReadFull(r, z.directoryHeaderBuffer[:]); err != nil {
 		return err
 	}
-	b := readBuf(buf[:])
+	b := readBuf(z.directoryHeaderBuffer[:])
 	if sig := b.uint32(); sig != directoryHeaderSignature {
 		return ErrFormat
 	}
@@ -314,13 +319,16 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 	b = b[4:] // skipped start disk number and internal attributes (2x uint16)
 	f.ExternalAttrs = b.uint32()
 	f.headerOffset = int64(b.uint32())
-	d := make([]byte, filenameLen+extraLen+commentLen)
-	if _, err := io.ReadFull(r, d); err != nil {
+	metadataLen := filenameLen + extraLen + commentLen
+	if len(z.metadataBuf) < metadataLen {
+		z.metadataBuf = make([]byte, metadataLen)
+	}
+	if _, err := io.ReadFull(r, (z.metadataBuf)[:metadataLen]); err != nil {
 		return err
 	}
-	f.Name = string(d[:filenameLen])
-	f.Extra = d[filenameLen : filenameLen+extraLen]
-	f.Comment = string(d[filenameLen+extraLen:])
+	f.Name = string((z.metadataBuf)[:filenameLen])
+	f.Extra = (z.metadataBuf)[filenameLen : filenameLen+extraLen]
+	f.Comment = string((z.metadataBuf)[filenameLen+extraLen:])
 
 	// Determine the character encoding.
 	utf8Valid1, utf8Require1 := detectUTF8(f.Name)

@@ -15,7 +15,10 @@
 package zip_test
 
 import (
+	stdzip "archive/zip"
+	"bytes"
 	"errors"
+	"io"
 	"io/ioutil"
 	"strconv"
 	"testing"
@@ -123,4 +126,48 @@ func mustReadAllContents(t testing.TB, f *zip.File) []byte {
 	all, err := ioutil.ReadAll(rc)
 	require.NoError(t, err)
 	return all
+}
+
+func BenchmarkWalkZipReaderAt(b *testing.B) {
+	for _, numFiles := range []int{10, 100, 1000, 10000, 100000} {
+		b.Run(strconv.Itoa(numFiles), func(b *testing.B) {
+			reader := bytes.NewReader(generateZip(b, numFiles))
+			b.ReportAllocs()
+			b.SetBytes(0)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				seek, err := reader.Seek(0, io.SeekStart)
+				require.NoError(b, err)
+				require.EqualValues(b, 0, seek)
+				b.StartTimer()
+				var count int64
+				var f *zip.File
+				require.NoError(b, zip.WalkZipReaderAt(reader, reader.Size(), func(file *zip.File) (bool, error) {
+					count++
+					f = file
+					return true, nil
+				}))
+				require.EqualValues(b, numFiles, count)
+				_ = count
+				_ = f
+			}
+		})
+	}
+}
+
+func generateZip(t testing.TB, numFiles int) []byte {
+	const fileSize = 1
+
+	var buf bytes.Buffer
+	writer := stdzip.NewWriter(&buf)
+	for i := 0; i < numFiles; i++ {
+		create, err := writer.Create(strconv.Itoa(i))
+		require.NoError(t, err)
+		n, err := create.Write(bytes.Repeat([]byte{strconv.Itoa(i)[0]}, fileSize))
+		require.NoError(t, err)
+		require.EqualValues(t, fileSize, n)
+	}
+	require.NoError(t, writer.Close())
+	return buf.Bytes()
 }
