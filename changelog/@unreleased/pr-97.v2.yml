@@ -1,0 +1,6 @@
+type: fix
+fix:
+  description: A small bug has been fixed where only the directory of a filepath would
+    be passed for pattern matching rather than the whole file when using `--filepath-owner`.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/97
