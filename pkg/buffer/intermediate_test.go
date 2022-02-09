@@ -26,9 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// IT WOULD BE GREAT TO SETUP A FUZZING FRAMEWORK WERE WE CAN HAVE A LOAD OF KNOWN INPUT FILES
-// THEN WITH A LOAD OF DIFFERENT BUFFER SIZES, MAKE SURE THEY ARE WORKING WITH THE WRAPPED READER THING
-
 func TestIntermediateBufferReader_ReadingAllContentFromReader(t *testing.T) {
 	t.Run("should error on read error when populating buffer", func(t *testing.T) {
 		expectedErr := errors.New("err")
