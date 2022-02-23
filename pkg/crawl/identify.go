@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/palantir/log4j-sniffer/pkg/archive"
+	"github.com/palantir/log4j-sniffer/pkg/buffer"
 	"github.com/palantir/log4j-sniffer/pkg/log"
 	"github.com/pkg/errors"
 	"go.uber.org/ratelimit"
@@ -46,7 +47,7 @@ type Log4jIdentifier struct {
 	OpenFile                           func(string) (*os.File, error)
 	ArchiveWalkTimeout                 time.Duration
 	ArchiveMaxDepth                    uint
-	ArchiveWalkers                     func(string) (archive.WalkerProvider, int64, bool)
+	ArchiveWalkers                     func(string) (archive.WalkerProvider, bool)
 	HandleFinding                      HandleFindingFunc
 }
 
@@ -66,7 +67,7 @@ func (i *Log4jIdentifier) Identify(ctx context.Context, path string, filename st
 		ctx = ctxWithTimeout
 	}
 
-	getWalker, _, ok := i.ArchiveWalkers(strings.ToLower(filename))
+	getWalker, ok := i.ArchiveWalkers(strings.ToLower(filename))
 	if !ok {
 		return 0, nil
 	}
@@ -170,12 +171,9 @@ func (i *Log4jIdentifier) findArchiveContentVulnerabilities(ctx context.Context,
 func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding, versions Versions, skipped *uint64, fileLevelProceed *bool, paths []string) archive.FileWalkFn {
 	return func(ctx context.Context, path string, size int64, contents io.Reader) (proceed bool, err error) {
 		nestedPaths := Path(append(paths, path))
-		getWalker, maxSize, ok := i.ArchiveWalkers(path)
+		getWalker, ok := i.ArchiveWalkers(path)
 		if ok {
-			if maxSize > -1 && size >= maxSize {
-				*skipped = *skipped + 1
-				i.Logger.Info("Skipping nested archive above configured maximum size at %s", nestedPaths)
-			} else if depth >= i.ArchiveMaxDepth {
+			if depth >= i.ArchiveMaxDepth {
 				_, nameFinding, jarNameVersions := i.archiveNameVulnerability(nestedPaths)
 				// If there is a finding from the name we don't consider the file skipped.
 				if nameFinding == NothingDetected {
@@ -188,32 +186,36 @@ func (i *Log4jIdentifier) vulnerabilityFileWalkFunc(depth uint, result *Finding,
 					}
 				}
 			} else {
-				walker, archiveErr := getWalker.FromReader(contents)
-				if archiveErr != nil {
+				walker, archiveErr := getWalker.FromReader(contents, size)
+				if oversizedErr, ok := archiveErr.(buffer.ContentsExceedLimitError); ok {
+					*skipped = *skipped + 1
+					i.Logger.Info("Skipping nested archive over size threshold at %s: %s", nestedPaths, oversizedErr)
+				} else if archiveErr != nil {
 					return false, archiveErr
-				}
-				defer func() {
-					if cErr := walker.Close(); err == nil {
-						err = cErr
+				} else {
+					defer func() {
+						if cErr := walker.Close(); err == nil {
+							err = cErr
+						}
+					}()
+
+					archiveContentResult, archiveVersions, innerSkipped, innerArchiveFileLevelProceed, err := i.findArchiveContentVulnerabilities(ctx, depth+1, walker, nestedPaths)
+					*skipped = *skipped + innerSkipped
+					if err != nil {
+						return false, err
 					}
-				}()
-
-				archiveContentResult, archiveVersions, innerSkipped, innerArchiveFileLevelProceed, err := i.findArchiveContentVulnerabilities(ctx, depth+1, walker, nestedPaths)
-				*skipped = *skipped + innerSkipped
-				if err != nil {
-					return false, err
-				}
-				if !innerArchiveFileLevelProceed {
-					*fileLevelProceed = false
-					return false, nil
-				}
-
-				jarNameMatch, nameFinding, jarNameVersions := i.archiveNameVulnerability(nestedPaths)
-				findings, vs := resolveNameAndContentFindings(jarNameMatch, nameFinding, jarNameVersions, archiveContentResult, archiveVersions)
-				if findings != NothingDetected {
-					*fileLevelProceed = i.HandleFinding(ctx, nestedPaths, findings, vs)
-					if !*fileLevelProceed {
+					if !innerArchiveFileLevelProceed {
+						*fileLevelProceed = false
 						return false, nil
+					}
+
+					jarNameMatch, nameFinding, jarNameVersions := i.archiveNameVulnerability(nestedPaths)
+					findings, vs := resolveNameAndContentFindings(jarNameMatch, nameFinding, jarNameVersions, archiveContentResult, archiveVersions)
+					if findings != NothingDetected {
+						*fileLevelProceed = i.HandleFinding(ctx, nestedPaths, findings, vs)
+						if !*fileLevelProceed {
+							return false, nil
+						}
 					}
 				}
 			}

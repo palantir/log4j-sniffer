@@ -1,0 +1,8 @@
+type: feature
+feature:
+  description: |-
+    Inspecting large nested archives without a large memory impact can now be enabled by setting `--nested-archive-disk-swap-max-size` to a positive non-zero value.
+
+    When a nested zip file is encountered that is above the `--nested-archive-max-size`, space will be used on disk to write out the archive temporarily to be able to inspected. The location that temporary files are written to can be configured using `--nested-archive-disk-swap-dir`, which is set to `/tmp` by default.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/98

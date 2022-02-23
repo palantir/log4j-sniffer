@@ -34,7 +34,7 @@ import (
 func TestLog4jIdentifier(t *testing.T) {
 	t.Run("implements timeout", func(t *testing.T) {
 		identifier := crawl.Log4jIdentifier{
-			ArchiveWalkers: func(path string) (archive.WalkerProvider, int64, bool) {
+			ArchiveWalkers: func(path string) (archive.WalkerProvider, bool) {
 				assert.Equal(t, "bar", path)
 				return archive.WalkerProviderFromFuncs(func(string) (archive.WalkCloser, error) {
 					return stubbedFileWalkCloser{
@@ -49,7 +49,7 @@ func TestLog4jIdentifier(t *testing.T) {
 							return nil
 						},
 					}, nil
-				}, nil), -1, true
+				}, nil), true
 			},
 			ArchiveWalkTimeout: time.Millisecond,
 			Limiter:            ratelimit.NewUnlimited(),
@@ -62,10 +62,10 @@ func TestLog4jIdentifier(t *testing.T) {
 	t.Run("closes and returns close error", func(t *testing.T) {
 		expectedErr := errors.New("err")
 		identifier := crawl.Log4jIdentifier{
-			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
+			ArchiveWalkers: func(string) (archive.WalkerProvider, bool) {
 				return archive.WalkerProviderFromFuncs(func(string) (archive.WalkCloser, error) {
 					return stubbedFileWalkCloser{closeErr: expectedErr}, nil
-				}, nil), -1, true
+				}, nil), true
 			},
 			ArchiveWalkTimeout: time.Second,
 			Limiter:            ratelimit.NewUnlimited(),
@@ -78,7 +78,7 @@ func TestLog4jIdentifier(t *testing.T) {
 		var fileWalkCalls int
 		var readerWalkCalls int
 		identifier := crawl.Log4jIdentifier{
-			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
+			ArchiveWalkers: func(string) (archive.WalkerProvider, bool) {
 				return archive.WalkerProviderFromFuncs(
 					func(path string) (archive.WalkCloser, error) {
 						return stubbedFileWalkCloser{
@@ -89,7 +89,7 @@ func TestLog4jIdentifier(t *testing.T) {
 							},
 						}, nil
 					},
-					func(r io.Reader) (archive.WalkCloser, error) {
+					func(io.Reader, int64) (archive.WalkCloser, error) {
 						return stubbedFileWalkCloser{
 							walk: func(ctx context.Context, walkFn archive.FileWalkFn) error {
 								readerWalkCalls++
@@ -97,7 +97,7 @@ func TestLog4jIdentifier(t *testing.T) {
 								return nil
 							},
 						}, nil
-					}), -1, true
+					}), true
 			},
 			ArchiveWalkTimeout: time.Second,
 			Limiter:            ratelimit.NewUnlimited(),
@@ -112,7 +112,7 @@ func TestLog4jIdentifier(t *testing.T) {
 		var fileWalkCalls int
 		var readerWalkCalls int
 		identifier := crawl.Log4jIdentifier{
-			ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
+			ArchiveWalkers: func(string) (archive.WalkerProvider, bool) {
 				return archive.WalkerProviderFromFuncs(
 					func(path string) (archive.WalkCloser, error) {
 						return stubbedFileWalkCloser{
@@ -122,7 +122,7 @@ func TestLog4jIdentifier(t *testing.T) {
 								return nil
 							}}, nil
 					},
-					func(r io.Reader) (archive.WalkCloser, error) {
+					func(io.Reader, int64) (archive.WalkCloser, error) {
 						return stubbedFileWalkCloser{
 							walk: func(ctx context.Context, walkFn archive.FileWalkFn) error {
 								readerWalkCalls++
@@ -130,7 +130,7 @@ func TestLog4jIdentifier(t *testing.T) {
 								return nil
 							},
 						}, nil
-					}), -1, true
+					}), true
 			},
 			ArchiveWalkTimeout: time.Second,
 			ArchiveMaxDepth:    3,
@@ -275,7 +275,7 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var reported int
 			identifier := crawl.Log4jIdentifier{
-				ArchiveWalkers: func(string) (archive.WalkerProvider, int64, bool) {
+				ArchiveWalkers: func(string) (archive.WalkerProvider, bool) {
 					return archive.WalkerProviderFromFuncs(func(string) (archive.WalkCloser, error) {
 						return stubbedFileWalkCloser{
 							walk: func(ctx context.Context, walkFn archive.FileWalkFn) error {
@@ -286,9 +286,9 @@ func TestIdentifyFromArchiveContents(t *testing.T) {
 								}
 								return nil
 							}}, nil
-					}, func(r io.Reader) (archive.WalkCloser, error) {
+					}, func(io.Reader, int64) (archive.WalkCloser, error) {
 						return stubbedFileWalkCloser{}, nil
-					}), -1, true
+					}), true
 				},
 				ArchiveMaxDepth:    1,
 				ArchiveWalkTimeout: time.Second,

@@ -25,56 +25,57 @@ import (
 	"strings"
 
 	"github.com/palantir/log4j-sniffer/pkg/archive/zip"
+	"github.com/palantir/log4j-sniffer/pkg/buffer"
 )
 
 // Walkers creates a function that will return a WalkerProvider for a file path if there is one supported.
-// maxInMemoryArchiveSize configures the maximum buffer size to create for archive that are required to be
-// read into memory before being able to walk through them.
-// The int64 returned from the function will return -1 if there is no limit for size that archive walker,
-// otherwise returning the maximum archive size that should be used when using the WalkerProvider.FromReader
-// method.
+// The bool returned will be true if the path is supported, false otherwise.
+//
+// When creating a walker from a reader, if the type of archive requires that the content must be available as a
+// ReaderAt, then the buffer.ReaderReaderAtConverter will be used to convert the Reader to a ReaderAt.
+//
 // The given FileOpenMode will determine whether a file used standard file opening or direct I/O. Standard file opening
 // may put pressure on the filesystem cache under certain circumstances, resulting in extra work for the filesystem
 // due to cache eviction. Direct I/O may be enabled which will skip the filesystem cache for operating systems that
 // support it. With Direct I/O enabled, it will only be used for archives where reading through the stream is required
 // to find file headers rather than for archives where a file table can be located and skipped to at a known place.
 // e.g. Direct I/O may be used for tar-based archives, but will not be used for zip-based archives.
-func Walkers(maxInMemoryArchiveSize int64, fileOpenMode FileOpenMode) func(path string) (WalkerProvider, int64, bool) {
-	return func(path string) (WalkerProvider, int64, bool) {
+func Walkers(convertReader buffer.ReaderReaderAtConverter, fileOpenMode FileOpenMode) func(path string) (WalkerProvider, bool) {
+	return func(path string) (WalkerProvider, bool) {
 		_, filename := filepath.Split(path)
 		fileSplit := strings.Split(filename, ".")
 		if len(fileSplit) < 2 {
-			return nil, 0, false
+			return nil, false
 		}
 
 		// only search for a depth of two extension dots
 		for i := len(fileSplit) - 1; i >= len(fileSplit)-2; i-- {
 			switch strings.Join(fileSplit[i:], ".") {
 			case "ear", "jar", "par", "war", "zip":
-				return ZipArchiveWalkers(), maxInMemoryArchiveSize, true
+				return ZipArchiveWalkers(convertReader), true
 			case "tar":
-				return TarArchiveWalkers(fileOpenMode), -1, true
+				return TarArchiveWalkers(fileOpenMode), true
 			case "tar.gz", "tgz":
-				return TarGzWalkers(fileOpenMode), -1, true
+				return TarGzWalkers(fileOpenMode), true
 			case "tar.bz2", "tbz2":
-				return TarBz2Walkers(fileOpenMode), -1, true
+				return TarBz2Walkers(fileOpenMode), true
 			}
 		}
-		return nil, 0, false
+		return nil, false
 	}
 }
 
 // WalkerProvider creates WalkFn and closing function from certain resources.
 type WalkerProvider interface {
 	FromFile(string) (WalkCloser, error)
-	FromReader(io.Reader) (WalkCloser, error)
+	FromReader(io.Reader, int64) (WalkCloser, error)
 }
 
 // FileWalkerProviderFunc creates a WalkFn and closing function from a file.
 type FileWalkerProviderFunc func(path string) (WalkCloser, error)
 
 // ReaderWalkerProviderFunc creates a WalkFn and closing function from a reader.
-type ReaderWalkerProviderFunc func(r io.Reader) (WalkCloser, error)
+type ReaderWalkerProviderFunc func(r io.Reader, size int64) (WalkCloser, error)
 
 // WalkerProviderFromFuncs creates a WalkerProvider from the given file and reader functions.
 func WalkerProviderFromFuncs(file FileWalkerProviderFunc, reader ReaderWalkerProviderFunc) WalkerProvider {
@@ -109,13 +110,13 @@ func (w walkerProvider) FromFile(path string) (WalkCloser, error) {
 	return w.fromFile(path)
 }
 
-func (w walkerProvider) FromReader(r io.Reader) (WalkCloser, error) {
-	return w.fromReader(r)
+func (w walkerProvider) FromReader(r io.Reader, size int64) (WalkCloser, error) {
+	return w.fromReader(r, size)
 }
 
 // ZipArchiveWalkers creates a WalkerProvider for zipped file content.
-// maxReadLimit is the maximum amount of data to read from a reader when FromReader is called.
-func ZipArchiveWalkers() WalkerProvider {
+// convertReader is used to convert a Reader to a ReaderAt.
+func ZipArchiveWalkers(converter buffer.ReaderReaderAtConverter) WalkerProvider {
 	return walkerProvider{
 		fromFile: func(path string) (WalkCloser, error) {
 			return walkCloser{
@@ -123,19 +124,21 @@ func ZipArchiveWalkers() WalkerProvider {
 					return zip.WalkZipFile(path, zipFileWalkFn(ctx, walkFn))
 				},
 			}, nil
-		}, fromReader: func(r io.Reader) (WalkCloser, error) {
-			reader, err := BytesReaderFromReader(r)
+		}, fromReader: func(r io.Reader, contentSize int64) (WalkCloser, error) {
+			reader, close, err := converter.ReaderAt(r, contentSize)
 			if err != nil {
 				return nil, err
 			}
 			return walkCloser{
 				walk: func(ctx context.Context, walkFn FileWalkFn) error {
-					return zip.WalkZipReaderAt(reader, reader.Size(), zipFileWalkFn(ctx, walkFn))
+					return zip.WalkZipReaderAt(reader, contentSize, zipFileWalkFn(ctx, walkFn))
 				},
+				close: close,
 			}, nil
 		},
 	}
 }
+
 func zipFileWalkFn(ctx context.Context, walkFn FileWalkFn) zip.WalkFn {
 	return func(file *zip.File) (bool, error) {
 		if file.FileInfo().IsDir() {
@@ -154,7 +157,7 @@ func zipFileWalkFn(ctx context.Context, walkFn FileWalkFn) zip.WalkFn {
 
 // TarGzWalkers creates a WalkerProvider for gzipped tar content.
 func TarGzWalkers(mode FileOpenMode) WalkerProvider {
-	return WalkerFromReaderWalkerProvider(mode, func(r io.Reader) (WalkCloser, error) {
+	return WalkerFromReaderWalkerProvider(mode, func(r io.Reader, _ int64) (WalkCloser, error) {
 		reader, close, err := TarGzipReader(r)
 		if err != nil {
 			return nil, err
@@ -168,7 +171,7 @@ func TarGzWalkers(mode FileOpenMode) WalkerProvider {
 
 // TarBz2Walkers creates a WalkerProvider for bz2 zipped tar content.
 func TarBz2Walkers(mode FileOpenMode) WalkerProvider {
-	return WalkerFromReaderWalkerProvider(mode, func(r io.Reader) (WalkCloser, error) {
+	return WalkerFromReaderWalkerProvider(mode, func(r io.Reader, _ int64) (WalkCloser, error) {
 		return walkCloser{
 			walk: tarArchiveWalker(tar.NewReader(bzip2.NewReader(r))),
 		}, nil
@@ -177,7 +180,7 @@ func TarBz2Walkers(mode FileOpenMode) WalkerProvider {
 
 // TarArchiveWalkers creates a WalkerProvider for tar content.
 func TarArchiveWalkers(mode FileOpenMode) WalkerProvider {
-	return WalkerFromReaderWalkerProvider(mode, func(r io.Reader) (WalkCloser, error) {
+	return WalkerFromReaderWalkerProvider(mode, func(r io.Reader, _ int64) (WalkCloser, error) {
 		return walkCloser{
 			walk: tarArchiveWalker(tar.NewReader(r)),
 		}, nil
