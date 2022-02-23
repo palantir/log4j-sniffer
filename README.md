@@ -361,6 +361,8 @@ Flags:
                                                                           Using "directio" will cause the filesystem cache to be skipped where possible. "directio" is not supported on tmpfs filesystems and will cause tmpfs archive files to report an error. (default "standard")
       --archives-per-second-rate-limit int                   The maximum number of archives to scan per second. 0 for unlimited.
       --directories-per-second-rate-limit int                The maximum number of directories to crawl per second. 0 for unlimited.
+      --disable-cve-2021-44832-detection                     Disable detection of CVE-2021-44832 in versions up to 2.17.0
+      --disable-cve-2021-45105-detection                     Disable detection of CVE-2021-45105 in versions up to 2.16.0
       --dry-run                                              When true, a line with be output instead of deleting a file. Use --dry-run=false to enable deletion. (default true)
       --enable-obfuscation-detection                         Enable applying partial bytecode matching to Jars that appear to be obfuscated. (default true)
       --enable-partial-matching-on-all-classes               Enable partial bytecode matching to all class files found.
