@@ -275,6 +275,7 @@ Flags:
       --maximum-average-obfuscated-package-name-length int   The maximum average package name length a class to be considered obfuscated. (default 3)
       --nested-archive-disk-swap-dir string                  When nested-archive-disk-swap-max-size is non-zero, this is the directory in which temporary files will be created for writing temporary large nested archives to disk. (default "/tmp")
       --nested-archive-disk-swap-max-size uint               The maximum size in bytes of disk space allowed to use for inspecting nest archives that are over the nested-archive-max-size.
+                                                             By default no disk swap is to be allowed, nested archives will only be inspected if they fit into the configured nested-archive-max-size.
                                                              When an archive is encountered that is over the nested-archive-max-size, an the archive may be written out to a temporary file so that it can be inspected without a large memory penalty.
                                                              If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured nested-archive-disk-swap-max-size.
       --nested-archive-max-depth uint                        The maximum depth to recurse into nested archives.
@@ -411,6 +412,7 @@ Flags:
       --maximum-average-obfuscated-package-name-length int   The maximum average package name length a class to be considered obfuscated. (default 3)
       --nested-archive-disk-swap-dir string                  When nested-archive-disk-swap-max-size is non-zero, this is the directory in which temporary files will be created for writing temporary large nested archives to disk. (default "/tmp")
       --nested-archive-disk-swap-max-size uint               The maximum size in bytes of disk space allowed to use for inspecting nest archives that are over the nested-archive-max-size.
+                                                             By default no disk swap is to be allowed, nested archives will only be inspected if they fit into the configured nested-archive-max-size.
                                                              When an archive is encountered that is over the nested-archive-max-size, an the archive may be written out to a temporary file so that it can be inspected without a large memory penalty.
                                                              If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured nested-archive-disk-swap-max-size.
       --nested-archive-max-depth uint                        The maximum depth to recurse into nested archives.

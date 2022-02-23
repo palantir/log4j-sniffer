@@ -61,6 +61,7 @@ This limit is made a per-depth level.
 The overall limit to nested archive size unarchived should be controlled 
 by both the nested-archive-max-size and nested-archive-max-depth.`)
 	cmd.Flags().UintVar(&flags.nestedArchiveDiskSwapMaxSize, "nested-archive-disk-swap-max-size", 0, `The maximum size in bytes of disk space allowed to use for inspecting nest archives that are over the nested-archive-max-size.
+By default no disk swap is to be allowed, nested archives will only be inspected if they fit into the configured nested-archive-max-size.
 When an archive is encountered that is over the nested-archive-max-size, an the archive may be written out to a temporary file so that it can be inspected without a large memory penalty.
 If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured nested-archive-disk-swap-max-size.`)
 	cmd.Flags().StringVar(&flags.nestedArchiveDiskSwapDir, "nested-archive-disk-swap-dir", "/tmp", `When nested-archive-disk-swap-max-size is non-zero, this is the directory in which temporary files will be created for writing temporary large nested archives to disk.`)
