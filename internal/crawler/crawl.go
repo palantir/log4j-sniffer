@@ -107,6 +107,9 @@ func Crawl(ctx context.Context, config Config, process crawl.HandleFindingFunc, 
 func (cfg Config) archiveWalkers() func(string) (archive.WalkerProvider, bool) {
 	var converter buffer.ReaderReaderAtConverter
 	if cfg.ArchiveDiskSwapMaxSize == 0 {
+		// Although using a buffer.InMemoryWithDiskOverflowReaderAtConverter with a max of 0 would yield
+		// the same resource limits here, by using a buffer.SizeCappedInMemoryReaderAtConverter we will
+		// report more user-friendly error messages when hitting the limits.
 		converter = buffer.SizeCappedInMemoryReaderAtConverter(int64(cfg.ArchiveMaxSize))
 	} else {
 		converter = &buffer.InMemoryWithDiskOverflowReaderAtConverter{
