@@ -1,0 +1,8 @@
+type: improvement
+improvement:
+  description: |-
+    Support disabling deletion of certain CVEs
+
+    `--disable-cve-2021-45105-detection` and `--disable-cve-2021-44832-detection` flags have been added to the delete command to allow for deleting only findings that map to certain CVEs. Some vulnerable files will contain multiple CVEs and so it is advised that the desired combination of `--disable-cve-*` flags be found by running with `--dry-run=true` (which is the default value) first.
+  links:
+  - https://github.com/palantir/log4j-sniffer/pull/100

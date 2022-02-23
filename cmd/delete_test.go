@@ -139,13 +139,7 @@ func TestDeleteCmd(t *testing.T) {
 		var out bytes.Buffer
 		cmd.SetOut(&out)
 		require.NoError(t, cmd.Execute())
-		var found []string
-		require.NoError(t, filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
-			if !info.IsDir() {
-				found = append(found, path)
-			}
-			return nil
-		}))
+		found := readFiles(t, dir)
 		assert.Equal(t, []string{filepath.Join(dir, "renamed_jar_class_file_extensions/not-a-finding.jar")}, found,
 			"bad versions should not still be found")
 	})
@@ -162,19 +156,61 @@ func TestDeleteCmd(t *testing.T) {
 		var out bytes.Buffer
 		cmd.SetOut(&out)
 		require.NoError(t, cmd.Execute())
-		var found []string
-		require.NoError(t, filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if !info.IsDir() {
-				found = append(found, path)
-			}
-			return nil
-		}))
+		found := readFiles(t, dir)
 		assert.Equal(t, []string{filepath.Join(dir, "renamed_jar_class_file_extensions/not-a-finding.jar")}, found,
 			"bad versions should not still be found")
 	})
+
+	t.Run("Disables CVE-2021-44832 with --disable-cve-2021-44832-detection flag", func(t *testing.T) {
+		examples := []string{
+			"cve-2021-44832-versions/log4j-core-2.17.0.jar",
+			// 2.12.2 should still be deleted as it is vulnerable to CVEs other than cve-2021-44832
+			"cve-2021-45105-versions/log4j-core-2.12.2.jar",
+		}
+		dir := setupExamplesDir(t, examples...)
+		cmd := deleteCmd()
+		cmd.SetArgs([]string{dir, "--dry-run=false", "--skip-owner-check", "--disable-cve-2021-44832-detection"})
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		require.NoError(t, cmd.Execute())
+		found := readFiles(t, dir)
+		assert.Equal(t, []string{
+			filepath.Join(dir, "cve-2021-44832-versions/log4j-core-2.17.0.jar"),
+		}, found, "bad versions should not still be found")
+	})
+
+	t.Run("Disables CVE-2021-45105 with --disable-cve-2021-45105-detection flag", func(t *testing.T) {
+		examples := []string{
+			"cve-2021-44832-versions/log4j-core-2.17.0.jar",
+			"cve-2021-45105-versions/log4j-core-2.12.2.jar",
+		}
+		dir := setupExamplesDir(t, examples...)
+		cmd := deleteCmd()
+		// requires both CVE flags so that 2.12.2 does not match on 44832 and still get deleted
+		cmd.SetArgs([]string{dir, "--dry-run=false", "--skip-owner-check", "--disable-cve-2021-45105-detection", "--disable-cve-2021-44832-detection"})
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		require.NoError(t, cmd.Execute())
+		found := readFiles(t, dir)
+		assert.Equal(t, []string{
+			filepath.Join(dir, "cve-2021-44832-versions/log4j-core-2.17.0.jar"),
+			filepath.Join(dir, "cve-2021-45105-versions/log4j-core-2.12.2.jar"),
+		}, found, "bad versions should not still be found")
+	})
+}
+
+func readFiles(t *testing.T, dir string) []string {
+	var found []string
+	require.NoError(t, filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			found = append(found, path)
+		}
+		return nil
+	}))
+	return found
 }
 
 func setupExamplesDir(t *testing.T, names ...string) string {

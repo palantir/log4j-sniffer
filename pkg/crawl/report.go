@@ -19,9 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/fatih/color"
@@ -38,10 +35,8 @@ type Reporter struct {
 	lastFindingFile    string
 	// Disables results only matching JndiLookup classes
 	DisableFlaggingJndiLookup bool
-	// Disables reporting of CVE-2021-45105
-	DisableCVE45105 bool
-	// Disables reporting of CVE-2021-44832
-	DisableCVE44832 bool
+	// CVEResolver contains config for ignoring specific CVEs from reporting
+	CVEResolver CVEResolver
 	// Disables flagging issues where version of log4j is not known
 	DisableFlaggingUnknownVersions bool
 	// Number of files with issues that have been reported
@@ -59,117 +54,29 @@ type JavaCVEInstance struct {
 	Log4JVersions []string `json:"log4jVersions"`
 }
 
-var Log4jVersionRegex = regexp.MustCompile(`(?i)^(\d+)\.(\d+)\.?(\d+)?(?:[\./-].*)?$`)
-
-type Log4jVersion struct {
-	Major int
-	Minor int
-	Patch int
-}
-
-type AffectedVersion struct {
-	CVE             string
-	FixedAfter      Log4jVersion
-	PatchedVersions []Log4jVersion
-}
-
-var cveVersions = []AffectedVersion{
-	{
-		CVE: "CVE-2021-44228",
-		FixedAfter: Log4jVersion{
-			Major: 2,
-			Minor: 16,
-			Patch: 0,
-		},
-		PatchedVersions: []Log4jVersion{
-			{
-				Major: 2,
-				Minor: 12,
-				Patch: 2,
-			},
-			{
-				Major: 2,
-				Minor: 3,
-				Patch: 1,
-			},
-		},
-	},
-	{
-		CVE: "CVE-2021-45046",
-		FixedAfter: Log4jVersion{
-			Major: 2,
-			Minor: 16,
-			Patch: 0,
-		},
-		PatchedVersions: []Log4jVersion{
-			{
-				Major: 2,
-				Minor: 12,
-				Patch: 2,
-			},
-			{
-				Major: 2,
-				Minor: 3,
-				Patch: 1,
-			},
-		},
-	},
-	{
-		CVE: "CVE-2021-45105",
-		FixedAfter: Log4jVersion{
-			Major: 2,
-			Minor: 17,
-			Patch: 0,
-		},
-		PatchedVersions: []Log4jVersion{
-			{
-				Major: 2,
-				Minor: 12,
-				Patch: 3,
-			},
-			{
-				Major: 2,
-				Minor: 3,
-				Patch: 1,
-			},
-		},
-	},
-	{
-		CVE: "CVE-2021-44832",
-		FixedAfter: Log4jVersion{
-			Major: 2,
-			Minor: 17,
-			Patch: 1,
-		},
-		PatchedVersions: []Log4jVersion{
-			{
-				Major: 2,
-				Minor: 12,
-				Patch: 4,
-			},
-			{
-				Major: 2,
-				Minor: 3,
-				Patch: 2,
-			},
-		},
-	},
-}
-
 // Report the finding based on the configuration of the Reporter.
 // The fileCount will be incremented if the finding is a new finding, i.e. a consecutive finding based on the same file when
 // The findingCount will be incremented for every finding reported.
 // OutputFilePathOnly is set to true will not cause the counter to be incremented.
 // The returned boolean will always be true to represent that further inspection of the same file should continue.
-func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versionSet Versions) bool {
-	versions := sortVersions(versionSet)
-	if r.DisableFlaggingUnknownVersions && (len(versions) == 0 || len(versions) == 1 && versions[0] == UnknownVersion) {
+func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versions Versions) bool {
+	if r.DisableFlaggingUnknownVersions && (len(versions) == 0 || len(versions) == 1 && versions.contains(UnknownVersion)) {
 		return true
 	}
-	cvesFound := r.matchedCVEs(versions)
+	var cvesFound []string
+	if len(versions) == 0 {
+		cvesFound = []string{"unknown version - unknown CVE status"}
+	} else {
+		vs, includesInvalid := ParseLog4jVersions(versions)
+		cvesFound = r.CVEResolver.CVEs(vs)
+		if includesInvalid {
+			cvesFound = append(cvesFound, "invalid version - unknown CVE status")
+		}
+	}
 	if len(cvesFound) == 0 {
 		return true
 	}
+
 	if r.DisableFlaggingJndiLookup && jndiLookupResultsOnly(result) {
 		return true
 	}
@@ -230,6 +137,7 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 		findingNames = append(findingNames, lowerCamelCaseFindingString(ClassBytecodePartialMatch))
 	}
 
+	sortedVersions := versions.SortedList()
 	var outputToWrite string
 	if r.OutputJSON {
 		cveInfo := JavaCVEInstance{
@@ -238,7 +146,7 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 			DetailedPath:  path.Joined(),
 			CVEsDetected:  cvesFound,
 			Findings:      findingNames,
-			Log4JVersions: versions,
+			Log4JVersions: sortedVersions,
 		}
 		// should not fail
 		jsonBytes, _ := json.Marshal(cveInfo)
@@ -249,7 +157,7 @@ func (r *Reporter) Report(ctx context.Context, path Path, result Finding, versio
 		}
 		outputToWrite = path[0]
 	} else {
-		outputToWrite = color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(versions, ", "), strings.Join(readableReasons, ", "))
+		outputToWrite = color.YellowString("[MATCH] "+cveMessage+" in file %s. log4j versions: %s. Reasons: %s", path, strings.Join(sortedVersions, ", "), strings.Join(readableReasons, ", "))
 	}
 	_, _ = fmt.Fprintln(r.OutputWriter, outputToWrite)
 	return true
@@ -263,52 +171,8 @@ func lowerCamelCaseFindingString(f Finding) string {
 	return s
 }
 
-func (r *Reporter) matchedCVEs(versions []string) []string {
-	if len(versions) == 0 {
-		return []string{"unknown version - unknown CVE status"}
-	}
-	cvesFound := make(map[string]struct{})
-	for _, version := range versions {
-		major, minor, patch, parsed := ParseLog4jVersion(version)
-		if !parsed {
-			cvesFound["invalid version - unknown CVE status"] = struct{}{}
-		}
-		for _, vulnerability := range cveVersions {
-			if major >= vulnerability.FixedAfter.Major && minor >= vulnerability.FixedAfter.Minor && patch >= vulnerability.FixedAfter.Patch {
-				continue
-			}
-			vulnerable := true
-			for _, fixedVersion := range vulnerability.PatchedVersions {
-				if major == fixedVersion.Major && minor == fixedVersion.Minor && patch >= fixedVersion.Patch {
-					vulnerable = false
-					break
-				}
-			}
-			if vulnerable && !(r.DisableCVE45105 && vulnerability.CVE == "CVE-2021-45105") && !(r.DisableCVE44832 && vulnerability.CVE == "CVE-2021-44832") {
-				cvesFound[vulnerability.CVE] = struct{}{}
-			}
-		}
-	}
-	var uniqueCVEs []string
-	for cve := range cvesFound {
-		uniqueCVEs = append(uniqueCVEs, cve)
-	}
-	sort.Strings(uniqueCVEs)
-	return uniqueCVEs
-}
-
 func jndiLookupResultsOnly(result Finding) bool {
 	return result == JndiLookupClassName || result == JndiLookupClassPackageAndName
-}
-
-func sortVersions(versions Versions) []string {
-	var out []string
-	for v := range versions {
-		out = append(out, v)
-	}
-	// N.B. Lexical sort will mess with base-10 versions, but it's better than random.
-	sort.Strings(out)
-	return out
 }
 
 // FileCount returns the number of unique files that have been reported.
@@ -319,26 +183,4 @@ func (r Reporter) FileCount() int64 {
 // FindingCount returns the number of unique findings that have been reported.
 func (r Reporter) FindingCount() int64 {
 	return r.findingCount
-}
-
-func ParseLog4jVersion(version string) (int, int, int, bool) {
-	matches := Log4jVersionRegex.FindStringSubmatch(version)
-	if len(matches) == 0 {
-		return 0, 0, 0, false
-	}
-	major, err := strconv.Atoi(matches[1])
-	if err != nil {
-		// should not be possible due to group of \d+ in regex
-		return 0, 0, 0, false
-	}
-	minor, err := strconv.Atoi(matches[2])
-	if err != nil {
-		// should not be possible due to group of \d+ in regex
-		return 0, 0, 0, false
-	}
-	patch, err := strconv.Atoi(matches[3])
-	if err != nil {
-		patch = 0
-	}
-	return major, minor, patch, true
 }
