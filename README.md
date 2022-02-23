@@ -277,7 +277,7 @@ Flags:
       --nested-archive-disk-swap-max-size uint               The maximum size in bytes of disk space allowed to use for inspecting nest archives that are over the nested-archive-max-size.
                                                              By default no disk swap is to be allowed, nested archives will only be inspected if they fit into the configured nested-archive-max-size.
                                                              When an archive is encountered that is over the nested-archive-max-size, an the archive may be written out to a temporary file so that it can be inspected without a large memory penalty.
-                                                             If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured nested-archive-disk-swap-max-size.
+                                                             If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured nested-archive-disk-swap-max-size.
       --nested-archive-max-depth uint                        The maximum depth to recurse into nested archives.
                                                              A max depth of 0 will open up an archive on the filesystem but not any nested archives.
       --nested-archive-max-size uint                         The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.
@@ -416,7 +416,7 @@ Flags:
       --nested-archive-disk-swap-max-size uint               The maximum size in bytes of disk space allowed to use for inspecting nest archives that are over the nested-archive-max-size.
                                                              By default no disk swap is to be allowed, nested archives will only be inspected if they fit into the configured nested-archive-max-size.
                                                              When an archive is encountered that is over the nested-archive-max-size, an the archive may be written out to a temporary file so that it can be inspected without a large memory penalty.
-                                                             If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured nested-archive-disk-swap-max-size.
+                                                             If large archives are nested within each other, an archive will be opened only if the accumulated space used for archives on disk would not exceed the configured nested-archive-disk-swap-max-size.
       --nested-archive-max-depth uint                        The maximum depth to recurse into nested archives.
                                                              A max depth of 0 will open up an archive on the filesystem but not any nested archives.
       --nested-archive-max-size uint                         The maximum compressed size in bytes of any nested archive that will be unarchived for inspection.
