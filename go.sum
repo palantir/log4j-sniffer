@@ -166,8 +166,8 @@ github.com/nwaples/rardecode v1.0.0/go.mod h1:5DzqNKiOdpKKBH87u8VlvAnPZMXcGRhxWk
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/palantir/distgo/pkg/git v1.0.0/go.mod h1:eXrr3SOmf/sWTYmtiubYVxSaVegTlMGgRgBUFMFFedw=
 github.com/palantir/godel/pkg/products/v2 v2.0.0/go.mod h1:SaLUycZLVP5qV6mL9MWG3jkX4dS23lJnzpubTGAV4FU=
-github.com/palantir/godel/v2 v2.52.0 h1:p3Hf64WezG8jwAf9PiUYs/scRFqrD3RrOMJoePeCX/o=
-github.com/palantir/godel/v2 v2.52.0/go.mod h1:lt0OkPpTCg5fcjhBWjjJtSCVHV1VMlVaSAY5SIArQAQ=
+github.com/palantir/godel/v2 v2.53.0 h1:rRn8qGdz7yxZkhI+iik8p1isEqa8kRxLqDNkg4qP+B0=
+github.com/palantir/godel/v2 v2.53.0/go.mod h1:fh4zvXdGGq20Vru5HmXbtOLoXnaLRw1v+JOOGEa0ygE=
 github.com/palantir/pkg v1.0.1 h1:ZbGUcc14N7xcZSY9cehQoiHHTm/BAZO5RJdlsNEtSbk=
 github.com/palantir/pkg v1.0.1/go.mod h1:Eo6Jl0UXfT+65sLXJOcU9duu0WPvKsWFXCb0dE5VWZs=
 github.com/palantir/pkg/cobracli v1.1.0 h1:dfBDc+FSrBnkNv96Ew9ROeks5JI4NxwD//Raas+zd6Y=
