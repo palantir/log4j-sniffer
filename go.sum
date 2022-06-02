@@ -140,8 +140,8 @@ github.com/nmiyake/pkg/errorstringer v1.0.0/go.mod h1:M7rsuKy+fiW7j812cNTScqf7ki
 github.com/nmiyake/pkg/errorstringer v1.1.0 h1:A50S8deDIe+otJNB/BZKpDb5a3E4IUTOgrpx1o5b2cY=
 github.com/nmiyake/pkg/errorstringer v1.1.0/go.mod h1:3c/Luj1o1XtUmdqL6QRKnBnkfBXNU5zU8a2vDxi9AF4=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
-github.com/palantir/godel/v2 v2.58.0 h1:ibYJuP+gPOUIx2Nub9DT0z8Wawz4BYAJ9FLEPzNulvc=
-github.com/palantir/godel/v2 v2.58.0/go.mod h1:cLwhKhWmPYX7MbIkA3zcFn/79BTbenyrh7UgHS0ZhiI=
+github.com/palantir/godel/v2 v2.59.0 h1:gDpUXmF8xBjn+qbeI0QQAbVPprUJ9Tj3p7qVCAXZv8o=
+github.com/palantir/godel/v2 v2.59.0/go.mod h1:cLwhKhWmPYX7MbIkA3zcFn/79BTbenyrh7UgHS0ZhiI=
 github.com/palantir/pkg v1.0.1 h1:ZbGUcc14N7xcZSY9cehQoiHHTm/BAZO5RJdlsNEtSbk=
 github.com/palantir/pkg v1.0.1/go.mod h1:Eo6Jl0UXfT+65sLXJOcU9duu0WPvKsWFXCb0dE5VWZs=
 github.com/palantir/pkg/cobracli v1.1.0 h1:dfBDc+FSrBnkNv96Ew9ROeks5JI4NxwD//Raas+zd6Y=
