@@ -12,7 +12,7 @@ plugins:
     - https://github.com/{{index GroupParts 1}}/{{index GroupParts 2}}/releases/download/v{{Version}}/{{Product}}-{{Version}}-{{OS}}-{{Arch}}.tgz
   plugins:
     - locator:
-        id: com.palantir.godel-mod-plugin:mod-plugin:1.17.0
+        id: com.palantir.godel-mod-plugin:mod-plugin:1.18.0
         checksums:
-          darwin-amd64: 210639f5013a5cb959c832350ad82e0b5f745b58c1e260712416a2cd439671c6
-          linux-amd64: 087e49ae2f5fa5b27166976ab015a42b84d1a329e7e7781977a569672c99c62e
+          darwin-amd64: ad6c5a84a09221e09297e6902c10a3a1035fddf9ec6eb312967d585edba2ce28
+          linux-amd64: e147d16eabdd31f7d2a1f95f6ec9324634cf344ab47ddbdb0afb19d02786729a
