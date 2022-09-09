@@ -20,7 +20,7 @@ working_directory: &working_directory
 executors:
   circleci-go:
     docker:
-      - image: cimg/go:1.16-browsers
+      - image: cimg/go:1.18-browsers
     <<: *working_directory
 
 all-tags-filter: &all-tags-filter
