@@ -45,13 +45,13 @@ type ReaderReaderAtConverter interface {
 type CloseFn func() error
 
 // InMemoryWithDiskOverflowReaderAtConverter creates a ReaderReaderAtConverter with the following behaviour:
-// - Any amount of in-memory buffers can be created where the reader contents size is less or equal to the c.MaxMemorySize.
-// - When a ReaderAt is being created with a size above the MaxMemorySize, a temporary file will be created in the Path
-//   containing the content of the reader. The temporary file will be deleted upon calling the CloseFn from returned
-//   from the call to ReaderAt.
-//   If previously temporary files still exist, then new temporary files will only be created if MaxDiskSpace take the
-//   size of the space already occupied by the temporary files is enough to fit the new Reader contents into. Otherwise,
-//   a ContentsExceedLimitError will be returned outlining the details of the error.
+//   - Any amount of in-memory buffers can be created where the reader contents size is less or equal to the c.MaxMemorySize.
+//   - When a ReaderAt is being created with a size above the MaxMemorySize, a temporary file will be created in the Path
+//     containing the content of the reader. The temporary file will be deleted upon calling the CloseFn from returned
+//     from the call to ReaderAt.
+//     If previously temporary files still exist, then new temporary files will only be created if MaxDiskSpace take the
+//     size of the space already occupied by the temporary files is enough to fit the new Reader contents into. Otherwise,
+//     a ContentsExceedLimitError will be returned outlining the details of the error.
 type InMemoryWithDiskOverflowReaderAtConverter struct {
 	Path          string
 	MaxMemorySize int64
