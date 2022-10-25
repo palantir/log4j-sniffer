@@ -8,7 +8,7 @@ require (
 	github.com/palantir/godel/v2 v2.69.0
 	github.com/palantir/pkg/cobracli v1.2.0
 	github.com/pkg/errors v0.9.1
-	github.com/spf13/cobra v1.6.0
+	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.8.1
 	github.com/zxh0/jvm.go v0.0.0-20191204141628-129b147ebcc8
 	go.uber.org/ratelimit v0.2.0
