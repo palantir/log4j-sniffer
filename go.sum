@@ -24,8 +24,8 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWb
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nmiyake/pkg/errorstringer v1.1.0 h1:A50S8deDIe+otJNB/BZKpDb5a3E4IUTOgrpx1o5b2cY=
 github.com/nmiyake/pkg/errorstringer v1.1.0/go.mod h1:3c/Luj1o1XtUmdqL6QRKnBnkfBXNU5zU8a2vDxi9AF4=
-github.com/palantir/godel/v2 v2.78.0 h1:hA6u0q7tApzl+GAljEvy3t6beP6cb7vYonwP8F0ciWw=
-github.com/palantir/godel/v2 v2.78.0/go.mod h1:pz6I94FQtRw5yhOeIyLPDJ4pOWe3NRDWSBVOs0ShATI=
+github.com/palantir/godel/v2 v2.79.0 h1:mm1XIcS2k5cyWSDT18dl03IKjx1O+ULIAB0YVecPpf8=
+github.com/palantir/godel/v2 v2.79.0/go.mod h1:uKL7Yuy7GPGWJWh0BCPXa6P8E8rOCmVOzagK9fB7aQo=
 github.com/palantir/pkg v1.1.0 h1:0EhrSUP8oeeh3MUvk7V/UU7WmsN1UiJNTvNj0sN9Cpo=
 github.com/palantir/pkg v1.1.0/go.mod h1:KC9srP/9ssWRxBxFCIqhUGC4Jt7OJkWRz0Iqehup1/c=
 github.com/palantir/pkg/cobracli v1.2.0 h1:hANp5fUB5cX90SVri97Apz4xB3BqnZw0gP2jMQ34G8Y=
