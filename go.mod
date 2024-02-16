@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/fatih/color v1.13.0
 	github.com/ncw/directio v1.0.5
-	github.com/palantir/godel/v2 v2.102.0
+	github.com/palantir/godel/v2 v2.103.0
 	github.com/palantir/pkg/cobracli v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.0
