@@ -1,6 +1,6 @@
 module github.com/palantir/log4j-sniffer
 
-go 1.22
+go 1.22.0
 
 toolchain go1.22.5
 
