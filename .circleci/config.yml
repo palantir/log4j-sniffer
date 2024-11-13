@@ -5,58 +5,66 @@
 version: 2.1
 
 orbs:
-  go: palantir/go@0.0.29
-  godel: palantir/godel@0.0.29
+  go-jobs: palantir/go-jobs@0.5.0
 
-homepath: &homepath
-  homepath: /home/circleci
-
-gopath: &gopath
-  gopath: /home/circleci/go
-
-working_directory: &working_directory
-    working_directory: /home/circleci/go/src/github.com/palantir/log4j-sniffer
+image-version: &image-version "cimg/go:1.23.2-browsers"
 
 executors:
-  circleci-go:
+  standard-executor:
     docker:
-      - image: cimg/go:1.18-browsers
-    <<: *working_directory
+      - image: *image-version
+    resource_class: medium
 
+# Filter that matches all tags (will run on every build).
 all-tags-filter: &all-tags-filter
   filters:
     tags:
       only: /.*/
 
-jobs:
-  circle-all:
-    docker: [{ image: 'busybox:1.36.1@sha256:6d9ac9237a84afe1516540f40a0fafdc86859b2141954b4d643af7066d598b74' }]
-    resource_class: small
-    steps:
-      - run: {command: echo "All required jobs finished successfully"}
+# Filter that matches any branch besides primary branch and ignores all tags except for release candidates
+pull-request-filter: &pull-request-filter
+  filters:
+    tags:
+      only: /.*-rc.*/
+    branches:
+      ignore:
+        - develop
+
+requires_jobs: &requires_jobs
+  - build
+  - verify
+  - test
+  - dist
 
 workflows:
   version: 2
-  verify-test-dist-publish:
+  verify:
     jobs:
-      - godel/verify:
-          name: verify
-          executor: circleci-go
-          <<: *homepath
-          <<: *gopath
+      - go-jobs/godel_build:
+          name: "build"
+          executor: "standard-executor"
           <<: *all-tags-filter
-      - godel/test:
-          name: test
-          executor: circleci-go
-          <<: *homepath
-          <<: *gopath
+      - go-jobs/godel_verify:
+          name: "verify"
+          executor: "standard-executor"
+          skip_tests: true
+          requires:
+            - build
           <<: *all-tags-filter
-      - godel/dist:
-          name: dist
-          executor: circleci-go
-          <<: *homepath
-          <<: *gopath
+      - go-jobs/godel_test:
+          name: "test"
+          executor: "standard-executor"
+          requires:
+            - build
           <<: *all-tags-filter
-      - circle-all:
-          requires: [verify, test, dist]
+      - go-jobs/godel_dist:
+          name: "dist"
+          executor: "standard-executor"
+          requires:
+            - build
           <<: *all-tags-filter
+      - go-jobs/circle_all:
+          name: "circle-all"
+          image: "busybox:1.36.1"
+          requires: *requires_jobs
+          <<: *pull-request-filter
