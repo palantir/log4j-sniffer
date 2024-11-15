@@ -13,6 +13,7 @@ executors:
   standard-executor:
     docker:
       - image: *image-version
+    working_directory: /home/circleci/go/src/github.com/palantir/log4j-sniffer
     resource_class: medium
 
 # Filter that matches all tags (will run on every build).
