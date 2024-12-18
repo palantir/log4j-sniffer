@@ -3,7 +3,10 @@
 # To manually manage the CircleCI configuration for this project, remove the .circleci/template.sh file.
 
 name: publish-godel-artifacts
-on: push
+on:
+  release:
+    types:
+      - created
 
 jobs:
   run-godel-publish:
@@ -54,3 +57,4 @@ jobs:
           key: ${{ runner.os }}-godel-${{ hashFiles('godelw', 'godel/config/godel.yml') }}
       - run: ./godelw mod
       - run: ./godelw dist
+      - run: ./godelw publish github --add-v-prefix --api-url=$GITHUB_API_URL --user=palantir --repository=log4j-sniffer --token=${{ secrets.GITHUB_TOKEN }}
