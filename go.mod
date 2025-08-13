@@ -3,7 +3,7 @@ module github.com/palantir/log4j-sniffer
 go 1.24.0
 
 require (
-	github.com/fatih/color v1.13.0
+	github.com/fatih/color v1.18.0
 	github.com/ncw/directio v1.0.5
 	github.com/palantir/godel/v2 v2.134.0
 	github.com/palantir/pkg/cobracli v1.2.0
@@ -18,8 +18,8 @@ require (
 	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/nmiyake/pkg/errorstringer v1.1.0 // indirect
 	github.com/palantir/pkg v1.1.0 // indirect
