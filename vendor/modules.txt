@@ -1,6 +1,6 @@
-# github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129
-## explicit
-github.com/andres-erbsen/clock
+# github.com/benbjohnson/clock v1.3.0
+## explicit; go 1.15
+github.com/benbjohnson/clock
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
@@ -54,8 +54,8 @@ github.com/stretchr/testify/require
 ## explicit; go 1.13
 github.com/zxh0/jvm.go/classfile
 github.com/zxh0/jvm.go/vmutils
-# go.uber.org/ratelimit v0.2.0
-## explicit; go 1.14
+# go.uber.org/ratelimit v0.3.1
+## explicit; go 1.20
 go.uber.org/ratelimit
 # golang.org/x/sys v0.34.0
 ## explicit; go 1.23.0

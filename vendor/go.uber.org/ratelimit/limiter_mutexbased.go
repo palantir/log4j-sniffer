@@ -34,7 +34,7 @@ type mutexLimiter struct {
 	clock      Clock
 }
 
-// newMutexBased returns a new atomic based limiter.
+// newMutexBased returns a new mutex based limiter.
 func newMutexBased(rate int, opts ...Option) *mutexLimiter {
 	// TODO consider moving config building to the implementation
 	// independent code.
@@ -49,7 +49,7 @@ func newMutexBased(rate int, opts ...Option) *mutexLimiter {
 }
 
 // Take blocks to ensure that the time spent between multiple
-// Take calls is on average time.Second/rate.
+// Take calls is on average per/rate.
 func (t *mutexLimiter) Take() time.Time {
 	t.Lock()
 	defer t.Unlock()
