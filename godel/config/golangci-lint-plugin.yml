@@ -1,0 +1,8 @@
+linters:
+  exclusions:
+    rules:
+      # ignore some unused warning within sets of constants
+      # for ease of tracking with upstream standard package if needed.
+      - linters:
+          - unused
+        path: pkg/archive/zip/.*
