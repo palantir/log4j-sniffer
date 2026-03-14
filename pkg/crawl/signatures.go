@@ -398,7 +398,7 @@ func partialSignatureMatches(methodBytecodes [][]byte, partialSignature partialB
 				continue
 			}
 			bytecodeLength, suffixLength := len(methodBytecode), len(partialMatch.Suffix)
-			for x := 0; x < suffixLength; x++ {
+			for x := range suffixLength {
 				if partialMatch.Suffix[suffixLength-x-1] != methodBytecode[bytecodeLength-x-1] {
 					matched = false
 					break

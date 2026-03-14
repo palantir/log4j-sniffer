@@ -17,7 +17,7 @@ package integration_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -190,7 +190,7 @@ func TestTraceLoggingFlag(t *testing.T) {
 	cli, err := products.Bin("log4j-sniffer")
 	require.NoError(t, err)
 
-	file, err := ioutil.TempFile(t.TempDir(), "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	require.NoError(t, err)
 	cmd := exec.Command(cli, "crawl", "--enable-trace-logging", file.Name())
 	output, err := cmd.CombinedOutput()

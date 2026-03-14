@@ -28,7 +28,7 @@ func TestOver65kFiles(t *testing.T) {
 
 	w := zip.NewWriter(buf)
 	const nFiles = (1 << 16) + 42
-	for i := 0; i < nFiles; i++ {
+	for i := range nFiles {
 		_, err := w.CreateHeader(&zip.FileHeader{
 			Name:   fmt.Sprintf("%d.dat", i),
 			Method: Store, // avoid Issue 6136 and Issue 6138
@@ -195,13 +195,6 @@ func (r *rleBuffer) Write(p []byte) (n int, err error) {
 		}
 	}
 	return len(p), nil
-}
-
-func min(x, y int64) int64 {
-	if x < y {
-		return x
-	}
-	return y
 }
 
 func memset(a []byte, b byte) {

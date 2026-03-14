@@ -17,7 +17,7 @@ package buffer_test
 import (
 	"bytes"
 	"errors"
-	"io/ioutil"
+	"io"
 	"testing"
 	"testing/iotest"
 
@@ -29,11 +29,7 @@ import (
 func TestIntermediateBufferReader_ReadingAllContentFromReader(t *testing.T) {
 	t.Run("should error on read error when populating buffer", func(t *testing.T) {
 		expectedErr := errors.New("err")
-		_, err := ioutil.ReadAll(&buffer.IntermediateBufferReader{
-			Reader:      iotest.ErrReader(expectedErr),
-			ContentSize: 1,
-			Buffer:      make([]byte, 5, 5),
-		})
+		_, err := io.ReadAll(&buffer.IntermediateBufferReader{Reader: iotest.ErrReader(expectedErr), ContentSize: 1, Buffer: make([]byte, 5, 5)})
 		assert.Equal(t, expectedErr, err)
 	})
 
@@ -77,7 +73,7 @@ func TestIntermediateBufferReader_ReadingAllContentFromReader(t *testing.T) {
 				Reader:      bytes.NewBufferString(tc.content),
 				ContentSize: int64(len(tc.content)),
 			}
-			readContent, err := ioutil.ReadAll(&r)
+			readContent, err := io.ReadAll(&r)
 			require.NoError(t, err)
 			assert.Equal(t, tc.content, string(readContent))
 		})
@@ -86,11 +82,7 @@ func TestIntermediateBufferReader_ReadingAllContentFromReader(t *testing.T) {
 	t.Run("should read end content on short reads", func(t *testing.T) {
 		// stubbed reader will only populate first 3 bytes of the 5 byte buffer,
 		// giving us situation where only part of the buffer is active
-		bs, err := ioutil.ReadAll(&buffer.IntermediateBufferReader{
-			Reader:      stubbedReader("012"),
-			ContentSize: 4,
-			Buffer:      make([]byte, 5, 5),
-		})
+		bs, err := io.ReadAll(&buffer.IntermediateBufferReader{Reader: stubbedReader("012"), ContentSize: 4, Buffer: make([]byte, 5, 5)})
 		require.NoError(t, err)
 		assert.Equal(t, "0120", string(bs))
 	})

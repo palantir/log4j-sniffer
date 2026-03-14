@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -139,7 +138,7 @@ func assertDoesntExist(t *testing.T, file string) {
 
 func mustTempFile(t *testing.T) string {
 	t.Helper()
-	file, err := ioutil.TempFile(t.TempDir(), "")
+	file, err := os.CreateTemp(t.TempDir(), "")
 	require.NoError(t, err)
 	require.NoError(t, file.Close())
 	return file.Name()

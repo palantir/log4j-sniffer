@@ -16,6 +16,7 @@ package java
 
 import (
 	"errors"
+	"slices"
 )
 
 // Opcodes are used when hashing bytecode to separate out the parts that
@@ -291,17 +292,13 @@ func (opcodes *Opcodes) OpcodeOperands(opcode byte) (int, error) {
 	} else if opcodes.QuadOperandOpcodeLookupTable[opcode] {
 		return 4, nil
 	} else {
-		for _, tripleOpcode := range opcodes.TripleOperandOpcodes {
-			if opcode == tripleOpcode {
-				return 3, nil
-			}
+		if slices.Contains(opcodes.TripleOperandOpcodes, opcode) {
+			return 3, nil
 		}
 		// These opcodes take a variable amount of data and are not used
 		// in log4j. We're ignoring them for now as a result.
-		for _, otherOpcode := range opcodes.OtherOpcodes {
-			if opcode == otherOpcode {
-				return -1, errors.New("unsupported opcode type")
-			}
+		if slices.Contains(opcodes.OtherOpcodes, opcode) {
+			return -1, errors.New("unsupported opcode type")
 		}
 		return -1, errors.New("unrecognised opcode")
 	}

@@ -15,6 +15,7 @@
 package crawl
 
 import (
+	"slices"
 	"sort"
 )
 
@@ -150,10 +151,5 @@ func (r CVEResolver) CVEs(vs []Log4jVersion) []string {
 }
 
 func (r CVEResolver) included(cveID CVEID) bool {
-	for _, ignoredCVE := range r.IgnoreCVES {
-		if cveID == ignoredCVE {
-			return false
-		}
-	}
-	return true
+	return !slices.Contains(r.IgnoreCVES, cveID)
 }

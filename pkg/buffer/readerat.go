@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 )
 
@@ -69,7 +68,7 @@ func (c *InMemoryWithDiskOverflowReaderAtConverter) ReaderAt(r io.Reader, conten
 		return nil, nil, ContentsExceedLimitError("over remaining space allowed for disk swap")
 	}
 
-	file, err := ioutil.TempFile(c.Path, "log4j-sniffer-tmp")
+	file, err := os.CreateTemp(c.Path, "log4j-sniffer-tmp")
 	if err != nil {
 		return nil, nil, err
 	}

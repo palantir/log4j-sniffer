@@ -920,7 +920,7 @@ func biggestZipBytes() []byte {
 
 func returnBigZipBytes() (r io.ReaderAt, size int64) {
 	b := biggestZipBytes()
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		var j int
 		err := WalkZipReaderAt(bytes.NewReader(b), int64(len(b)), func(file *File) (bool, error) {
 			defer func() { j++ }()
@@ -1297,7 +1297,7 @@ func TestCVE202133196(t *testing.T) {
 	// files doesn't cause an issue
 	b := bytes.NewBuffer(nil)
 	w := zip.NewWriter(b)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := w.Create("")
 		if err != nil {
 			t.Fatalf("Writer.Create failed: %s", err)

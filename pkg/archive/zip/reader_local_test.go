@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"strconv"
 	"testing"
 
@@ -123,7 +122,7 @@ func mustReadAllContents(t testing.TB, f *zip.File) []byte {
 	rc, err := f.Open()
 	require.NoError(t, err)
 	defer func() { assert.NoError(t, rc.Close()) }()
-	all, err := ioutil.ReadAll(rc)
+	all, err := io.ReadAll(rc)
 	require.NoError(t, err)
 	return all
 }
@@ -161,7 +160,7 @@ func generateZip(t testing.TB, numFiles int) []byte {
 
 	var buf bytes.Buffer
 	writer := stdzip.NewWriter(&buf)
-	for i := 0; i < numFiles; i++ {
+	for i := range numFiles {
 		create, err := writer.Create(strconv.Itoa(i))
 		require.NoError(t, err)
 		n, err := create.Write(bytes.Repeat([]byte{strconv.Itoa(i)[0]}, fileSize))

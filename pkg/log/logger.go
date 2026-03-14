@@ -27,19 +27,19 @@ type Logger struct {
 	EnableTraceLogging bool
 }
 
-func (i Logger) Trace(format string, args ...interface{}) {
+func (i Logger) Trace(format string, args ...any) {
 	if i.OutputWriter != nil && i.EnableTraceLogging {
 		_, _ = fmt.Fprintln(i.OutputWriter, fmt.Sprintf("[TRACE] "+format, args...))
 	}
 }
 
-func (i Logger) Info(format string, args ...interface{}) {
+func (i Logger) Info(format string, args ...any) {
 	if i.OutputWriter != nil {
 		_, _ = fmt.Fprintln(i.OutputWriter, color.CyanString("[INFO] "+format, args...))
 	}
 }
 
-func (i Logger) Error(format string, args ...interface{}) {
+func (i Logger) Error(format string, args ...any) {
 	if i.ErrorWriter != nil {
 		_, _ = fmt.Fprintln(i.ErrorWriter, color.RedString("[ERROR] "+format, args...))
 	}
