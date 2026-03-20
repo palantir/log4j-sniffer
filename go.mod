@@ -3,7 +3,7 @@ module github.com/palantir/log4j-sniffer
 go 1.26.0
 
 require (
-	github.com/fatih/color v1.18.0
+	github.com/fatih/color v1.19.0
 	github.com/ncw/directio v1.0.5
 	github.com/palantir/godel/v2 v2.154.0
 	github.com/palantir/pkg/cobracli v1.3.0
