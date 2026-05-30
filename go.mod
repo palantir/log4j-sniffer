@@ -2,6 +2,8 @@ module github.com/palantir/log4j-sniffer
 
 go 1.26.0
 
+toolchain go1.26.3
+
 require (
 	github.com/fatih/color v1.19.0
 	github.com/ncw/directio v1.0.5
