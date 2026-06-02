@@ -7,7 +7,7 @@ toolchain go1.26.3
 require (
 	github.com/fatih/color v1.19.0
 	github.com/ncw/directio v1.0.5
-	github.com/palantir/godel/v2 v2.155.0
+	github.com/palantir/godel/v2 v2.156.0
 	github.com/palantir/pkg/cobracli v1.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.10.2
