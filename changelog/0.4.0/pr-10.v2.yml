@@ -1,5 +1,0 @@
-type: improvement
-improvement:
-  description: Reflect the updated Apache guidance that 2.12.2 is fixed
-  links:
-  - https://github.com/palantir/log4j-sniffer/pull/10

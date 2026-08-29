@@ -1,5 +1,0 @@
-type: improvement
-improvement:
-  description: Build binaries for scanning Windows
-  links:
-  - https://github.com/palantir/log4j-sniffer/pull/21
