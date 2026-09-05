@@ -22,8 +22,8 @@ github.com/nmiyake/pkg/errorstringer
 # github.com/palantir/godel/v2 v2.175.0
 ## explicit; go 1.26.0
 github.com/palantir/godel/v2/pkg/products
-# github.com/palantir/pkg v1.1.0
-## explicit; go 1.19
+# github.com/palantir/pkg v1.2.0
+## explicit; go 1.26.0
 github.com/palantir/pkg
 # github.com/palantir/pkg/cobracli v1.4.0
 ## explicit; go 1.26.0
