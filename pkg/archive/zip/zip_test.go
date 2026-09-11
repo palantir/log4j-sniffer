@@ -313,10 +313,7 @@ func (ss *suffixSaver) Write(p []byte) (n int, err error) {
 	ss.size += int64(len(p))
 	if len(ss.buf) < ss.keep {
 		space := ss.keep - len(ss.buf)
-		add := len(p)
-		if add > space {
-			add = space
-		}
+		add := min(len(p), space)
 		ss.buf = append(ss.buf, p[:add]...)
 		p = p[add:]
 	}
