@@ -58,7 +58,7 @@ github.com/zxh0/jvm.go/vmutils
 # go.uber.org/ratelimit v0.3.1
 ## explicit; go 1.20
 go.uber.org/ratelimit
-# go.yaml.in/yaml/v3 v3.0.5
+# go.yaml.in/yaml/v3 v3.0.6
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
 # golang.org/x/sys v0.49.0
