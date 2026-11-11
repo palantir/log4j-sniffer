@@ -2,7 +2,7 @@ module github.com/palantir/log4j-sniffer
 
 go 1.27.0
 
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
 	github.com/fatih/color v1.19.0
