@@ -24,7 +24,7 @@ require (
 	github.com/nmiyake/pkg/errorstringer v1.1.0 // indirect
 	github.com/palantir/pkg v1.3.0 // indirect
 	github.com/palantir/witchcraft-go-error v1.52.0 // indirect
-	github.com/palantir/witchcraft-go-params v1.50.0 // indirect
+	github.com/palantir/witchcraft-go-params v1.51.0 // indirect
 	github.com/spf13/pflag v1.1.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/sys v0.50.0 // indirect
